@@ -66,7 +66,7 @@ export function buildDigest(w: World): DigestItem[] {
   if (unhappy.length) items.push({ id: 'morale', title: `${unhappy.length} unhappy player${unhappy.length > 1 ? 's' : ''}`, detail: unhappy.map((p) => playerName(p)).join(', ') + ' — check roles and minutes.', urgency: 1, impact: 2, deadline: null, owner: 'Head coach', link: '/team/players', action: 'Talk to players', tone: 'warn' });
   // contracts
   const expiring = squad.filter((p) => p.contract && !p.contract.youth && p.contract.expires === w.season);
-  if (expiring.length && w.day > cal.winterWindowOpen) {
+  if (expiring.length && (w.day > cal.winterWindowOpen || expiring.some((p) => p.ovr >= Math.max(...squad.map((x) => x.ovr)) - 3))) {
     const key = [...expiring].sort((a, b) => b.ovr - a.ovr)[0];
     const many = expiring.length > 1;
     items.push({ id: 'exp', title: many ? `${expiring.length} contracts expire in June` : `${playerName(key)}'s contract expires in June`, detail: `${expiring.map((p) => `${playerName(p)} (${p.ovr})`).join(', ')}. Renew before rivals approach them.`, urgency: w.day > cal.leagueRoundDays[25] ? 2 : 1, impact: key.ovr >= 55 ? 3 : 2, deadline: null, owner: 'Sporting director', link: `/player/${key.id}?do=renew`, action: `Renew ${key.lastName}`, tone: key.ovr >= 55 ? 'warn' : 'info' });
@@ -86,6 +86,7 @@ export function buildDigest(w: World): DigestItem[] {
     const lic = licenceCheck(w, c, up);
     if (!lic.ok && true) items.push({ id: 'licence', title: `Not licensed for the ${w.rules.leagues[up].name}`, detail: `If you win promotion: ${lic.reasons.join(' ')}`, urgency: w.day > cal.leagueRoundDays[22] ? 3 : 1, impact: 3, deadline: null, owner: 'You', link: '/club/licence', action: 'Check promotion licence', tone: 'warn' });
   }
+  if (c.promotedSeason === w.season && (w.settings.difficulty === 'relaxed' || w.settings.difficulty === 'standard') && c.payrollBridge?.season !== w.season && c.leagueId !== 'PLATA') items.push({ id: 'bridge', title: 'Promotion payroll bridge available', detail: 'The league can advance part of your bigger media income to strengthen the squad.', urgency: 1, impact: 2, deadline: null, owner: 'Finance', link: '/club/licence', action: 'See the advance', tone: 'info' });
   // academy
   const ready = academy(w, c.id).filter((p) => p.ovr >= (squad.sort((a, b) => a.ovr - b.ovr)[0]?.ovr ?? 99) && registrationCheck(w, c, p).ok);
   if (ready.length) items.push({ id: 'academy', title: `${ready.length} academy player${ready.length > 1 ? 's' : ''} ready for the first team`, detail: ready.map((p) => playerName(p)).join(', '), urgency: 0, impact: 1, deadline: null, owner: 'Academy director', link: '/team/academy', action: 'Open academy', tone: 'good' });

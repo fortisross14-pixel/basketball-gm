@@ -283,6 +283,7 @@ function weeklyStores(w: World, c: Club) {
   const m = TIER_COST[tierOf(w, c)] ?? 1;
   for (const s of f.stores) {
     if (!STORE_INFO[s.kind].buildable) continue;
+    if (c.shop) { book(w, c, 'rent', -Math.round(STORE_INFO[s.kind].rentWeek * rentScale(m))); continue; } // sales come from the playable shop
     const units = storeWeeklyDemand(w, c, s) * r.float(0.85, 1.15);
     const price = c.merch.jerseyPrice * s.priceMult;
     const revenue = Math.round(units * price * 0.75);
@@ -299,7 +300,7 @@ function weeklyStores(w: World, c: Club) {
 /** Called by commercial.weeklyMerch to attribute arena/online sales. */
 export function recordArenaMerch(c: Club, revenue: number, units: number) {
   const f = c.facilities;
-  if (!f) return;
+  if (!f || c.shop) return;
   const online = f.stores.find((s) => s.kind === 'online');
   const arena = f.stores.find((s) => s.kind === 'arena');
   const share = online ? Math.min(0.8, 0.2 + c.arena.levels.onlineStore * 0.12) : 0;

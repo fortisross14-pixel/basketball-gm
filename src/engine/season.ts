@@ -15,7 +15,7 @@ import { capacity, avgAttendance, aiInvest } from './arena';
 import { updateReputation, fanReaction, boardNote } from './career';
 import { clamp } from './rng';
 import { staffAsk } from './staff';
-import { seasonLabel } from './calendar';
+import { seasonLabel, buildCalendar } from './calendar';
 
 export function startSeason(w: World) {
   w.rules = { ...defaultRuleset(w.season), leagues: w.rules.leagues, euro: w.rules.euro, cup: w.rules.cup };
@@ -29,7 +29,8 @@ export function startSeason(w: World) {
     if (!c.foreign) {
       annualFinanceStart(w, c);
       tvMarketCheck(w, c);
-      placeMerchOrder(w, c);
+      if (c.shop) shopNewSeason(w, c);
+      else placeMerchOrder(w, c);
     }
     if (!isUser(w, c.id)) aiInvest(w, c, estimateRevenue(w, c).total);
     c.finances.budget = proposeBudget(w, c);
@@ -67,7 +68,8 @@ export function licenceCheck(w: World, c: Club, to: LeagueId): LicenceCheck {
   const reasons: string[] = [];
   const projects = w.projects[c.id] ?? [];
   const plannedSeats = capacity(c) + projects.reduce((a, p) => a + Object.values(p.seatsDelta ?? {}).reduce((x, y) => x + (y ?? 0), 0) + (p.newArenaSeats ? Object.values(p.newArenaSeats).reduce((x, y) => x + y, 0) - capacity(c) : 0), 0);
-  if (plannedSeats < rules.minArenaSeats) reasons.push(`Arena capacity ${capacity(c).toLocaleString('en')} (incl. works under way: ${plannedSeats.toLocaleString('en')}) is below the ${rules.name} minimum of ${rules.minArenaSeats.toLocaleString('en')}.`);
+  const gs = c.groundShare && c.groundShare.season >= w.season + (w.day >= buildCalendar(w.season).leagueRoundDays[0] ? 1 : 0) ? c.groundShare.seats : 0;
+  if (Math.max(plannedSeats, gs) < rules.minArenaSeats) reasons.push(`Arena capacity ${capacity(c).toLocaleString('en')} (incl. works under way: ${plannedSeats.toLocaleString('en')}) is below the ${rules.name} minimum of ${rules.minArenaSeats.toLocaleString('en')}.`);
   const credit = creditLine(w, c);
   if (c.finances.cash + credit < rules.promotionFee) reasons.push(`The ${fmtMoney(rules.promotionFee)} entry guarantee cannot be covered (cash ${fmtMoney(c.finances.cash)} + bank credit ${fmtMoney(credit)}).`);
   const guarantees = c.finances.cash + credit + c.board.ownerWealth * 25000;
@@ -228,8 +230,12 @@ export function seasonEnd(w: World) {
     const tier = tierOf(w, c);
     const tierBase = c.leagueId === 'COLLEGE' ? c.prestige : tier === 1 ? 60 : tier === 2 ? 38 : tier === 3 ? 24 : c.prestige;
     const perf = lc ? (sorted.length / 2 - rank) / sorted.length : 0;
+    void 0;
     c.prestige = Math.round(clamp(c.prestige + perf * 6 + (tierBase - c.prestige) * 0.05 + (rec.promoted ? 4 : 0) - (rec.relegated ? 5 : 0) + (comp.playoff === 'Champion' ? 3 : 0) + (comp.euro === 'Champion' ? 4 : 0), 5, 99));
   }
+  // coaching careers: records, dismissals, the NBA, vacancies
+  recordCoachSeasons(w);
+  coachingMarket(w);
   // user review & reputation
   const uc = userClub(w);
   if (uc) {
@@ -279,6 +285,7 @@ export function rollover(w: World) {
     const c = getClub(w, m.clubId);
     if (m.to !== m.from && m.reason !== 'Relegated') book(w, c, 'leagueFees', -w.rules.leagues[m.to].promotionFee);
     c.leagueId = m.to;
+    if (m.reason !== 'Relegated') c.promotedSeason = nextSeason;
     for (const s of c.sponsors) if (s.promoBonus && m.reason !== 'Relegated') book(w, c, 'sponsors', s.promoBonus);
     if (m.reason !== 'Relegated') { c.fans.hype = clamp(c.fans.hype + 20, 0, 100); c.fans.local = Math.round(c.fans.local * 1.08); }
     else { c.fans.hype = clamp(c.fans.hype - 15, 0, 100); }
@@ -336,7 +343,7 @@ export function rollover(w: World) {
     if (isUser(w, c.id)) continue;
     for (const role of ['headCoach', 'assistantOff', 'assistantDef', 'medicalLead', 'physio'] as const) {
       if (c.staff[role] != null) continue;
-      const pool = w.staff.filter((s) => s.teamId == null && s.role === role).sort((a, b) => b.rating - a.rating);
+      const pool = w.staff.filter((s) => s.teamId == null && !s.nba && s.role === role).sort((a, b) => b.rating - a.rating);
       const pick = pool.find((s) => s.rating <= c.prestige + 25) ?? pool[pool.length - 1];
       if (pick) { pick.teamId = c.id; pick.contract = { salary: staffAsk(w, pick, tierOf(w, c) || 1), expires: w.season + 1 }; c.staff[role] = pick.id; pick.history.push({ season: w.season, teamId: c.id, role }); }
     }
@@ -400,7 +407,7 @@ function replenishPools(w: World) {
     const p = generateFreeAgent(w, a, Math.round(clamp(r.normal(50, 8), 34, 70)));
     w.players.push(p);
   }
-  const staffFa = w.staff.filter((s) => s.teamId == null).length;
+  const staffFa = w.staff.filter((s) => s.teamId == null && !s.nba).length;
   if (staffFa < 60) {
     for (let i = staffFa; i < 80; i++) {
       w.staff.push(genStaff(w, r.pick(['headCoach', 'assistantOff', 'assistantDef', 'assistantDev', 'scoutDirector', 'analytics', 'medicalLead', 'physio', 'academyDirector', 'marketingDirector', 'commercialDirector', 'prLead'] as const), clamp(r.normal(50, 15), 20, 88)));
@@ -409,6 +416,8 @@ function replenishPools(w: World) {
 }
 
 import { generatePlayer } from './player';
+import { shopNewSeason } from './shop';
+import { recordCoachSeasons, coachingMarket } from './coaching';
 import { generateStaff } from './staff';
 function generateFreeAgent(w: World, a: number, ovr: number) {
   return generatePlayer(w, { targetOvr: ovr, age: a });

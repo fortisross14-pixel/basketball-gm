@@ -49,6 +49,7 @@ import CommercialFacilities from './screens/infra/CommercialFacilities';
 import ClubFacilities from './screens/infra/ClubFacilities';
 import LiveGame from './screens/live/LiveGame';
 import CareerOffers from './screens/career/CareerOffers';
+import StaffProfile from './screens/staff/StaffProfile';
 import Licence from './screens/club/Licence';
 
 export default function App() {
@@ -197,6 +198,7 @@ function GameShell() {
               <Route path="/team/market" element={<Market />} />
               <Route path="/team/academy" element={<RequireClub><Academy /></RequireClub>} />
               <Route path="/player/:id" element={<PlayerProfile />} />
+              <Route path="/staff/:id" element={<StaffProfile />} />
               <Route path="/club" element={<RequireClub><ClubHub /></RequireClub>} />
               <Route path="/team" element={<RequireClub><TeamHub /></RequireClub>} />
               <Route path="/results" element={<ResultsHub />} />
@@ -505,7 +507,7 @@ function GlobalSearch() {
           <button type="button" key={`p${p.id}`} className="row link btn ghost" onClick={() => go(`/player/${p.id}`)}>🏀 {p.firstName} {p.lastName} <span className="muted small">{p.pos} · {p.teamId != null ? getClub(w, p.teamId).abbrev : 'Free agent'}</span></button>
         ))}
         {staff.map((x) => (
-          <div key={`s${x.id}`} className="row"><span>👔 {x.firstName} {x.lastName}</span> <span className="muted small">{x.role} · rating {x.rating} · {x.teamId != null ? getClub(w, x.teamId).abbrev : 'Available'}</span></div>
+          <button type="button" key={`s${x.id}`} className="row link btn ghost" onClick={() => go(`/staff/${x.id}`)}>👔 {x.firstName} {x.lastName} <span className="muted small">{x.role} · rating {x.rating} · {x.nba ? `NBA (${x.nba.team})` : x.teamId != null ? getClub(w, x.teamId).abbrev : 'Available'}</span></button>
         ))}
         {s && !pages.length && !clubs.length && !players.length && !staff.length && <div className="muted">No results.</div>}
       </div>

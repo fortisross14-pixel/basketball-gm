@@ -91,7 +91,7 @@ export function hireStaff(w: World, c: Club, s: Staff, salary: number, years: nu
   }
   s.teamId = c.id;
   s.contract = { salary, expires: w.season + years - 1 };
-  s.history.push({ season: w.season, teamId: c.id, role: s.role });
+  s.history.push({ season: w.season, teamId: c.id, role: s.role, clubName: c.name });
   c.staff[s.role] = s.id;
 }
 
@@ -105,6 +105,8 @@ export function severance(w: World, s: Staff): number {
 export function fireStaff(w: World, c: Club, s: Staff, pay = true): number {
   const cost = pay ? severance(w, s) : 0;
   if (c.staff[s.role] === s.id) delete c.staff[s.role];
+  const h = [...s.history].reverse().find((x) => x.teamId === c.id && x.to == null);
+  if (h) { h.to = w.season; h.exit = 'Dismissed'; h.clubName ??= c.name; }
   s.teamId = null;
   s.contract = null;
   return cost;

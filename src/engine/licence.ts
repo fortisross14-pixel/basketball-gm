@@ -35,7 +35,8 @@ export function upperLeague(c: Club): LeagueId | null {
 
 export function plannedSeats(w: World, c: Club): number {
   const projects = w.projects[c.id] ?? [];
-  return capacity(c) + projects.reduce((a, p) => a + Object.values(p.seatsDelta ?? {}).reduce((x, y) => x + (y ?? 0), 0) + (p.newArenaSeats ? Object.values(p.newArenaSeats).reduce((x, y) => x + y, 0) - capacity(c) : 0), 0);
+  const gs = c.groundShare && c.groundShare.season >= w.season ? c.groundShare.seats : 0;
+  return Math.max(gs, capacity(c) + projects.reduce((a, p) => a + Object.values(p.seatsDelta ?? {}).reduce((x, y) => x + (y ?? 0), 0) + (p.newArenaSeats ? Object.values(p.newArenaSeats).reduce((x, y) => x + y, 0) - capacity(c) : 0), 0));
 }
 
 export function licencePlan(w: World, c: Club): LicencePlan | null {
@@ -78,4 +79,73 @@ export function licencePlan(w: World, c: Club): LicencePlan | null {
     to, toName: r.name, fromName: w.rules.leagues[c.leagueId].name, ok: failing === 0, failing, urgent, credit, ownerGuarantee, items,
     lead: `About ${weeksLeft} weeks until promotion day.${items[0].ok ? '' : ' Seats are the slowest fix: start works at least 14 weeks before.'}`,
   };
+}
+
+// ------------------------------------------------------------------ routes to the licence
+import { projectOptions, startProject } from './arena';
+import { book, addNews, nextId } from './world';
+import { absDay as _abs } from './types';
+import { centralTvAnnual } from './economy';
+import { phaseOf } from './calendar';
+
+export function licenceStandOption(w: World, c: Club) {
+  return projectOptions(w, c).find((o) => o.kind === 'licenceStand') ?? null;
+}
+
+export function startLicenceStand(w: World, c: Club, financing: 'cash' | 'loan'): { ok: boolean; message: string } {
+  const o = licenceStandOption(w, c);
+  if (!o) return { ok: false, message: 'No licence expansion is needed.' };
+  const r = startProject(w, c, o, financing);
+  return r.ok ? { ok: true, message: `${o.label} under way: ${fmtMoney(o.cost)}${financing === 'loan' ? ' (80% on a construction loan)' : ''}, ready in ${o.weeks} weeks.` } : { ok: false, message: r.reason ?? 'Could not start.' };
+}
+
+/** Season a ground-share signed today would cover (the next season played at the bigger venue). */
+function shareSeason(w: World): number {
+  const ph = phaseOf(w.season, w.day);
+  return ph === 'offseason' || ph === 'preseason' ? w.season : w.season + 1;
+}
+
+export function groundShareOffer(w: World, c: Club): { venue: string; seats: number; rentPerGame: number; deposit: number; season: number } | null {
+  const to = upperLeague(c);
+  const need = to ? w.rules.leagues[to].minArenaSeats : c.leagueId === 'ELITE' ? w.rules.leagues.ELITE.minArenaSeats : 0;
+  if (!need || capacity(c) >= need) return null;
+  const seats = Math.max(need + 400, 6000);
+  const rentPerGame = Math.round((seats * 1.2) / 100) * 100;
+  return { venue: `Palacio Multiusos de ${c.city}`, seats, rentPerGame, deposit: rentPerGame * 3, season: shareSeason(w) };
+}
+
+export function signGroundShare(w: World, c: Club): { ok: boolean; message: string } {
+  const o = groundShareOffer(w, c);
+  if (!o) return { ok: false, message: 'Your arena already meets the requirement.' };
+  if (c.groundShare && c.groundShare.season >= o.season) return { ok: false, message: 'A ground-share is already agreed.' };
+  if (c.finances.cash < o.deposit) return { ok: false, message: `The venue wants a ${fmtMoney(o.deposit)} deposit.` };
+  book(w, c, 'rent', -o.deposit);
+  c.groundShare = { venue: o.venue, seats: o.seats, rentPerGame: o.rentPerGame, season: o.season };
+  addNews(w, `${c.name} agree a ground-share at ${o.venue}`, `${o.seats.toLocaleString('en')} seats for the ${o.season}-${String((o.season + 1) % 100).padStart(2, '0')} season while the home arena grows. Rent ${fmtMoney(o.rentPerGame)} per home game.`, { tags: ['club'], clubIds: [c.id], importance: 2 });
+  return { ok: true, message: `Ground-share agreed: ${o.venue} counts for the licence. Deposit ${fmtMoney(o.deposit)}.` };
+}
+
+/** Relaxed/standard: a league media advance that lets a newly promoted club pay a bigger squad. */
+export function payrollBridgeOffer(w: World, c: Club): { amount: number; rate: number; years: number } | null {
+  if (c.promotedSeason !== w.season || c.payrollBridge?.season === w.season || !c.leagueId) return null;
+  const d = w.settings.difficulty;
+  if (d !== 'relaxed' && d !== 'standard') return null;
+  const lower = c.leagueId === 'ELITE' ? 'ORO' : c.leagueId === 'ORO' ? 'PLATA' : null;
+  if (!lower) return null;
+  const up = centralTvAnnual(w, c);
+  const was = w.rules.leagues[lower].centralTv + w.rules.leagues[lower].centralTvMerit / 2;
+  const amount = Math.round(Math.max(0, up - was) * (d === 'relaxed' ? 0.5 : 0.3) / 5000) * 5000;
+  return amount > 0 ? { amount, rate: d === 'relaxed' ? 0.015 : 0.035, years: 2 } : null;
+}
+
+export function takePayrollBridge(w: World, c: Club): { ok: boolean; message: string } {
+  const o = payrollBridgeOffer(w, c);
+  if (!o) return { ok: false, message: 'No bridge available.' };
+  const monthly = Math.round((o.amount * (1 + o.rate * o.years)) / (o.years * 12));
+  c.finances.loans.push({ id: nextId(w), lender: 'League media advance', principal: o.amount, balance: o.amount, rate: o.rate, monthlyPayment: monthly, startDay: _abs(w), endDay: _abs(w) + o.years * 365, covenantDebtToRevenue: 9 });
+  book(w, c, 'loanIn', o.amount);
+  c.finances.budget.payroll += o.amount;
+  c.payrollBridge = { season: w.season, amount: o.amount };
+  addNews(w, 'League advances media money', `${fmtMoney(o.amount)} against future TV income, repaid over ${o.years} seasons at ${(o.rate * 100).toFixed(1)}%. The payroll budget rises by the same amount.`, { tags: ['finance'], clubIds: [c.id] });
+  return { ok: true, message: `Payroll bridge: +${fmtMoney(o.amount)} to the payroll budget.` };
 }

@@ -83,8 +83,11 @@ export function switchClub(w: World, c: Club, exitLabel: string | null) {
   } else {
     addNews(w, `${c.name} appoint ${w.user.name}`, `${w.user.name} takes charge of ${c.name}.`, { tags: ['career'], clubIds: [c.id], importance: 3 });
   }
+  if (old) releaseShop(old);
+  const firstJob = w.user.career.length === 0;
   w.user.clubId = c.id;
   w.user.unemployedSince = null;
+  ensureShop(w, c);
   w.user.career.push({ clubId: c.id, clubName: c.name, role: w.user.role === 'owner' ? 'gm' : w.user.role, from: now, to: null, achievements: [], exit: null });
   if (w.user.role === 'owner') w.user.role = 'gm';
   w.user.negotiations = [];
@@ -96,6 +99,7 @@ export function switchClub(w: World, c: Club, exitLabel: string | null) {
   w.user.approval = { board: 61, fans: 55, fanBonus: 5, lowFanWeeks: 0, history: [], notes: [{ day: now, text: `Appointed at ${c.name}: a honeymoon period`, delta: 5, who: 'fans' }] };
   c.board.overall = 61;
   c.board.ultimatum = null;
+  if (firstJob) applyStartSupport(w, c);
   // cancel pending decisions belonging to the old club
   for (const d of w.decisions) if (!d.resolved && d.kind !== 'jobOffer') d.resolved = true;
 }
@@ -240,6 +244,8 @@ export function weeklyEvaluation(w: World) {
 }
 
 import { fireUser } from './board';
+import { ensureShop, releaseShop } from './shop';
+import { applyStartSupport } from './worldgen';
 import { buildCalendar } from './calendar';
 function fireUserFromCareer(w: World, c: Club, reason: string) {
   fireUser(w, c, reason);
@@ -250,6 +256,7 @@ export function resign(w: World): string {
   if (!c) return 'You have no club.';
   const st = w.user.career.find((s) => s.clubId === c.id && s.to == null);
   if (st) { st.to = absDay(w); st.exit = 'Resigned'; }
+  releaseShop(c);
   w.user.clubId = null;
   w.user.unemployedSince = absDay(w);
   w.user.reputation = Math.max(5, w.user.reputation - 4);

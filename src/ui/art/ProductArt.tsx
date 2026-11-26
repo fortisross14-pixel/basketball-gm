@@ -71,7 +71,7 @@ export function FoodArt({ concept, color, height = 140 }: { concept: FoodConcept
 
 function FoodSvg({ concept, c }: { concept: FoodConcept; c: string }) {
   return (
-    <svg viewBox="0 0 320 180" preserveAspectRatio="xMidYMid slice" width="100%" height="100%">
+    <svg viewBox="0 0 320 180" preserveAspectRatio="xMidYMid meet" width="100%" height="100%" style={{ background: concept === 'lounge' ? '#140d22' : concept === 'grill' ? '#1f130c' : '#0d1a3a' }}>
       <rect width="320" height="180" fill={concept === 'lounge' ? '#140d22' : concept === 'grill' ? '#1f130c' : '#0d1a3a'} />
       {concept === 'kiosk' && <>
         <rect x="60" y="60" width="200" height="90" fill="#e5e7eb" />

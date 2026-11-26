@@ -2,13 +2,14 @@ import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import type { ClubStore, MerchLine } from '../../../engine/types';
-import { MERCH_LINES, REF_JERSEY, SPEND_PER_HEAD, merchDemandUnits, spendPerHead, tier } from '../../../engine/economy';
-import { avgAttendance, projectOptions, type ProjectOption } from '../../../engine/arena';
+import { MERCH_LINES, REF_JERSEY, merchDemandUnits, tier } from '../../../engine/economy';
+import { projectOptions, type ProjectOption } from '../../../engine/arena';
 import { STORE_INFO, ensureFacilities, managerFactor, storeOptions, storeProjectRoi, storeWeeklyDemand } from '../../../engine/facilities';
-import { club as getClub, fmtMoney, seasonTotal, staffById } from '../../../engine/world';
+import { club as getClub, fmtMoney, staffById } from '../../../engine/world';
 import { Button, Card, Modal, NumberField, Page, Pills, Stat, Tabs } from '../../components/ui';
 import { InfraArt } from '../../art/InfraArt';
 import { useAct, useNotify } from '../../store';
+import { Merchandise, FoodDrink } from './Business';
 import { ConstructionList, FacilityLevel, FacilityUpgrades, InfraKicker, OptionRow, ProjectModal, StaffSelect, useUserClub } from './common';
 
 type Tab = 'merchandise' | 'food';
@@ -18,21 +19,10 @@ export default function CommercialFacilities() {
   const navTo = useNavigate();
   const tab: Tab = params.tab === 'food' ? 'food' : 'merchandise';
   const setTab = (t: Tab) => navTo(`/infrastructure/commercial/${t}`, { replace: true });
-  const { w, c } = useUserClub();
-  const f = ensureFacilities(w, c);
-  const merch = seasonTotal(c, w.season, 'merch');
-  const merchCost = seasonTotal(c, w.season, 'merchCost');
-  const lastWeek = f.stores.reduce((a, s) => a + s.lastWeekSales, 0);
   return (
-    <Page tone="quiet" kicker={<InfraKicker />} title="Commercial facilities" subtitle="Club stores and matchday food & drink: what you sell, where, and at what price.">
-      <div className="grid g4 mb8" style={{ marginBottom: 14 }}>
-        <Stat label="Merch revenue (season)" value={fmtMoney(merch)} sub={`net of stock ${fmtMoney(merch + merchCost)}`} />
-        <Stat label="Last week, all stores" value={fmtMoney(lastWeek)} />
-        <Stat label="Stores" value={f.stores.length} sub={f.stores.map((s) => STORE_INFO[s.kind].label).join(' · ')} />
-        <Stat label="Food & drink (season)" value={fmtMoney(seasonTotal(c, w.season, 'concessions'))} sub={`${fmtMoney(spendPerHead(w, c))} net per fan`} />
-      </div>
+    <Page tone="quiet" kicker={<InfraKicker />} title={tab === 'food' ? 'Food & Drink' : 'Merchandise'} subtitle="Run the club shop and matchday food & drink: what you stock, where, at what price.">
       <Tabs<Tab> value={tab} onChange={setTab} tabs={[{ id: 'merchandise', label: 'Merchandise' }, { id: 'food', label: 'Food & drink' }]} />
-      {tab === 'merchandise' ? <Stores /> : <Food />}
+      {tab === 'merchandise' ? <div className="col gap16"><Merchandise /><Card title="Store network"><Stores /></Card></div> : <div className="col gap16"><FoodDrink /><FacilityUpgrades keys={['concessions', 'restaurant', 'hospitality']} title="Food & hospitality facilities" /></div>}
     </Page>
   );
 }
@@ -153,35 +143,4 @@ function StoreModal({ s, onClose }: { s: ClubStore; onClose: () => void }) {
   );
 }
 
-const PRICING_INFO = {
-  value: 'Value pricing: −18% spend per head, but supporters notice and sentiment rises over time.',
-  standard: 'Standard pricing: market-rate food and drink.',
-  premium: 'Premium pricing: +20% spend per head, but fans feel squeezed and sentiment drifts down.',
-};
 
-function Food() {
-  const { w, c } = useUserClub();
-  const act = useAct();
-  const sph = spendPerHead(w, c);
-  const att = avgAttendance(w, c);
-  const upd = (fn: (cl: ReturnType<typeof getClub>) => void) => act((ww) => fn(getClub(ww, c.id)));
-  return (
-    <div className="col gap16">
-      <div className="grid g3">
-        <Stat label="Net spend per attendee" value={fmtMoney(sph)} sub={`tier reference gross ${fmtMoney(SPEND_PER_HEAD[tier(w, c)])}`} />
-        <Stat label="Average attendance" value={Math.round(att).toLocaleString('en')} />
-        <Stat label="Estimated per home game" value={fmtMoney(sph * att)} />
-      </div>
-      <div className="grid g2">
-        <Card title="Operating policy">
-          <div className="col">
-            <div className="row"><span style={{ minWidth: 140 }}>Pricing</span><Pills value={c.concessions.pricing} onChange={(v) => upd((cl) => { cl.concessions.pricing = v; })} options={[{ id: 'value', label: 'Value' }, { id: 'standard', label: 'Standard' }, { id: 'premium', label: 'Premium' }]} /></div>
-            <div className="small muted">{PRICING_INFO[c.concessions.pricing]}</div>
-            <label className="row"><input type="checkbox" checked={c.concessions.localSuppliers} onChange={(e) => upd((cl) => { cl.concessions.localSuppliers = e.target.checked; })} /> Local suppliers <span className="small muted">— margin 48% → 40%, the community and fans appreciate it.</span></label>
-          </div>
-        </Card>
-        <FacilityUpgrades keys={['concessions', 'restaurant', 'hospitality']} title="Food & hospitality facilities" />
-      </div>
-    </div>
-  );
-}

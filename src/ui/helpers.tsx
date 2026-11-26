@@ -9,6 +9,7 @@ import { book } from '../engine/world';
 import { canAddStaff } from '../engine/facilities';
 import { Badge, Button, Card, Modal, Rating, Table } from './components/ui';
 import { StaffFace } from './art/faces';
+import { recordLine } from '../engine/coaching';
 import { useAct, useNotify, useWorld } from './store';
 
 // ---------------------------------------------------------------- stats
@@ -96,7 +97,7 @@ export function StaffPanel({ roles, title }: { roles: StaffRole[]; title: string
               <div className="row">
                 <div style={{ minWidth: 220 }}>
                   <div className="small muted">{STAFF_LABEL[role]}</div>
-                  {s ? <span className="plink-face"><StaffFace staff={s} size={30} round /><b>{s.firstName} {s.lastName}</b></span> : <b className="bad">Vacant</b>}
+                  {s ? <Link to={`/staff/${s.id}`} className="plink-face link"><StaffFace staff={s} size={30} round /><b>{s.firstName} {s.lastName}</b></Link> : <b className="bad">Vacant</b>}
                 </div>
                 {s && <Rating v={s.rating} title="Overall competence" />}
                 {s && (
@@ -132,7 +133,7 @@ export function HireStaffModal({ club, role, onClose }: { club: Club; role: Staf
   const notify = useNotify();
   const tier = tierOf(w, club) || 1;
   const current = staffOf(w, club, role);
-  const pool = w.staff.filter((s) => s.teamId == null && s.role === role).sort((a, b) => b.rating - a.rating);
+  const pool = w.staff.filter((s) => s.teamId == null && !s.nba && s.role === role).sort((a, b) => b.rating - a.rating);
   const interested = (s: Staff) => s.reputation <= club.prestige + 30 + w.user.reputation / 4;
   const room = current ? { ok: true as const, reason: undefined } : canAddStaff(w, club);
   return (
@@ -144,7 +145,8 @@ export function HireStaffModal({ club, role, onClose }: { club: Club; role: Staf
         rowKey={(s) => s.id}
         initialSort="rating"
         columns={[
-          { key: 'name', label: 'Name', render: (s) => <span className="plink-face"><StaffFace staff={s} size={26} round />{s.firstName} {s.lastName}</span> },
+          { key: 'name', label: 'Name', render: (s) => <span className="plink-face"><StaffFace staff={s} size={26} round /><Link className="link" to={`/staff/${s.id}`}>{s.firstName} {s.lastName}</Link></span> },
+          { key: 'rec', label: 'Record', render: (s) => <span className="small muted">{(s.record ?? []).length ? recordLine(s) : '—'}</span> },
           { key: 'age', label: 'Age', render: (s) => w.season - s.born, sort: (s) => s.born, align: 'r' },
           { key: 'rating', label: 'Rating', render: (s) => <Rating v={s.rating} />, sort: (s) => s.rating, align: 'c' },
           { key: 'dev', label: 'Dev', render: (s) => s.development, sort: (s) => s.development, align: 'r', title: 'Player development' },

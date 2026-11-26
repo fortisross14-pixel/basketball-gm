@@ -14,9 +14,10 @@ import { nextId, invalidateIndex, rng, club as getClub, roster, addNews, fmtMone
 import { startSeason } from './season';
 import { BACKGROUND_INFO } from './career';
 import { ensureFacilities } from './facilities';
+import { ensureShop } from './shop';
 import { absDay } from './types';
 
-export const SAVE_VERSION = 2;
+export const SAVE_VERSION = 3;
 export const START_SEASON = 2026;
 
 export interface NewGameOptions {
@@ -211,10 +212,8 @@ export function assignUser(w: World, opts: Pick<NewGameOptions, 'userName' | 'ro
     for (const p of roster(w, c.id)) w.user.knowledge[p.id] = 100;
     w.user.reputation = c.leagueId === 'ELITE' ? 45 : c.leagueId === 'ORO' ? 30 : c.leagueId === 'COLLEGE' ? 20 + Math.round(c.prestige / 5) : 20;
     if (opts.role === 'owner') { c.board.owner = w.user.name; c.board.ownerWealth = 60; }
-    const fin = (w.settings.difficulty === 'relaxed' ? 1.5 : w.settings.difficulty === 'demanding' ? 0.8 : w.settings.difficulty === 'brutal' ? 0.6 : 1);
-    if (c.finances.cash > 0) c.finances.cash = Math.round(c.finances.cash * fin);
-    c.board.patience = Math.round(c.board.patience * (w.settings.difficulty === 'relaxed' ? 1.3 : w.settings.difficulty === 'brutal' ? 0.7 : 1));
-    c.finances.budget = proposeBudget(w, c);
+    applyStartSupport(w, c);
+    if (!c.foreign) ensureShop(w, c);
     const rules = c.leagueId ? w.rules.leagues[c.leagueId] : null;
     addNews(w, `${w.user.name} takes charge of ${c.name}`, `${c.board.owner} welcomes the new ${opts.role === 'owner' ? 'owner-president' : 'general manager'}. Vision: ${c.board.plan.vision}. The board has set ${c.board.objectives.length} objectives and a payroll budget of ${fmtMoney(c.finances.budget.payroll)}. ${rules ? `${rules.name}: ${rules.teams} clubs, max ${rules.maxNonEU} non-EU players, min ${rules.minHomegrown} homegrown.` : ''} The summer transfer window is open until 30 September.`, { tags: ['career', 'board'], clubIds: [c.id], importance: 3 });
   } else {
@@ -224,6 +223,19 @@ export function assignUser(w: World, opts: Pick<NewGameOptions, 'userName' | 'ro
   w.user.approval = { board: 60, fans: 55, fanBonus: 5, lowFanWeeks: 0, history: [], notes: [] };
   if (opts.scenario) applyScenario(w, opts.scenario);
   w.saveName = '';
+}
+
+/**
+ * Difficulty support for the club the user starts with: cash cushion and board patience.
+ * Applied when a club is picked directly and on the first job accepted in Career mode.
+ */
+export function applyStartSupport(w: World, c: Club) {
+  const d = w.settings.difficulty;
+  const fin = d === 'relaxed' ? 1.5 : d === 'demanding' ? 0.8 : d === 'brutal' ? 0.6 : 1;
+  if (c.finances.cash > 0) c.finances.cash = Math.round(c.finances.cash * fin);
+  else if (d === 'relaxed') c.finances.cash = Math.round(estimateRevenue(w, c).total * 0.05);
+  c.board.patience = Math.min(100, Math.round(c.board.patience * (d === 'relaxed' ? 1.3 : d === 'brutal' ? 0.7 : 1)));
+  c.finances.budget = proposeBudget(w, c);
 }
 
 function makeClub(w: World, r: Rng, s: ClubSeed): Club {

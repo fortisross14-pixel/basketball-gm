@@ -7,6 +7,7 @@ import { useWorld } from '../store';
 import { Badge, Card, Crest, Page, Table, Money, Empty } from '../components/ui';
 import { PlayerFace } from '../art/faces';
 import { ArenaBackdrop } from '../art/ArenaBackdrop';
+import { FoodReportCard } from './infra/Business';
 import { pctStr } from '../helpers';
 
 export default function GameView() {
@@ -47,6 +48,7 @@ export default function GameView() {
           </div>
         </Card>
       </div>
+      {usHome && <div className="mt16"><FoodReportCard fixtureId={g.fixtureId} /></div>}
       {g.flow && g.flow.length > 0 && (
         <Card title="Game flow · lead by minute" className="mt16">
           <FlowChart flow={g.flow} home={home} away={away} />

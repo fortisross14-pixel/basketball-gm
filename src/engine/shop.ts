@@ -84,10 +84,14 @@ export function ensureShop(w: World, c: Club): ShopState {
   };
   c.shop = s;
   syncStores(w, c, s);
-  // opening stock: the existing inventory value, spread by forecast (no cash: it was paid before)
+  // opening stock: the inventory the club already paid for (c.merch.stockValue), spread by
+  // forecast demand, with at least ~8 weeks of cover so the first weeks can sell
+  const weekly = Object.fromEntries(PRODUCT_IDS.map((p) => [p, storesOf(w, c).reduce((a, st) => a + expectedDemand(w, c, st, p, prices[p], 1, false), 0)])) as Record<ProductId, number>;
+  const valueW = PRODUCT_IDS.reduce((a, p) => a + weekly[p] * supplierCost(p, 'standard'), 0) || 1;
+  const weeksPaid = Math.max(8, Math.min(30, c.merch.stockValue / valueW));
   for (const st of storesOf(w, c)) {
     for (const p of PRODUCT_IDS) {
-      const units = Math.round(expectedDemand(w, c, st, p, prices[p], 1, false) * 8);
+      const units = Math.round(expectedDemand(w, c, st, p, prices[p], 1, false) * weeksPaid);
       if (units > 0) s.stock[st.id][p] = { units, avgCost: supplierCost(p, 'standard'), quality: 1 };
     }
   }
@@ -107,7 +111,7 @@ function fanPool(w: World, c: Club): number {
   const hype = 0.6 + f.hype / 120;
   const star = 1 + Math.max(0, starPower(w, c)) * 0.6;
   const euro = inEuro(w, c) ? 1.06 : 1;
-  return (base * hype * star * euro) / 52; // purchase occasions per week across all channels
+  return (base * 2.6 * hype * star * euro) / 52; // purchase occasions per week across all channels
 }
 
 function onlineShare(c: Club): number {
@@ -353,7 +357,10 @@ function outletDemand(w: World, c: Club, o: FoodOutlet, crowd: Crowd): number {
   // two outlets with the same concept share the same customers
   const same = c.shop!.food.outlets.filter((x) => x.concept === o.concept);
   const share = same.length > 1 ? o.points / same.reduce((a, x) => a + x.points, 0) : 1;
-  return (crowd.general * k.mix.general + crowd.lower * k.mix.lower + crowd.premium * k.mix.premium + crowd.suite * k.mix.suite) * priceF * quality * share;
+  const raw = (crowd.general * k.mix.general + crowd.lower * k.mix.lower + crowd.premium * k.mix.premium + crowd.suite * k.mix.suite) * priceF * quality;
+  // nobody buys twice at the same counter: at most 90% of the fans this concept appeals to
+  const reach = (k.mix.general > 0 ? crowd.general : 0) + (k.mix.lower > 0 ? crowd.lower : 0) + (k.mix.premium > 0 ? crowd.premium : 0) + (k.mix.suite > 0 ? crowd.suite : 0);
+  return Math.min(raw, reach * 0.9) * share;
 }
 
 function outletLine(w: World, c: Club, o: FoodOutlet, crowd: Crowd, noise: number, expectedCrowd: Crowd): FoodLine {
@@ -547,4 +554,14 @@ export function annualShopForecast(w: World, c: Club): { merchGross: number; foo
   const foodProfit = s.food.outlets.reduce((a, o) => a + forecastOutlet(w, c, o).profit, 0) * homeGames;
   void buildCalendar;
   return { merchGross: Math.round(merchGross), foodProfit: Math.round(foodProfit) };
+}
+
+/** The user leaves the club: stock goes back into the abstract AI inventory. */
+export function releaseShop(c: Club) {
+  const s = c.shop;
+  if (!s) return;
+  let v = 0;
+  for (const b of [...Object.values(s.stock).flatMap((x) => Object.values(x)), ...Object.values(s.warehouse)]) if (b) v += b.units * b.avgCost;
+  c.merch.stockValue = Math.round(v);
+  delete c.shop;
 }

@@ -146,7 +146,25 @@ export interface Staff {
   teamId: number | null;
   contract: { salary: number; expires: number } | null;
   reputation: number; // 0-100
-  history: { season: number; teamId: number; role: StaffRole }[];
+  history: { season: number; teamId: number; role: StaffRole; clubName?: string; to?: number; exit?: string }[];
+  /** Head-coaching record, one line per season (persistent across clubs). */
+  record?: CoachSeason[];
+  /** Working in the NBA (outside the simulated leagues). teamId is null while there. */
+  nba?: { team: string; role: 'assistant' | 'head'; since: number };
+}
+
+export interface CoachSeason {
+  season: number;
+  clubId: number | null;
+  clubName: string;
+  league: string; // league name, 'Continental' or 'NBA'
+  level: number; // 1 = top domestic tier … 4; 0 = continental club; 5 = NBA
+  wins: number;
+  losses: number;
+  expected: number; // expected win share at the start of the season
+  rank: number;
+  honours: string[];
+  score: number; // performance vs expectations, weighted by level
 }
 
 // ---------------------------------------------------------------------------
@@ -215,6 +233,7 @@ export type ProjectKind =
   | 'suites'
   | 'facility'
   | 'renovation'
+  | 'licenceStand'
   | 'newArena';
 
 export interface ArenaProject {
@@ -609,6 +628,12 @@ export interface Club {
   sponsorLocks?: Partial<Record<SponsorSlot, number>>; // slot -> abs day until new offers
   quickDeals?: Record<string, number>; // revenue drive actions -> season last used
   shop?: ShopState; // playable merchandise & food business (user club)
+  /** Temporary home in a bigger venue (licence workaround while the arena grows). */
+  groundShare?: { venue: string; seats: number; rentPerGame: number; season: number };
+  /** Season the club was promoted into its current league (grace period for the board). */
+  promotedSeason?: number;
+  /** League media advance used to bridge payroll after promotion. */
+  payrollBridge?: { season: number; amount: number };
   logoUrl?: string; // optional licensed logo (overrides the generated emblem)
   seedName?: string; // original name from CLUB_SEEDS (stable key for club packs)
   facilities?: ClubFacilities;

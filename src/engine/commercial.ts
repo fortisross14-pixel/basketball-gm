@@ -5,6 +5,7 @@ import { addNews, book, fmtMoney, hold, isUser, logDelegation, nextId, rng, staf
 import { BROADCASTER_PROFILE, SLOT_INFO, inventoryUnits, localTvBenchmark, merchDemandUnits, merchUnitCost, seasonTicketTarget, sponsorBenchmark, suiteDemand, currentWinPct, refPrice, MERCH_LINES } from './economy';
 import { clamp } from './rng';
 import { buildCalendar, monthOf } from './calendar';
+import { weeklyShop } from './shop';
 import { recordArenaMerch } from './facilities';
 
 // ---------------------------------------------------------------------------
@@ -380,7 +381,8 @@ function weeklyFans(w: World, c: Club) {
 export function weeklyCommercial(w: World, c: Club) {
   if (c.foreign) return;
   weeklySeasonTickets(w, c);
-  weeklyMerch(w, c);
+  if (isUser(w, c.id)) weeklyShop(w, c);
+  else weeklyMerch(w, c);
   weeklyCampaigns(w, c);
   weeklyFans(w, c);
   weeklySponsors(w, c);

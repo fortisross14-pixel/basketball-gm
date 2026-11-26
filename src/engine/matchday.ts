@@ -7,6 +7,7 @@ import { onFixtureComplete } from './competitions';
 import { gameDemand, opsCostPerGame, travelCost, EURO_TRAVEL } from './economy';
 import { INJURY_TYPES } from './data/names';
 import { clamp } from './rng';
+import { foodGameNight } from './shop';
 import { planExecution, styleReaction } from './gameplan';
 
 export function availablePlayers(w: World, c: Club): Player[] {
@@ -118,9 +119,14 @@ export function playFixture(w: World, f: Fixture, live?: LiveGame): GameLog | nu
     gateRevenue = d.ticketRevenue + d.concessions;
     if (!home.foreign) {
       book(w, home, 'tickets', Math.round(d.ticketRevenue));
-      book(w, home, 'concessions', Math.round(d.concessions));
+      if (home.shop && isUser(w, home.id)) {
+        const inZone = (z: 'general' | 'lower' | 'premium') => d.zones[z].sold + Math.round(d.zones[z].seasonHolders * 0.9);
+        const rep = foodGameNight(w, home, f.id, away.name, { general: inZone('general'), lower: inZone('lower'), premium: inZone('premium') });
+        gateRevenue = d.ticketRevenue + rep.revenue;
+      } else book(w, home, 'concessions', Math.round(d.concessions));
       book(w, home, 'operations', -Math.round(opsCostPerGame(w, home) - (home.arena.owned ? 0 : home.arena.rentPerGame)));
       if (!home.arena.owned) book(w, home, 'rent', -home.arena.rentPerGame);
+      if (home.groundShare && home.groundShare.season === w.season) book(w, home, 'rent', -home.groundShare.rentPerGame);
       if (d.promo) home.fans.local = Math.round(home.fans.local * 1.0015 + 4);
       // full house boosts atmosphere
       if (d.attendance >= d.capacity * 0.97) home.fans.hype = Math.min(100, home.fans.hype + 0.6);

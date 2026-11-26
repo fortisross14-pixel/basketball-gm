@@ -444,3 +444,9 @@ a.list-item:hover { background: rgba(46, 168, 255, 0.07); padding-left: 6px; }
 .pg-bd { inset: 0; opacity: 0.45; }
 .pg-score { display: flex; align-items: center; gap: 12px; font-family: var(--display); font-style: italic; font-weight: 900; font-size: 2.6rem; }
 .pg-mvp { display: flex; align-items: center; gap: 12px; padding: 8px 12px; border-radius: 6px; background: rgba(0, 0, 0, 0.45); border: 1px solid rgba(255, 210, 63, 0.4); color: #fff; }
+
+/* ---- business screens */
+.biz-row { display: flex; align-items: center; gap: 14px; padding: 10px 12px; border: 1px solid var(--line); border-radius: var(--radius); background: rgba(255, 255, 255, 0.02); flex-wrap: wrap; }
+.biz-main { flex: 1; min-width: 240px; }
+.biz-kpis { display: flex; flex-wrap: wrap; gap: 6px 16px; color: var(--muted); }
+.biz-kpis b { color: var(--text); }

@@ -3,6 +3,7 @@ import { absDay } from './types';
 import { addNews, book, hold, isUser, nextId, rng, roster, age, comp as getComp, tierOf } from './world';
 import { clamp } from './rng';
 import { estimateRevenue } from './economy';
+import { releaseShop } from './shop';
 import { payroll, totalDebt, statement } from './finance';
 
 const OWNERS = ['Grupo Hermanos Ortiz', 'Inversiones Duero', 'Familia Ballesteros', 'Fundación Ciudad', 'Socios (member-owned)', 'Holding Atlántico', 'Ricardo Anaya (local businessman)', 'Consorcio Levante', 'Cooperativa del Norte', 'Familia Iturbe'];
@@ -64,6 +65,17 @@ export function setObjectives(w: World, c: Club) {
   }
   const tol = b.plan.profitTolerance;
   const rev = estimateRevenue(w, c).total;
+  const promotedGrace = c.promotedSeason === w.season && isUser(w, c.id) && w.settings.difficulty === 'relaxed';
+  if (promotedGrace) {
+    const teams = c.leagueId ? w.rules.leagues[c.leagueId].teams : 16;
+    b.objectives = [
+      mk('avoidRelegation', teams - 2, `First season up: stay in the division (${teams - 2}th or better)`, 3),
+      mk('maxLoss', Math.round(rev * 0.25), `Keep losses below €${Math.round(rev * 0.25 / 1000)}k while the club adjusts`, 1),
+      mk('fanGrowth', 3, 'Grow the local fanbase by 3%', 1),
+    ];
+    b.fanBaseline = c.fans.local;
+    return;
+  }
   if (tol === 'Break-even required') objs.push(mk('profit', 0, 'Break even or better this season', 2));
   else if (tol === 'Small losses tolerated') objs.push(mk('maxLoss', Math.round(rev * 0.08), `Keep losses below €${Math.round(rev * 0.08 / 1000)}k`, 2));
   else objs.push(mk('maxLoss', Math.round(rev * 0.2), `Keep losses below €${Math.round(rev * 0.2 / 1000)}k`, 1));
@@ -127,14 +139,15 @@ export function weeklyBoard(w: World, c: Club) {
     promises: tr.promises,
     relationship: tr.relationship,
   };
-  const k = 0.12 + (100 - b.patience) / 1000;
+  const grace = c.promotedSeason === w.season && isUser(w, c.id) && (w.settings.difficulty === 'relaxed' || w.settings.difficulty === 'standard');
+  const k = (0.12 + (100 - b.patience) / 1000) * (grace ? (w.settings.difficulty === 'relaxed' ? 0.45 : 0.75) : 1);
   for (const key of ['results', 'finances', 'fans'] as const) tr[key] = tr[key] + (target[key] - tr[key]) * k;
   tr.media = tr.media + (50 - tr.media) * 0.01;
   const prev = b.overall;
   b.overall = Math.round(tr.results * 0.33 + tr.finances * 0.25 + tr.fans * 0.14 + tr.media * 0.08 + tr.promises * 0.1 + tr.relationship * 0.1);
   if (!isUser(w, c.id) || w.user.role === 'owner') return;
   // warnings / ultimatum
-  const threshold = difficultyThreshold(w);
+  const threshold = difficultyThreshold(w) - (grace ? (w.settings.difficulty === 'relaxed' ? 12 : 5) : 0);
   if (b.overall < threshold && prev >= threshold) {
     addNews(w, `Board of ${c.name} voices concern`, `${b.owner} is unhappy with the direction of the club. Confidence is at ${b.overall}/100.`, { tags: ['board'], clubIds: [c.id], importance: 2 });
     hold(w, 'boardUltimatum', 'The board has voiced concern about your management.');
@@ -165,6 +178,7 @@ export function fireUser(w: World, c: Club, reason: string) {
     stint.to = absDay(w);
     stint.exit = 'Dismissed';
   }
+  releaseShop(c);
   w.user.clubId = null;
   w.user.unemployedSince = absDay(w);
   w.user.reputation = Math.max(5, w.user.reputation - 8);

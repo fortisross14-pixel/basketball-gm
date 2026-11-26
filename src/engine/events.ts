@@ -9,6 +9,7 @@ import { SEAT_ZONES } from './types';
 import { STAFF_LABEL, staffAsk } from './staff';
 import { resolveJobOffer, fanReaction } from './career';
 import { prFactor } from './facilities';
+import { resolveShopApproval } from './shop';
 import { salaryAsk, ROLE_MINUTES } from './player';
 
 type Tpl = 'unhappyMinutes' | 'raiseRequest' | 'fanPrices' | 'councilGrant' | 'prospect' | 'staffPoach' | 'incident' | 'sponsorAppearance' | 'coachWish' | 'press' | 'returnToPlay' | 'leaderMeeting';
@@ -165,6 +166,7 @@ export function resolveDecision(w: World, d: Decision, choice: string, delegated
     case 'transferBid': msg = resolveTransferBid(w, d, choice); break;
     case 'sponsorOffer': msg = resolveSponsorDecision(w, d, choice); break;
     case 'jobOffer': msg = resolveJobOffer(w, d, choice); break;
+    case 'shopApproval': msg = resolveShopApproval(w, d, choice); break;
     default: msg = resolveEvent(w, d, choice);
   }
   if (!delegated && w.user.clubId != null) {

@@ -38,7 +38,7 @@ export const SECTIONS: Section[] = [
     ],
   },
   {
-    id: 'team', label: 'Team', icon: 'team', to: '/team', hub: '/team', prefixes: ['/team/', '/player/'], tagline: 'The squad, the game plan and the people who build it',
+    id: 'team', label: 'Team', icon: 'team', to: '/team', hub: '/team', prefixes: ['/team/', '/player/', '/staff/'], tagline: 'The squad, the game plan and the people who build it',
     items: [
       { to: '/team/players', label: 'Players', icon: 'players', blurb: 'Your squad: form, morale, roles and registration.' },
       { to: '/team/tactics', label: 'Tactics', icon: 'tactics', blurb: 'Systems, rotation and the game plan.' },

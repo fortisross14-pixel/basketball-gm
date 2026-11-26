@@ -6,6 +6,7 @@ import { SEAT_ZONES } from './types';
 import { clamp } from './rng';
 import { club as getClub, roster, tierOf, comp as getComp } from './world';
 import { buildCalendar } from './calendar';
+import { annualShopForecast, offDayIncome } from './shop';
 import { arenaStoreFactor } from './facilities';
 
 // ---------------------------------------------------------------------------
@@ -108,6 +109,8 @@ export function seatsAvailable(w: World, c: Club): Record<SeatZone, number> {
   const projects = w.projects[c.id] ?? [];
   const disruption = projects.reduce((m, p) => Math.max(m, p.disruption), 0);
   const out = {} as Record<SeatZone, number>;
+  const gs = c.groundShare && c.groundShare.season === w.season ? c.groundShare : null;
+  if (gs) return { general: Math.round(gs.seats * 0.66), lower: Math.round(gs.seats * 0.28), premium: gs.seats - Math.round(gs.seats * 0.66) - Math.round(gs.seats * 0.28) };
   for (const z of SEAT_ZONES) out[z] = Math.floor(c.arena.seats[z] * (1 - disruption));
   return out;
 }
@@ -125,7 +128,8 @@ export function gameDemand(w: World, home: Club, away: Club | null, compType: Co
   const interest = interestIndex(w, home);
   const oppFactor = away ? 0.85 + away.prestige / 260 + (isRival(home, away) ? 0.18 : 0) : 1;
   const compFactor = compType === 'friendly' ? 0.55 : compType === 'playoffs' ? 1.35 : compType === 'promo' ? 1.3 : compType === 'euro' ? 1.18 : compType === 'cup' ? 1.2 : 1;
-  const base = (home.fans.local * 0.62 + home.fans.regional * 0.06) * interest * oppFactor * compFactor * noise * (0.85 + home.economy * 0.15);
+  const away_from_home = home.groundShare && home.groundShare.season === w.season ? 0.9 : 1; // borrowed venue: some fans stay away
+  const base = (home.fans.local * 0.62 + home.fans.regional * 0.06) * interest * oppFactor * compFactor * noise * (0.85 + home.economy * 0.15) * away_from_home;
   const big = away ? isBigGame(w, home, away) : false;
   const promo = compType === 'league' && isPromoNight(w, home, roundIndex);
   const seats = seatsAvailable(w, home);
@@ -360,11 +364,12 @@ export function estimateRevenue(w: World, c: Club): RevenueEstimate {
   const seasonTickets = SEAT_ZONES.reduce((a, z) => a + Math.max(st[z], stTarget[z]) * c.ticketing.seasonPrices[z], 0);
   const suitesSold = Math.max(c.ticketing.suitesSold, suiteDemand(w, c));
   const merchUnits = merchDemandUnits(w, c);
-  const merch = merchUnits * c.merch.jerseyPrice * 0.75 - merchUnits * merchUnitCost(c);
+  const shopF = c.shop ? annualShopForecast(w, c) : null;
+  const merch = shopF ? shopF.merchGross : merchUnits * c.merch.jerseyPrice * 0.75 - merchUnits * merchUnitCost(c);
   const sponsors = c.sponsors.reduce((a, s) => a + s.annual, 0);
   const tv = centralTvAnnual(w, c) + (c.tv?.annual ?? 0);
   const grants = municipalGrant(w, c);
-  const events = c.foreign ? 0 : restaurantEvents(w, c);
+  const events = c.foreign ? 0 : c.shop ? offDayIncome(w, c).revenue * 12 * 0.32 + (shopF!.foodProfit - d.concessions * homeGames) : restaurantEvents(w, c);
   const total = d.ticketRevenue * homeGames + seasonTickets + suitesSold * c.ticketing.suitePrice + d.concessions * homeGames + events + merch + sponsors + tv + grants;
   return {
     tickets: Math.round(d.ticketRevenue * homeGames),

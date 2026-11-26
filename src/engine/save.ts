@@ -1,6 +1,7 @@
 import type { World } from './types';
 import { SAVE_VERSION } from './worldgen';
 import { invalidateIndex, club } from './world';
+import { ensureShop } from './shop';
 import { seasonLabel, fmtDate } from './calendar';
 
 export interface SaveMeta {
@@ -27,6 +28,8 @@ const MIGRATIONS: ((w: World) => void)[] = [
       l.country ??= 'ESP';
     }
   },
+  // v2 → v3: playable shop & food for the user's club (stock seeded from the forecast)
+  () => { /* shop is created after the index rebuild below */ },
 ];
 
 export class SaveError extends Error {}
@@ -46,6 +49,8 @@ export function migrate(w: World): World {
   for (const c of w.clubs) c.seedName ??= c.name;
   validate(w);
   invalidateIndex(w);
+  const uc = w.user.clubId != null ? w.clubs.find((x) => x.id === w.user.clubId) : undefined;
+  if (uc && !uc.foreign) ensureShop(w, uc);
   return w;
 }
 

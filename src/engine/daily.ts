@@ -17,6 +17,7 @@ import { jobMarket, weeklyEvaluation } from './career';
 import { weeklyFacilities } from './facilities';
 import { estimateRevenue } from './economy';
 import { processQuickSales } from './extras';
+import { midseasonCoachChange } from './coaching';
 import { generateRecruits } from './worldgen';
 
 /** Simulate the current day fully, then move to the next. */
@@ -104,6 +105,10 @@ function weekly(w: World) {
       weeklyCommercial(w, c);
       weeklyProjects(w, c);
       weeklyBoard(w, c);
+      if (c.leagueId && c.leagueId !== 'COLLEGE') {
+        const st = w.competitions.find((x) => x.id === `${c.leagueId}-${w.season}`)?.standings.find((x) => x.clubId === c.id);
+        if (st && st.w + st.l >= 10) midseasonCoachChange(w, c, st.w / (st.w + st.l), st.w + st.l);
+      }
     }
     weeklyCashSnapshot(w, c);
   }

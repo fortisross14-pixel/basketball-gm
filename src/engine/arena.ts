@@ -77,6 +77,19 @@ export function projectOptions(w: World, c: Club): ProjectOption[] {
     kind: 'suites', label: 'Corporate suites (+4)', description: 'Season-long corporate boxes. Demand depends on city economy and club prestige.',
     cost: Math.round(4 * 70000 * m), weeks: 14, disruption: 0.06, suitesDelta: 4, annualUpkeep: 10000, needsBoard: false,
   });
+  // licence stand: modular seating sized to close the gap to the league above (financeable)
+  const upper = c.leagueId === 'ORO' ? 'ELITE' : c.leagueId === 'PLATA' ? 'ORO' : null;
+  if (upper) {
+    const planned = cap + active.reduce((a, p) => a + Object.values(p.seatsDelta ?? {}).reduce((x, y) => x + (y ?? 0), 0), 0);
+    const gap = w.rules.leagues[upper].minArenaSeats - planned;
+    if (gap > 0) {
+      const n = Math.max(500, Math.ceil(gap / 250) * 250);
+      opts.push({
+        kind: 'licenceStand', label: `Licence stands (+${n.toLocaleString('en')} seats)`, description: `Modular stands behind both baskets, sized to reach the ${w.rules.leagues[upper].name} minimum of ${w.rules.leagues[upper].minArenaSeats.toLocaleString('en')} seats. Cheaper per seat than piecemeal expansions; can be financed with a construction loan.`,
+        cost: seatCost(n, 430), weeks: 16, disruption: 0.2, seatsDelta: { general: Math.round(n * 0.8), lower: n - Math.round(n * 0.8) }, annualUpkeep: Math.round(n * 3), needsBoard: false,
+      });
+    }
+  }
   for (const f of FACILITY_KEYS) {
     const lvl = c.arena.levels[f];
     const info = FACILITY_INFO[f];

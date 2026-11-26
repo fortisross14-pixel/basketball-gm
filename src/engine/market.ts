@@ -554,16 +554,55 @@ export function delegatedSquadUpkeep(w: World) {
   if (pol.mode === 'manual' || pol.mode === 'recommend') return;
   const rules = uc.leagueId ? w.rules.leagues[uc.leagueId] : null;
   if (!rules) return;
+  delegatedRenewals(w, uc);
   const squad = roster(w, uc.id);
   if (squad.length >= rules.rosterMin + 1) return;
   const can = canSignNow(w, false);
-  if (!can.ok) return;
   const room = uc.finances.budget.payroll - payroll(w, uc);
   const maxSal = pol.maxSalary && pol.maxSalary > 0 ? pol.maxSalary : room;
-  const cand = freeAgents(w).sort((a, b) => b.ovr - a.ovr).find((p) => salaryAsk(w, p, uc) <= Math.max(0, Math.min(maxSal, room)) && registrationCheck(w, uc, p).ok && playerInterest(w, p, uc, { salary: salaryAsk(w, p, uc), years: 1, role: roleFor(projectedRank(w, uc, p)), buyout: null, signingBonus: 0 }).score >= 0);
-  if (!cand) return;
+  const willing = (p: Player, salary: number) => registrationCheck(w, uc, p).ok && playerInterest(w, p, uc, { salary, years: 1, role: roleFor(projectedRank(w, uc, p)), buyout: null, signingBonus: 0 }).score >= 0;
+  let cand = can.ok ? freeAgents(w).sort((a, b) => b.ovr - a.ovr).find((p) => salaryAsk(w, p, uc) <= Math.max(0, Math.min(maxSal, room)) && willing(p, salaryAsk(w, p, uc))) : undefined;
+  let why = `Roster below the safe minimum (${squad.length}/${rules.rosterMin + 1}); best affordable free agent within policy.`;
+  // a legal roster comes first: the cheapest registrable player, even beyond the budget
+  if (!cand && can.ok && squad.length < rules.rosterMin) {
+    cand = freeAgents(w).filter((p) => p.ovr >= 30).sort((a, b) => salaryAsk(w, a, uc) - salaryAsk(w, b, uc)).find((p) => willing(p, salaryAsk(w, p, uc)));
+    why = `Roster below the league minimum (${squad.length}/${rules.rosterMin}): the cheapest registrable free agent, to stay legal.`;
+  }
+  if (!cand) {
+    // promote the best academy player instead
+    const youth = w.players.filter((p) => p.teamId === uc.id && p.academy && !p.retired && registrationCheck(w, uc, p).ok).sort((a, b) => b.ovr - a.ovr)[0];
+    if (youth && squad.length < rules.rosterMin + 1) {
+      youth.academy = false;
+      if (youth.contract) youth.contract.youth = false;
+      logDelegation(w, 'transfers', 'Sporting director', `Promoted ${playerName(youth)} from the academy`, `Roster below the safe minimum (${squad.length}/${rules.rosterMin + 1}) and no affordable free agent.`, 'Keeps the squad registrable at no extra cost.');
+      addNews(w, `${playerName(youth)} promoted to the first team`, 'The sporting director filled a roster spot from the academy.', { tags: ['delegation'], clubIds: [uc.id], playerIds: [youth.id] });
+    } else if (squad.length < rules.rosterMin) {
+      hold(w, 'decision', `Your roster has only ${squad.length} registered players (minimum ${rules.rosterMin}) and the sporting director found nobody affordable. Sign a player.`);
+    }
+    return;
+  }
   const salary = salaryAsk(w, cand, uc);
   moveTo(w, cand, uc, { salary, years: 1, role: roleFor(projectedRank(w, uc, cand)), buyout: null, signingBonus: 0 }, 0, 'freeAgent');
-  logDelegation(w, 'transfers', 'Sporting director', `Signed free agent ${playerName(cand)} (${cand.pos}, ${cand.ovr}) for ${fmtMoney(salary)}`, `Roster below the safe minimum (${squad.length}/${rules.rosterMin + 1}); best affordable free agent within policy.`, 'Keeps the squad registrable and covers injuries.');
+  logDelegation(w, 'transfers', 'Sporting director', `Signed free agent ${playerName(cand)} (${cand.pos}, ${cand.ovr}) for ${fmtMoney(salary)}`, why, 'Keeps the squad registrable and covers injuries.');
   if (pol.mode === 'notify') addNews(w, `Sporting director signs ${playerName(cand)}`, `Delegated signing within policy: ${fmtMoney(salary)}/yr, 1 year.`, { tags: ['delegation', 'transfer'], clubIds: [uc.id], playerIds: [cand.id] });
+}
+
+/** Delegated renewals: from February, extend expiring core players whose ask fits the budget. */
+function delegatedRenewals(w: World, c: Club) {
+  const cal = buildCalendar(w.season);
+  if (w.day < cal.winterWindowOpen || w.day >= cal.seasonEnd) return;
+  const squad = roster(w, c.id).sort((a, b) => b.ovr - a.ovr);
+  const core = squad.slice(0, 8);
+  for (const p of core) {
+    if (!p.contract || p.contract.youth || p.contract.expires !== w.season || age(w, p) >= 34) continue;
+    const ask = salaryAsk(w, p, c);
+    const room = c.finances.budget.payroll - payroll(w, c) + p.contract.salary;
+    if (ask > room * 1.02) continue;
+    const years = age(w, p) <= 27 ? 3 : 2;
+    const offer = { salary: ask, years, role: roleFor(squad.indexOf(p)), buyout: null, signingBonus: 0 };
+    if (playerInterest(w, p, c, offer, 'renew').score < 0) continue;
+    renewContract(w, c, p, offer);
+    logDelegation(w, 'transfers', 'Sporting director', `Renewed ${playerName(p)} (${p.ovr}) for ${years} years at ${fmtMoney(ask)}`, 'Core player out of contract in June; the ask fits the payroll budget.', 'Avoids losing him for nothing.');
+    return; // one renewal a week
+  }
 }

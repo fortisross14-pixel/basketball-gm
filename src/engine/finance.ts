@@ -4,6 +4,7 @@ import { book, clubStaff, isUser, nextId, roster, academy, addNews, hold } from 
 import { centralTvAnnual, estimateRevenue, municipalGrant, restaurantEvents, tier } from './economy';
 import { maintenanceNeed } from './arena';
 import { clamp } from './rng';
+import { offDayIncome } from './shop';
 import { staffPayroll } from './staff';
 
 export function payroll(w: World, c: Club): number {
@@ -90,7 +91,10 @@ export function monthlyFinance(w: World, c: Club) {
     return;
   }
   // non-matchday restaurant & bar events
-  if (c.arena.levels.restaurant > 0) book(w, c, 'concessions', Math.round(restaurantEvents(w, c) / 12));
+  if (c.shop) {
+    const od = offDayIncome(w, c);
+    if (od.revenue) { book(w, c, 'concessions', od.revenue); book(w, c, 'foodCost', -od.cost); c.shop.food.offDaySeason += od.revenue - od.cost; }
+  } else if (c.arena.levels.restaurant > 0) book(w, c, 'concessions', Math.round(restaurantEvents(w, c) / 12));
   // sponsors & TV
   book(w, c, 'sponsors', Math.round(c.sponsors.reduce((a, s) => a + s.annual, 0) / 12));
   book(w, c, 'tv', Math.round((centralTvAnnual(w, c, lastRank(c)) + (c.tv?.annual ?? 0)) / 12));
