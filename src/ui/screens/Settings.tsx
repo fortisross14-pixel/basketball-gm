@@ -4,7 +4,7 @@ import type { Department, DelegationMode, ExecutiveStyle, HoldKind } from '../..
 import { DEPARTMENTS } from '../../engine/types';
 import { DEPT_LABEL, MODE_DESC, MODE_LABEL } from '../../engine/delegation';
 import { delegationPreset } from '../../engine/worldgen';
-import { serialize, deserialize, deleteSave } from '../../engine/save';
+import { serialize, importWorld, deleteSave } from '../../engine/save';
 import { fmtMoney } from '../../engine/world';
 import { fmtAbs } from '../../engine/calendar';
 import { useAct, useGame, useNotify, useWorld } from '../store';
@@ -50,7 +50,7 @@ function Delegation() {
       <Card title="Executive style presets">
         <div className="row wrap">
           {(['owner', 'gm', 'obsessive', 'custom'] as ExecutiveStyle[]).map((s) => (
-            <Button key={s} variant={w.user.style === s ? 'primary' : undefined} onClick={() => { act((ww) => { ww.user.style = s; ww.user.delegation = delegationPreset(s); }); notify(`Delegation reset to the ${s} preset.`); }}>
+            <Button key={s} variant={w.user.style === s ? 'primary' : undefined} onClick={() => { if (!confirm('Reset every department to this preset? Your custom delegation settings will be replaced.')) return; act((ww) => { ww.user.style = s; ww.user.delegation = delegationPreset(s); }); notify(`Delegation reset to the ${s} preset.`); }}>
               {s === 'owner' ? 'Owner' : s === 'gm' ? 'General Manager' : s === 'obsessive' ? 'Basketball obsessive' : 'Custom'}
             </Button>
           ))}
@@ -153,6 +153,9 @@ function GameOptions() {
         </div>
       </Card>
       <div className="col gap16">
+        <Card title="Text size">
+          <Pills value={String(w.settings.textScale ?? 1)} onChange={(v) => act((ww) => { ww.settings.textScale = Number(v); })} options={[{ id: '1', label: '100%' }, { id: '1.15', label: '115%' }, { id: '1.3', label: '130%' }, { id: '1.5', label: '150%' }, { id: '2', label: '200%' }]} />
+        </Card>
         <Card title="World noise">
           <Pills value={w.settings.worldNoise} onChange={(v) => act((ww) => { ww.settings.worldNoise = v; })} options={[{ id: 'quiet', label: 'Quiet' }, { id: 'normal', label: 'Normal' }, { id: 'handsOn', label: 'Hands-on' }]} />
           <p className="small muted mt8">Frequency of midweek events, offers and media storylines.</p>
@@ -203,7 +206,8 @@ function Saves() {
             <input ref={fileRef} type="file" accept=".json" style={{ display: 'none' }} onChange={async (e) => {
               const f = e.target.files?.[0];
               if (!f) return;
-              try { setWorld(deserialize(await f.text())); notify('Save imported.', 'good'); nav('/today'); } catch (err) { notify(`Import failed: ${(err as Error).message}`, 'bad'); }
+              if (!confirm('Import this file? Your current career stays saved in its own slot; the import opens in a new one.')) return;
+              try { await save(true); setWorld(await importWorld(await f.text())); notify('Save imported into its own slot.', 'good'); nav('/today'); } catch (err) { notify(`Import failed: ${(err as Error).message}`, 'bad'); }
             }} />
           </div>
           <p className="small muted">The game autosaves after every advance and keeps one rolling backup.</p>
@@ -211,7 +215,7 @@ function Saves() {
       </Card>
       <Card title="Leave">
         <div className="col">
-          <Button onClick={async () => { await save(true); setWorld(null); nav('/'); }}>Save & quit to menu</Button>
+          <Button onClick={async () => { await save(false); setWorld(null); nav('/'); }}>Save & quit to menu</Button>
           <Button variant="danger" onClick={async () => { if (confirm('Delete this career permanently?')) { await deleteSave(w.saveId); setWorld(null); nav('/'); } }}>Delete this career</Button>
         </div>
       </Card>

@@ -16,7 +16,16 @@ export const REF_PRICE: Record<number, Record<SeatZone, number>> = {
   2: { general: 11, lower: 18, premium: 38 },
   3: { general: 7, lower: 11, premium: 22 },
 };
-const ELASTICITY: Record<SeatZone, number> = { general: 1.3, lower: 1.1, premium: 0.85 };
+// every zone is price-elastic (>1): no zone rewards unlimited price rises
+const ELASTICITY: Record<SeatZone, number> = { general: 1.35, lower: 1.25, premium: 1.2 };
+
+/** Demand collapses beyond ~2.5x the price fans consider fair. */
+function priceDemand(ref: number, price: number, e: number): number {
+  const p = Math.max(1, price);
+  let d = Math.pow(ref / p, e);
+  if (p > ref * 2.5) d *= Math.pow((ref * 2.5) / p, 2);
+  return d;
+}
 const ZONE_SHARE: Record<SeatZone, number> = { general: 0.62, lower: 0.3, premium: 0.08 };
 export const SPEND_PER_HEAD: Record<number, number> = { 0: 9, 1: 7.5, 2: 4.5, 3: 3 };
 export const SUITE_REF: Record<number, number> = { 0: 90000, 1: 60000, 2: 18000, 3: 8000 };
@@ -130,7 +139,7 @@ export function gameDemand(w: World, home: Club, away: Club | null, compType: Co
     if (compType === 'playoffs' || compType === 'promo') price *= 1 + tk.playoffMarkup;
     if (promo && z !== 'premium') price *= 0.6;
     const ref = refPrice(w, home, z);
-    let demand = base * ZONE_SHARE[z] * Math.pow(ref / Math.max(1, price), ELASTICITY[z]);
+    let demand = base * ZONE_SHARE[z] * priceDemand(ref, price, ELASTICITY[z]);
     if (tk.studentDiscount && z === 'general') demand *= 1.06;
     const cap = seats[z];
     const holders = Math.min(cap, tk.seasonSold[z]);
@@ -140,10 +149,10 @@ export function gameDemand(w: World, home: Club, away: Club | null, compType: Co
       if (ratio > 1.1) {
         const bump = Math.min(1.35, ratio);
         price *= bump;
-        demand = base * ZONE_SHARE[z] * Math.pow(ref / price, ELASTICITY[z]);
+        demand = base * ZONE_SHARE[z] * priceDemand(ref, price, ELASTICITY[z]);
       } else if (ratio < 0.6) {
         price *= 0.88;
-        demand = base * ZONE_SHARE[z] * Math.pow(ref / price, ELASTICITY[z]);
+        demand = base * ZONE_SHARE[z] * priceDemand(ref, price, ELASTICITY[z]);
       }
     }
     const singleDemand = Math.max(0, demand - holders * 0.9);
@@ -305,7 +314,7 @@ export function localTvBenchmark(w: World, c: Club): number {
 
 export function municipalGrant(w: World, c: Club): number {
   const t = tier(w, c);
-  if (t === 0) return 0;
+  if (t === 0 || c.leagueId === 'COLLEGE') return 0;
   const base = t === 1 ? 120_000 : t === 2 ? 150_000 : 110_000;
   const pop = Math.min(1.6, Math.sqrt(c.population / 150_000));
   const community = 1 + (c.campaigns.some((x) => x.kind === 'community' || x.kind === 'schoolClinics') ? 0.15 : 0);

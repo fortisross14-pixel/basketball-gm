@@ -4,6 +4,7 @@ import { addNews, book, hold, isUser, nextId } from './world';
 import { tier } from './economy';
 import { takeLoan } from './finance';
 import { boardApproves } from './board';
+import { strategyProfile } from './squad';
 
 export const FACILITY_INFO: Record<FacilityKey, { label: string; group: 'stadium' | 'stores' | 'restaurants' | 'performance' | 'community'; effect: string; tradeoff: string; baseCost: number; weeks: number; upkeep: number }> = {
   concessions: { label: 'Concession stands', group: 'restaurants', effect: 'Raises spend per attendee and venue experience.', tradeoff: 'Staffing costs and upfront capex.', baseCost: 60000, weeks: 4, upkeep: 6000 },
@@ -256,7 +257,7 @@ export function monthlyArenaUpkeep(w: World, c: Club) {
 
 /** AI clubs reinvest surplus cash into their venue. */
 export function aiInvest(w: World, c: Club, revenue: number) {
-  if (c.foreign || c.finances.cash < revenue * 0.35) return;
+  if (c.foreign || c.finances.cash < revenue * 0.35 || !strategyProfile(c).invest) return;
   const opts = projectOptions(w, c).filter((o) => !o.blocked && o.kind !== 'newArena' && o.cost < c.finances.cash * 0.5);
   const occ = avgOccupancy(w, c);
   const prefer = opts.filter((o) => (occ > 0.92 && (o.kind === 'expandGeneral' || o.kind === 'expandLower')) || (o.kind === 'facility' && ['training', 'lockerRoom', 'medical', 'store', 'concessions', 'academy'].includes(o.facility!)));

@@ -491,9 +491,10 @@ export interface Club {
   tactics: Tactics;
   training: { focus: TrainingFocus; intensity: TrainingIntensity };
   board: Board;
-  ai: { strategy: AiStrategy; payrollTarget: number };
+  ai: { strategy: AiStrategy; payrollTarget: number; lockedUntil?: number };
   cohesion: number; // 0-100
   rivals: number[];
+  sponsorLocks?: Partial<Record<SponsorSlot, number>>; // slot -> abs day until new offers
   history: SeasonRecord[];
   trophies: { season: number; name: string }[];
   retiredNumbers: { jersey: number; playerId: number; name: string }[];
@@ -503,10 +504,12 @@ export interface Club {
 // ---------------------------------------------------------------------------
 // Competitions
 // ---------------------------------------------------------------------------
-export type LeagueId = 'ELITE' | 'ORO' | 'PLATA';
+export type LeagueId = 'ELITE' | 'ORO' | 'PLATA' | 'COLLEGE';
 
 export interface LeagueRules {
-  tier: number;
+  kind: 'pro' | 'college';
+  country: string;
+  tier: number; // economic tier (college programs are run on a tier-2 budget scale)
   name: string;
   short: string;
   teams: number;
@@ -786,6 +789,7 @@ export interface Negotiation {
 // Career / user
 // ---------------------------------------------------------------------------
 export type UserRole = 'owner' | 'gm';
+export type Background = 'formerPlayer' | 'coach' | 'business' | 'analyst';
 export type ExecutiveStyle = 'owner' | 'gm' | 'obsessive' | 'custom';
 
 export interface JobOffer {
@@ -809,8 +813,20 @@ export interface CareerStint {
   exit: string | null; // 'fired' | 'resigned' | 'left for X'
 }
 
+export interface Approval {
+  board: number; // owner / board view of you (0-100)
+  fans: number; // supporters' view of you (0-100)
+  fanBonus: number; // decaying memory of your recent actions (sales, signings, prices)
+  lowFanWeeks: number;
+  history: { day: number; board: number; fans: number }[];
+  notes: { day: number; text: string; delta: number; who: 'fans' | 'board' }[];
+}
+
 export interface UserState {
   name: string;
+  nationality: string;
+  background: Background;
+  approval: Approval;
   role: UserRole;
   clubId: number | null;
   reputation: number; // executive reputation 0-100
@@ -825,6 +841,8 @@ export interface UserState {
   knowledge: Record<number, number>; // playerId -> scouting knowledge 0-100
   pressStance: number; // accumulated media posture
   unemployedSince: number | null;
+  declinedOffers?: Record<number, number>;
+  onboarding?: { visited: string[]; dismissed: boolean }; // clubId -> abs day until which it won't ask again
 }
 
 // ---------------------------------------------------------------------------
@@ -849,6 +867,7 @@ export interface Settings {
   holds: Record<HoldKind, boolean>;
   seed: number;
   debugDeterministic: boolean;
+  textScale?: number; // UI text size multiplier (1 = 100%)
 }
 
 // ---------------------------------------------------------------------------

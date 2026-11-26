@@ -114,6 +114,10 @@ export function domesticClubs(w: World): Club[] {
   return w.clubs.filter((c) => !c.foreign);
 }
 
+export function isCollege(c: Club | null | undefined): boolean {
+  return !!c && c.leagueId === 'COLLEGE';
+}
+
 export function tierOf(w: World, c: Club): number {
   return c.leagueId ? w.rules.leagues[c.leagueId].tier : 0;
 }

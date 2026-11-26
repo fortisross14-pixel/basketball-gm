@@ -62,7 +62,7 @@ export default function Stats() {
         <SeasonSelect w={w} value={season} onChange={setSeason} />
       </>}
     >
-      <Tabs<LeagueId> value={lid} onChange={setLid} tabs={(['ELITE', 'ORO', 'PLATA'] as LeagueId[]).map((id) => ({ id, label: w.rules.leagues[id].name }))} />
+      <Tabs<LeagueId> value={lid} onChange={setLid} tabs={(['ELITE', 'ORO', 'PLATA', 'COLLEGE'] as LeagueId[]).map((id) => ({ id, label: w.rules.leagues[id].name }))} />
       {!cmp || !rows.length ? <Empty>No statistics recorded yet.</Empty> : (
         <>
           <div className="grid g4">

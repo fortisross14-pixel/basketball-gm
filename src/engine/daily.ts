@@ -3,7 +3,7 @@ import { absDay } from './types';
 import { buildCalendar, weekday, dateNum, monthOf, fmtDate } from './calendar';
 import { fixturesOnDay, userClub, isUser, addNews, hold, club as getClub, rng } from './world';
 import { playFixture } from './matchday';
-import { createCup, createElitePlayoffs, createPromoPlayoffs, createEuroKnockouts } from './competitions';
+import { createCup, createElitePlayoffs, createPromoPlayoffs, createEuroKnockouts, createCollegePlayoffs } from './competitions';
 import { dailySquad, weeklySquad, weeklyScouting, youthIntake, aiStrategy } from './squad';
 import { weeklyCommercial, closeSeasonTickets, generateTvOffers } from './commercial';
 import { weeklyBoard, fireUser } from './board';
@@ -13,8 +13,9 @@ import { aiFillRosters, aiTransfers, aiBidsForUser, delegatedSquadUpkeep } from 
 import { weeklyEvents, expireDecisions } from './events';
 import { monthlyDelegation, weeklyTacticsDelegation } from './delegation';
 import { seasonEnd, rollover } from './season';
-import { jobMarket } from './career';
+import { jobMarket, weeklyEvaluation } from './career';
 import { estimateRevenue } from './economy';
+import { generateRecruits } from './worldgen';
 
 /** Simulate the current day fully, then move to the next. */
 export function processDay(w: World) {
@@ -44,6 +45,7 @@ export function processDay(w: World) {
     createElitePlayoffs(w);
     createPromoPlayoffs(w, 'ORO');
     createPromoPlayoffs(w, 'PLATA');
+    createCollegePlayoffs(w);
   }
   if (d === cal.euroGroupDays[cal.euroGroupDays.length - 1] + 1) createEuroKnockouts(w);
 
@@ -70,7 +72,11 @@ export function processDay(w: World) {
   if (d === cal.summerWindowClose - 7 && uc) hold(w, 'windowClose', 'The summer transfer window closes in 7 days.');
   if (d === cal.winterWindowClose - 5 && uc) hold(w, 'windowClose', 'The winter transfer window closes in 5 days.');
   if (monthOf(w.season, d) === 9 && dateNum(w.season, d) === 15) for (const c of w.clubs) octoberGrant(w, c);
-  if (d === cal.youthIntake) for (const c of w.clubs) youthIntake(w, c);
+  if (d === cal.youthIntake) {
+    for (const c of w.clubs) youthIntake(w, c);
+    generateRecruits(w, 60);
+    addNews(w, 'High-school class of the year announced', 'A new class of 18-year-old recruits is available. College programs (and pro clubs) can sign them from the free-agent market.', { tags: ['league'], importance: 1 });
+  }
   if (d === cal.seasonEnd) seasonEnd(w);
   if (d === cal.jobMarket) jobMarket(w);
   if (uc && d === cal.leagueRoundDays[18]) contractReminder(w);
@@ -98,6 +104,7 @@ function weekly(w: World) {
     weeklyCashSnapshot(w, c);
   }
   const preseason = w.day < buildCalendar(w.season).leagueRoundDays[0];
+  weeklyEvaluation(w);
   aiFillRosters(w, preseason);
   aiTransfers(w);
   aiBidsForUser(w);
@@ -194,7 +201,7 @@ export function advance(w: World, mode: AdvanceMode, maxDays = 400): AdvanceResu
       res.stoppedBy = important[0].message;
       break;
     }
-    if (mode === 'week' && important.some((h) => ['boardUltimatum', 'jobOffer', 'seasonEvent', 'transferBid'].includes(h.kind))) {
+    if ((mode === 'week' || mode === 'month') && important.some((h) => ['boardUltimatum', 'jobOffer', 'seasonEvent', 'transferBid'].includes(h.kind))) {
       res.stoppedBy = important[0].message;
       break;
     }

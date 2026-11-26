@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { listSaves, loadWorld, deleteSave, deserialize, type SaveMeta } from '../../engine/save';
+import { listSaves, loadWorld, loadBackup, deleteSave, importWorld, type SaveMeta } from '../../engine/save';
 import { useGame } from '../store';
 import { Button, Card, Badge } from '../components/ui';
 
@@ -16,16 +16,35 @@ export default function MainMenu() {
   useEffect(() => { refresh(); }, []);
 
   const load = async (id: string) => {
-    const w = await loadWorld(id);
-    if (!w) return notify('Save not found.', 'bad');
-    setWorld(w);
-    nav('/today');
+    try {
+      const res = await loadWorld(id);
+      if (!res) return notify('Save not found.', 'bad');
+      setWorld(res.world);
+      if (res.warning) notify(res.warning, 'warn');
+      nav('/today');
+    } catch (e) {
+      notify(`Could not load: ${(e as Error).message}`, 'bad');
+    }
+  };
+
+  const restore = async (s: SaveMeta) => {
+    if (!confirm(`Restore the previous autosave of "${s.name}"? Progress since then is lost.`)) return;
+    try {
+      const w = await loadBackup(s.id);
+      if (!w) return notify('No backup exists for this career yet.', 'warn');
+      setWorld(w);
+      notify('Backup restored.', 'good');
+      nav('/today');
+    } catch (e) {
+      notify(`Could not restore: ${(e as Error).message}`, 'bad');
+    }
   };
 
   const importFile = async (f: File) => {
     try {
-      const w = deserialize(await f.text());
+      const w = await importWorld(await f.text());
       setWorld(w);
+      notify('Save imported into its own slot.', 'good');
       nav('/today');
     } catch (e) {
       notify(`Could not import: ${(e as Error).message}`, 'bad');
@@ -63,6 +82,7 @@ export default function MainMenu() {
                       <div className="small muted">{s.clubName} · {s.season} · {s.date}</div>
                     </div>
                     <Button size="sm" variant="primary" onClick={() => load(s.id)}>Load</Button>
+                    <Button size="sm" onClick={() => restore(s)} title="Load the previous autosave">Restore backup</Button>
                     <Button size="sm" variant="danger" onClick={async () => { if (confirm(`Delete "${s.name}"?`)) { await deleteSave(s.id); refresh(); } }}>✕</Button>
                   </div>
                 ))}

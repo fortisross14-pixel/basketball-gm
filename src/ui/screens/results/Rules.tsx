@@ -31,14 +31,14 @@ export default function Rules() {
   const r = w.rules;
   const cal = buildCalendar(w.season);
   const uc = w.user.clubId != null ? getClub(w, w.user.clubId) : null;
-  const upper: Record<LeagueId, LeagueId | null> = { ELITE: null, ORO: 'ELITE', PLATA: 'ORO' };
+  const upper: Record<LeagueId, LeagueId | null> = { ELITE: null, ORO: 'ELITE', PLATA: 'ORO', COLLEGE: null };
   return (
     <Page title="Competition rules" subtitle={<>Ruleset <span className="mono">{r.version}</span> · season {r.season}. All regulations are data-driven and versioned per season. Hover a rule for its explanation.</>}>
       <Card title="League regulations" className="flush">
         <div className="tbl-wrap" style={{ padding: '0 8px 8px' }}>
           <table className="tbl">
             <thead>
-              <tr><th>Rule</th>{LEAGUE_IDS.map((id) => <th key={id} className="r">{r.leagues[id].name} (tier {r.leagues[id].tier})</th>)}</tr>
+              <tr><th>Rule</th>{LEAGUE_IDS.map((id) => <th key={id} className="r">{r.leagues[id].name} ({r.leagues[id].kind === 'college' ? 'US college' : `tier ${r.leagues[id].tier}`})</th>)}</tr>
             </thead>
             <tbody>
               {ROWS.map((row) => (

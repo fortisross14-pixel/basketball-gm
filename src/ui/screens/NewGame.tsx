@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import type { Club, ExecutiveStyle, LeagueId, Settings, UserRole, World } from '../../engine/types';
+import type { Background, Club, ExecutiveStyle, LeagueId, Settings, UserRole, World } from '../../engine/types';
+import { BACKGROUND_INFO, COUNTRY_OPTIONS, careerStartOffers } from '../../engine/career';
 import { createWorld, assignUser, SCENARIOS, scenarioClub } from '../../engine/worldgen';
 import { estimateRevenue } from '../../engine/economy';
 import { payroll } from '../../engine/finance';
@@ -10,7 +11,7 @@ import { roster, fmtMoney } from '../../engine/world';
 import { useGame } from '../store';
 import { Badge, Button, Card, Crest, Pills, Table, Rating } from '../components/ui';
 
-type Mode = 'founder' | 'existing' | 'journey' | 'scenario';
+type Mode = 'career' | 'founder' | 'existing' | 'scenario';
 
 const STYLES: { id: ExecutiveStyle; label: string; desc: string }[] = [
   { id: 'owner', label: 'Owner', desc: 'Basketball operations are delegated (coach sets tactics, sporting director handles routine roster moves). You focus on finance, facilities, brand and big hires.' },
@@ -25,7 +26,9 @@ export default function NewGame() {
   const [step, setStep] = useState(0);
   const [name, setName] = useState('');
   const [role, setRole] = useState<UserRole>('gm');
-  const [mode, setMode] = useState<Mode>('founder');
+  const [mode, setMode] = useState<Mode>('career');
+  const [nationality, setNationality] = useState('ESP');
+  const [background, setBackground] = useState<Background>('business');
   const [seed] = useState(() => Math.floor(Math.random() * 2 ** 31));
   const [clubId, setClubId] = useState<number | null>(null);
   const [scenario, setScenario] = useState(SCENARIOS[0].id);
@@ -45,13 +48,14 @@ export default function NewGame() {
       const w = preview;
       let cid: number | null = clubId;
       let sc: string | null = null;
-      if (mode === 'journey') cid = null;
+      if (mode === 'career') cid = null;
       if (mode === 'scenario') { sc = scenario; cid = scenarioClub(w, scenario); }
       if (mode === 'founder' && cid == null) cid = founderDefault(w);
       assignUser(w, {
-        userName: name || 'Executive', role: mode === 'journey' ? 'gm' : role, clubId: cid, style, difficulty, worldNoise: noise,
+        userName: name || 'Executive', role: mode === 'career' ? 'gm' : role, clubId: cid, style, difficulty, worldNoise: noise, nationality, background,
         customClub: mode === 'founder' ? { ...custom, city: custom.city } : null, scenario: sc,
       });
+      if (mode === 'career') careerStartOffers(w);
       setWorld(w);
       nav('/today');
     }, 30);
@@ -76,21 +80,40 @@ export default function NewGame() {
             <Card title="Your executive">
               <div className="col">
                 <label className="field">Name<input value={name} onChange={(e) => setName(e.target.value)} placeholder="Your name" /></label>
-                <label className="field">Formal role</label>
-                <Pills value={role} onChange={setRole} options={[{ id: 'gm', label: 'General Manager' }, { id: 'owner', label: 'Owner-President' }]} />
-                <p className="small muted">
-                  {role === 'owner'
-                    ? 'Owner-President: you cannot be fired and you can inject personal wealth (€1.5M), but if the club goes into administration your career ends.'
-                    : 'General Manager: the board sets objectives and can dismiss you. Success earns job offers from bigger clubs.'}
-                </p>
+                <label className="field">Nationality
+                  <select value={nationality} onChange={(e) => setNationality(e.target.value)}>
+                    {COUNTRY_OPTIONS.map((c) => <option key={c.code} value={c.code}>{c.label}</option>)}
+                  </select>
+                </label>
+                <p className="small muted">Where you come from decides your first job offers: Spaniards start in the Spanish lower divisions, Americans at struggling US college programs, other nationalities get a mix.</p>
+                <label className="field">Background</label>
+                <div className="col gap4">
+                  {(Object.keys(BACKGROUND_INFO) as Background[]).map((b) => (
+                    <label key={b} className="row" style={{ cursor: 'pointer', alignItems: 'flex-start' }}>
+                      <input type="radio" checked={background === b} onChange={() => setBackground(b)} style={{ marginTop: 3 }} />
+                      <div><b>{BACKGROUND_INFO[b].label}</b> <span className="small muted">— {BACKGROUND_INFO[b].desc}</span></div>
+                    </label>
+                  ))}
+                </div>
+                {mode !== 'career' && (
+                  <>
+                    <label className="field">Formal role</label>
+                    <Pills value={role} onChange={setRole} options={[{ id: 'gm', label: 'General Manager' }, { id: 'owner', label: 'Owner-President' }]} />
+                    <p className="small muted">
+                      {role === 'owner'
+                        ? 'Owner-President: you cannot be fired and you can inject personal wealth (€1.5M), but if the club goes into administration your career ends.'
+                        : 'General Manager: the board sets objectives and can dismiss you. Success earns job offers from bigger clubs.'}
+                    </p>
+                  </>
+                )}
               </div>
             </Card>
             <Card title="Start mode">
               <div className="col">
                 {([
-                  ['founder', 'Founder career', 'Take over a small Liga Plata club and rebrand it as your own project. The PC Fútbol climb.'],
-                  ['existing', 'Existing club', 'Begin at any club in the three-tier pyramid.'],
-                  ['journey', 'Executive journey', 'Start unemployed and choose between job offers from modest clubs.'],
+                  ['career', 'Career (recommended)', 'Start as an unknown executive and choose between your first job offers. Fans and owner judge you every week: get fired, or earn offers from bigger clubs.'],
+                  ['founder', 'Founder (quick start)', 'Take over a small Liga Plata club and rebrand it as your own project.'],
+                  ['existing', 'Existing club (quick start)', 'Begin at any club in Spain or the US college league.'],
                   ['scenario', 'Challenge scenario', 'Curated short starts with special conditions.'],
                 ] as [Mode, string, string][]).map(([id, label, desc]) => (
                   <label key={id} className="row" style={{ alignItems: 'flex-start', cursor: 'pointer' }}>
@@ -125,13 +148,14 @@ export default function NewGame() {
               </div>
             )}
             {mode === 'existing' && (
-              <Card title="Choose your club" actions={<Pills value={league} onChange={(l) => { setLeague(l); setClubId(null); }} options={[{ id: 'ELITE', label: 'Liga Élite' }, { id: 'ORO', label: 'Liga Oro' }, { id: 'PLATA', label: 'Liga Plata' }]} />}>
+              <Card title="Choose your club" actions={<Pills value={league} onChange={(l) => { setLeague(l); setClubId(null); }} options={[{ id: 'ELITE', label: 'Liga Élite' }, { id: 'ORO', label: 'Liga Oro' }, { id: 'PLATA', label: 'Liga Plata' }, { id: 'COLLEGE', label: 'US College (NCL)' }]} />}>
                 <ClubPicker w={preview} league={league} value={clubId} onChange={setClubId} />
               </Card>
             )}
-            {mode === 'journey' && (
-              <Card title="Executive journey">
-                <p>You start without a club. In the first weeks you will receive job offers from clubs that match your modest reputation. Accept one to begin — or wait for a better one.</p>
+            {mode === 'career' && (
+              <Card title="Your first offers">
+                <p>You start without a club. On day one you will receive two or three offers that match a {COUNTRY_OPTIONS.find((c) => c.code === nationality)?.label} {BACKGROUND_INFO[background].label.toLowerCase()} with no track record — {nationality === 'USA' || nationality === 'CAN' ? 'mostly struggling US college programs' : nationality === 'ESP' ? 'clubs in the Spanish third and second divisions' : 'mostly Spanish lower-division clubs'}. Accept one to begin, or decline and wait for others.</p>
+                <p className="small muted">From then on the owner and the supporters grade you weekly against what your club is expected to achieve.</p>
               </Card>
             )}
             {mode === 'scenario' && (

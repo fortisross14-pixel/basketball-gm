@@ -7,7 +7,7 @@ import { resolveSponsorDecision } from './commercial';
 import { refPrice } from './economy';
 import { SEAT_ZONES } from './types';
 import { STAFF_LABEL, staffAsk } from './staff';
-import { resolveJobOffer } from './career';
+import { resolveJobOffer, fanReaction } from './career';
 import { salaryAsk, ROLE_MINUTES } from './player';
 
 type Tpl = 'unhappyMinutes' | 'raiseRequest' | 'fanPrices' | 'councilGrant' | 'prospect' | 'staffPoach' | 'incident' | 'sponsorAppearance' | 'coachWish' | 'press' | 'returnToPlay' | 'leaderMeeting';
@@ -195,11 +195,18 @@ function resolveEvent(w: World, d: Decision, choice: string): string {
       if (choice === 'later') { p.morale = clamp(p.morale - 3, 0, 100); return 'He will wait — for now.'; }
       p.morale = clamp(p.morale - 15, 0, 100); if (p.agent.style === 'hardline') p.transferListed = true; return p.agent.style === 'hardline' ? 'His agent demands a transfer.' : 'He is unhappy.';
     case 'fanPrices':
-      if (choice === 'cut') { for (const z of SEAT_ZONES) c.ticketing.prices[z] = Math.round(c.ticketing.prices[z] * 0.9); c.fans.sentiment = clamp(c.fans.sentiment + 8, 0, 100); return 'Prices cut by 10%. Supporters welcome the move.'; }
+      if (choice === 'cut') { for (const z of SEAT_ZONES) c.ticketing.prices[z] = Math.round(c.ticketing.prices[z] * 0.9); c.fans.sentiment = clamp(c.fans.sentiment + 8, 0, 100); fanReaction(w, 5, 'Listened to supporters on ticket prices'); return 'Prices cut by 10%. Supporters welcome the move.'; }
       if (choice === 'meet') { book(w, c, 'marketing', -3000); c.fans.sentiment = clamp(c.fans.sentiment + 3, 0, 100); return 'The meeting eased tensions a little.'; }
-      c.fans.sentiment = clamp(c.fans.sentiment - 6, 0, 100); c.fans.loyalty = clamp(c.fans.loyalty - 2, 0, 100); return 'Banners at the next game. Sentiment drops.';
+      c.fans.sentiment = clamp(c.fans.sentiment - 6, 0, 100); c.fans.loyalty = clamp(c.fans.loyalty - 2, 0, 100); fanReaction(w, -6, 'Ignored the ticket-price protest'); return 'Banners at the next game. Sentiment drops.';
     case 'councilGrant':
-      if (choice === 'accept') { book(w, c, 'grants', d.payload.amount as number); if (!c.campaigns.some((x) => x.kind === 'schoolClinics')) c.campaigns.push({ id: nextId(w), kind: 'schoolClinics', weeksLeft: 10, weeklyCost: 300, intensity: 1 }); return `Grant of ${fmtMoney(d.payload.amount as number)} received; school clinics launched.`; }
+      if (choice === 'accept') {
+        book(w, c, 'grants', d.payload.amount as number);
+        const cost = Math.round((d.payload.amount as number) * 0.045 / 100) * 100;
+        if (!c.campaigns.some((x) => x.kind === 'schoolClinics')) c.campaigns.push({ id: nextId(w), kind: 'schoolClinics', weeksLeft: 10, weeklyCost: cost, intensity: 1 });
+        c.ticketing.studentDiscount = true;
+        for (const p of roster(w, c.id).slice(0, 4)) p.freshness = Math.max(70, p.freshness - 4); // players attend clinics
+        return `Grant of ${fmtMoney(d.payload.amount as number)} received. Conditions: 10 weeks of school clinics (${fmtMoney(cost)}/week, player appearances) and student discounts on general tickets.`;
+      }
       return 'Grant declined.';
     case 'prospect':
       if (!p) return '';
@@ -209,7 +216,11 @@ function resolveEvent(w: World, d: Decision, choice: string): string {
       const s = staffById(w, d.payload.staffId as number);
       const rival = getClub(w, d.payload.rivalId as number);
       if (!s) return '';
-      if (choice === 'counter') { if (s.contract) s.contract.salary = d.payload.raise as number; s.loyalty = Math.min(100, s.loyalty + 15); return `${s.lastName} stays on improved terms.`; }
+      if (choice === 'counter') {
+        if (r.chance(0.25 + s.ambition / 400)) choice = 'release';
+        else { if (s.contract) s.contract.salary = d.payload.raise as number; s.loyalty = Math.min(100, s.loyalty + 15); return `${s.lastName} stays on improved terms.`; }
+        addNews(w, `${rival.name} top your offer`, `${s.firstName} ${s.lastName} chose the bigger project anyway.`, { tags: ['staff'], clubIds: [c.id, rival.id] });
+      }
       book(w, c, 'other', Math.round((s.contract?.salary ?? 0) * 0.5));
       delete c.staff[s.role];
       const prev = rival.staff[s.role];
@@ -235,7 +246,10 @@ function resolveEvent(w: World, d: Decision, choice: string): string {
     case 'press': {
       const sq = roster(w, c.id);
       w.user.pressStance += choice === 'defend' ? 1 : choice === 'demand' ? -1 : choice === 'expect' ? -0.5 : 0;
-      if (choice === 'calm') { c.board.trust.media = clamp(c.board.trust.media + 2, 0, 100); return 'Measured answers. No headlines.'; }
+      if (choice === 'calm') {
+        if (r.chance(0.35)) { c.board.trust.media = clamp(c.board.trust.media - 3, 0, 100); fanReaction(w, -2, 'Evasive press conference'); return 'The press called it evasive: "No answers from the executive."'; }
+        c.board.trust.media = clamp(c.board.trust.media + 2, 0, 100); return 'Measured answers. No headlines.';
+      }
       if (choice === 'defend') { for (const x of sq) x.morale = clamp(x.morale + 4, 0, 100); c.board.trust.media = clamp(c.board.trust.media - 2, 0, 100); return 'The locker room appreciates it; some media call it denial.'; }
       if (choice === 'demand') { for (const x of sq) x.morale = clamp(x.morale + (x.personality.ego > 65 ? -6 : 2), 0, 100); c.fans.sentiment = clamp(c.fans.sentiment + 3, 0, 100); return 'Fans like the honesty; big egos do not.'; }
       c.fans.hype = clamp(c.fans.hype - 4, 0, 100); c.board.trust.relationship = clamp(c.board.trust.relationship - 3, 0, 100); return 'Expectations lowered. The board is not pleased.';
@@ -255,9 +269,10 @@ export function expireDecisions(w: World) {
   const now = absDay(w);
   for (const d of w.decisions) {
     if (d.resolved || d.deadlineDay > now) continue;
-    const pick = d.defaultOption;
+    // if staff made a recommendation they act on it; otherwise the default applies
+    const pick = d.recommended ?? d.defaultOption;
     const msg = resolveDecision(w, d, pick, true);
-    addNews(w, `Deadline passed: ${d.title}`, `No decision was taken: "${d.options.find((o) => o.id === pick)?.label}". ${msg}`, { tags: ['club'], clubIds: w.user.clubId != null ? [w.user.clubId] : [] });
+    addNews(w, `Deadline passed: ${d.title}`, `No decision was taken, so ${d.recommended ? `${d.recommendedBy ?? 'staff'} chose` : 'the default applied'}: "${d.options.find((o) => o.id === pick)?.label}". ${msg}`, { tags: ['club'], clubIds: w.user.clubId != null ? [w.user.clubId] : [] });
   }
   // keep history short
   const unresolved = w.decisions.filter((d) => !d.resolved);

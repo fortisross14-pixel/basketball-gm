@@ -22,6 +22,7 @@ export default function Standings() {
           { id: 'ELITE', label: w.rules.leagues.ELITE.name },
           { id: 'ORO', label: w.rules.leagues.ORO.name },
           { id: 'PLATA', label: w.rules.leagues.PLATA.name },
+          { id: 'COLLEGE', label: `${w.rules.leagues.COLLEGE.name} (USA)` },
           { id: 'EURO', label: 'Continental Cup' },
         ]}
       />
@@ -32,6 +33,10 @@ export default function Standings() {
 
 function zoneOf(w: World, lid: LeagueId, rank: number, n: number): { label: string; tone: 'good' | 'info' | 'bad' | 'accent' } | null {
   const r = w.rules.leagues[lid];
+  if (lid === 'COLLEGE') {
+    if (rank <= r.playoffTeams) return { label: 'NCL Tournament', tone: 'good' };
+    return null;
+  }
   if (lid === 'ELITE') {
     if (rank <= w.rules.euro.fromElite && rank <= r.playoffTeams) return { label: 'Playoffs · Europe', tone: 'accent' };
     if (rank <= r.playoffTeams) return { label: 'Playoffs', tone: 'good' };

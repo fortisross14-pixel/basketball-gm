@@ -15,7 +15,7 @@ export function generateSponsorOffer(w: World, c: Club, slot: SponsorSlot): Spon
   const pool = SPONSOR_BRANDS.filter((b) => !used.has(b.brand));
   const b = r.pick(pool.length ? pool : SPONSOR_BRANDS);
   const comm = staffRating(w, c, 'commercialDirector');
-  const quality = 0.75 + comm / 250 + (b.risk > 50 ? 0.25 : 0); // risky brands pay more
+  const quality = (0.75 + comm / 250 + (b.risk > 50 ? 0.25 : 0)) * (isUser(w, c.id) && w.user.background === 'business' ? 1.08 : 1); // risky brands pay more
   const annual = Math.round(sponsorBenchmark(w, c, slot) * quality * r.float(0.85, 1.15) / 1000) * 1000;
   const years = r.int(1, 4);
   return {
@@ -78,12 +78,14 @@ export function resolveSponsorDecision(w: World, d: Decision, choice: string): s
   }
   if (choice === 'counter') {
     const r = rng(w);
-    if (r.chance(0.5 + staffRating(w, c, 'commercialDirector') / 400)) {
+    const hardline = o.risk >= 50 || o.annual >= sponsorBenchmark(w, c, o.slot) * 1.05;
+    if (!hardline && r.chance(0.4 + staffRating(w, c, 'commercialDirector') / 400)) {
       o.annual = Math.round(o.annual * 1.15 / 1000) * 1000;
       signSponsor(w, c, o);
       return `${o.brand} accept the counter: ${fmtMoney(o.annual)}/yr.`;
     }
-    return `${o.brand} withdraw their offer.`;
+    (c.sponsorLocks ??= {})[o.slot] = absDay(w) + 28;
+    return `${o.brand} withdraw their offer${hardline ? ' — it was already at the top of their range' : ''}. Other brands will wait about four weeks before approaching that slot.`;
   }
   return `Declined ${o.brand}.`;
 }
@@ -110,7 +112,8 @@ export function weeklySponsors(w: World, c: Club) {
   if (!r.chance(p)) return;
   const empty = SPONSOR_SLOTS.filter((s) => !c.sponsors.find((x) => x.slot === s) && (s !== 'naming' || c.arena.owned || tierOf(w, c) === 1));
   const expiring = c.sponsors.filter((s) => s.expires <= w.season).map((s) => s.slot);
-  const pool = [...empty, ...expiring, ...(r.chance(0.3) ? SPONSOR_SLOTS : [])];
+  const locked = (s: SponsorSlot) => (c.sponsorLocks?.[s] ?? 0) > absDay(w);
+  const pool = [...empty, ...expiring, ...(r.chance(0.3) ? SPONSOR_SLOTS : [])].filter((s) => !locked(s));
   if (!pool.length) return;
   const slot = r.pick(pool);
   const o = generateSponsorOffer(w, c, slot);
@@ -339,7 +342,9 @@ function weeklyFans(w: World, c: Club) {
   const tvReach = c.tv?.reach ?? 20;
   const tvDigital = c.tv?.digitalBoost ?? 10;
   // pricing fairness: high prices erode sentiment
-  const priceRatio = SEAT_ZONES.reduce((a, z) => a + c.ticketing.prices[z] / Math.max(1, refPrice(w, c, z)), 0) / 3;
+  // fairness is judged on the average AND the most expensive zone, so one gouged zone can't hide
+  const ratios = SEAT_ZONES.map((z) => c.ticketing.prices[z] / Math.max(1, refPrice(w, c, z)));
+  const priceRatio = (ratios.reduce((a, x) => a + x, 0) / 3) * 0.5 + Math.max(...ratios) * 0.5;
   const concPenalty = c.concessions.pricing === 'premium' ? -0.15 : c.concessions.pricing === 'value' ? 0.1 : 0;
   const dyn = c.ticketing.dynamicPricing && !c.ticketing.protectSeasonHolders ? -0.25 : c.ticketing.dynamicPricing ? -0.08 : 0;
   const sentTarget = clamp(35 + win * 45 + (f.hype - 50) / 4 - (priceRatio - 1) * 30 + concPenalty * 20 + (c.concessions.localSuppliers ? 3 : 0), 0, 100);

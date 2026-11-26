@@ -1,9 +1,9 @@
-import type { Club, Department, DelegationPolicy, ExecutiveStyle, LeagueId, Player, Region, Settings, Tactics, UserRole, World, StaffRole, SponsorSlot } from './types';
+import type { Background, Club, Department, DelegationPolicy, ExecutiveStyle, LeagueId, Player, Region, Settings, Tactics, UserRole, World, StaffRole, SponsorSlot } from './types';
 import { CLUB_SEEDS, type ClubSeed } from './data/clubs';
 import { SPONSOR_BRANDS, BROADCASTERS } from './data/names';
 import { defaultRuleset } from './rules';
 import { Rng, clamp } from './rng';
-import { generatePlayer, baseSalary, roleFor, marketValue, updateOvr } from './player';
+import { generatePlayer, baseSalary, roleFor, marketValue, updateOvr, nilSalary, eligibilityYears } from './player';
 import { generateStaff, STAFF_ROLES } from './staff';
 import { generateBoard } from './board';
 import { REF_PRICE, SUITE_REF, estimateRevenue, sponsorBenchmark, localTvBenchmark, BROADCASTER_PROFILE } from './economy';
@@ -12,14 +12,17 @@ import { staffPayroll } from './staff';
 import { maintenanceNeed } from './arena';
 import { nextId, invalidateIndex, rng, club as getClub, roster, addNews, fmtMoney } from './world';
 import { startSeason } from './season';
+import { BACKGROUND_INFO } from './career';
 import { absDay } from './types';
 
-export const SAVE_VERSION = 1;
+export const SAVE_VERSION = 2;
 export const START_SEASON = 2026;
 
 export interface NewGameOptions {
   seed?: number;
   userName: string;
+  nationality?: string;
+  background?: Background;
   role: UserRole;
   clubId: number | null; // null = executive journey (unemployed)
   style: ExecutiveStyle;
@@ -93,7 +96,7 @@ function defaultSettings(seed: number, difficulty: Settings['difficulty'], noise
   };
 }
 
-const LEAGUE_OF_TIER: Record<number, LeagueId | null> = { 0: null, 1: 'ELITE', 2: 'ORO', 3: 'PLATA' };
+const LEAGUE_OF_TIER: Record<number, LeagueId | null> = { 0: null, 1: 'ELITE', 2: 'ORO', 3: 'PLATA', 4: 'COLLEGE' };
 
 export function createWorld(opts: NewGameOptions): World {
   const seed = opts.seed ?? Math.floor(Math.random() * 2 ** 31);
@@ -121,6 +124,9 @@ export function createWorld(opts: NewGameOptions): World {
     projects: {},
     user: {
       name: opts.userName || 'Executive',
+      nationality: opts.nationality ?? 'ESP',
+      background: opts.background ?? 'business',
+      approval: { board: 60, fans: 55, fanBonus: 0, lowFanWeeks: 0, history: [], notes: [] },
       role: opts.role,
       clubId: opts.clubId,
       reputation: 25,
@@ -165,6 +171,7 @@ export function createWorld(opts: NewGameOptions): World {
     const p = generatePlayer(w, { targetOvr: ovr, age: a });
     w.players.push(p);
   }
+  generateRecruits(w, 45);
   for (const role of STAFF_ROLES) {
     for (let i = 0; i < 7; i++) w.staff.push(generateStaff(w, role, clamp(r.normal(50, 15), 20, 85), null, 2));
   }
@@ -181,8 +188,10 @@ export function createWorld(opts: NewGameOptions): World {
 }
 
 /** Post-generation: put the user in charge of a club (or leave them unemployed). */
-export function assignUser(w: World, opts: Pick<NewGameOptions, 'userName' | 'role' | 'clubId' | 'style' | 'difficulty' | 'worldNoise' | 'customClub' | 'scenario'>) {
+export function assignUser(w: World, opts: Pick<NewGameOptions, 'userName' | 'role' | 'clubId' | 'style' | 'difficulty' | 'worldNoise' | 'customClub' | 'scenario' | 'nationality' | 'background'>) {
   w.user.name = opts.userName || 'Executive';
+  if (opts.nationality) w.user.nationality = opts.nationality;
+  if (opts.background) w.user.background = opts.background;
   w.user.role = opts.role;
   w.user.style = opts.style;
   w.user.delegation = delegationPreset(opts.style);
@@ -197,7 +206,7 @@ export function assignUser(w: World, opts: Pick<NewGameOptions, 'userName' | 'ro
     const c = getClub(w, opts.clubId);
     w.user.career.push({ clubId: c.id, clubName: c.name, role: opts.role, from: absDay(w), to: null, achievements: [], exit: null });
     for (const p of roster(w, c.id)) w.user.knowledge[p.id] = 100;
-    w.user.reputation = c.leagueId === 'ELITE' ? 45 : c.leagueId === 'ORO' ? 30 : 20;
+    w.user.reputation = c.leagueId === 'ELITE' ? 45 : c.leagueId === 'ORO' ? 30 : c.leagueId === 'COLLEGE' ? 20 + Math.round(c.prestige / 5) : 20;
     if (opts.role === 'owner') { c.board.owner = w.user.name; c.board.ownerWealth = 60; }
     const fin = (w.settings.difficulty === 'relaxed' ? 1.5 : w.settings.difficulty === 'demanding' ? 0.8 : w.settings.difficulty === 'brutal' ? 0.6 : 1);
     if (c.finances.cash > 0) c.finances.cash = Math.round(c.finances.cash * fin);
@@ -207,20 +216,23 @@ export function assignUser(w: World, opts: Pick<NewGameOptions, 'userName' | 'ro
     addNews(w, `${w.user.name} takes charge of ${c.name}`, `${c.board.owner} welcomes the new ${opts.role === 'owner' ? 'owner-president' : 'general manager'}. Vision: ${c.board.plan.vision}. The board has set ${c.board.objectives.length} objectives and a payroll budget of ${fmtMoney(c.finances.budget.payroll)}. ${rules ? `${rules.name}: ${rules.teams} clubs, max ${rules.maxNonEU} non-EU players, min ${rules.minHomegrown} homegrown.` : ''} The summer transfer window is open until 30 September.`, { tags: ['career', 'board'], clubIds: [c.id], importance: 3 });
   } else {
     w.user.unemployedSince = absDay(w);
+    w.user.reputation = BACKGROUND_INFO[w.user.background].rep;
   }
+  w.user.approval = { board: 60, fans: 55, fanBonus: 5, lowFanWeeks: 0, history: [], notes: [] };
   if (opts.scenario) applyScenario(w, opts.scenario);
   w.saveName = '';
 }
 
 function makeClub(w: World, r: Rng, s: ClubSeed): Club {
-  const tier = s.tier;
+  const college = s.tier === 4;
+  const tier = college ? 2 : s.tier; // college programs run on a tier-2 economic scale
   const local = Math.round(Math.sqrt(s.population) * 14 * (0.4 + s.prestige / 80));
   const general = Math.round(s.seats * 0.66 / 50) * 50;
   const lower = Math.round(s.seats * 0.28 / 50) * 50;
   const premium = s.seats - general - lower;
   const suites = tier === 1 || tier === 0 ? Math.round(s.seats / 600) : tier === 2 ? Math.round(s.seats / 2500) : 0;
   const lvl = (lo: number, hi: number) => r.int(lo, hi);
-  const L = tier === 0 ? [3, 4] : tier === 1 ? [2, 3] : tier === 2 ? [1, 2] : [0, 1];
+  const L = college ? (s.prestige >= 65 ? [3, 4] : s.prestige >= 45 ? [2, 3] : [1, 2]) : tier === 0 ? [3, 4] : tier === 1 ? [2, 3] : tier === 2 ? [1, 2] : [0, 1];
   const ref = REF_PRICE[tier];
   const priceMult = s.economy * (0.8 + s.prestige / 250);
   const prices = { general: Math.round(ref.general * priceMult), lower: Math.round(ref.lower * priceMult), premium: Math.round(ref.premium * priceMult) };
@@ -232,9 +244,9 @@ function makeClub(w: World, r: Rng, s: ClubSeed): Club {
     city: s.city,
     region: s.region,
     country: s.country,
-    foreign: tier === 0,
+    foreign: s.tier === 0,
     colors: s.colors,
-    leagueId: LEAGUE_OF_TIER[tier],
+    leagueId: LEAGUE_OF_TIER[s.tier],
     population: s.population,
     economy: s.economy,
     prestige: s.prestige,
@@ -267,8 +279,8 @@ function makeClub(w: World, r: Rng, s: ClubSeed): Club {
       },
       condition: r.int(55, 90),
       opened: START_SEASON - r.int(5, 40),
-      owned: s.prestige >= 80,
-      rentPerGame: s.prestige >= 80 ? 0 : tier === 1 ? 6000 : tier === 2 ? 1200 : 300,
+      owned: college || s.prestige >= 80,
+      rentPerGame: college || s.prestige >= 80 ? 0 : tier === 1 ? 6000 : tier === 2 ? 1200 : 300,
     },
     ticketing: {
       prices,
@@ -319,6 +331,7 @@ function regionMix(c: Club, tier: number, r: Rng): Region[] {
 }
 
 function generateRoster(w: World, r: Rng, c: Club) {
+  if (c.leagueId === 'COLLEGE') return generateCollegeRoster(w, r, c);
   const tier = c.foreign ? 0 : w.rules.leagues[c.leagueId!].tier;
   const top = topTarget(c, tier);
   const regions = regionMix(c, tier, r);
@@ -351,6 +364,32 @@ function generateRoster(w: World, r: Rng, c: Club) {
       p.contract = { salary: 3000, expires: w.season + 2, buyout: null, rolePromise: 'prospect', signedSeason: w.season, signingBonus: 0, youth: true };
       w.players.push(p);
     }
+  }
+}
+
+function generateCollegeRoster(w: World, r: Rng, c: Club) {
+  const top = 45 + c.prestige * 0.22;
+  const pos = r.shuffle(['PG', 'SG', 'SF', 'PF', 'C', 'PG', 'SG', 'SF', 'PF', 'C', 'SG', 'SF', 'PF'] as Player['pos'][]);
+  for (let i = 0; i < 13; i++) {
+    const a = r.int(18, 22);
+    const intl = r.chance(0.18);
+    const p = generatePlayer(w, { targetOvr: Math.round(top - i * r.float(1.0, 1.8) - (22 - a) * 0.8 + r.normal(0, 1.5)), age: a, country: intl ? undefined : 'USA', region: intl ? r.pick(['EU', 'NONEU'] as Region[]) : undefined, pos: pos[i], potBoost: Math.round(c.prestige / 20) });
+    p.teamId = c.id;
+    p.homegrown = false;
+    p.contract = { salary: nilSalary(p.ovr), expires: w.season + eligibilityYears(a) - 1, buyout: null, rolePromise: roleFor(i), signedSeason: w.season - r.int(0, 2), signingBonus: 0 };
+    p.morale = r.int(60, 80);
+    p.joinedDay = absDay(w) - r.int(0, 700);
+    p.value = marketValue(w, p);
+    w.players.push(p);
+  }
+}
+
+/** High-school class: unattached 18-year-olds that college programs recruit (pros may sign them too). */
+export function generateRecruits(w: World, n: number) {
+  const r = rng(w);
+  for (let i = 0; i < n; i++) {
+    const p = generatePlayer(w, { targetOvr: Math.round(clamp(r.normal(43, 6), 30, 62)), age: 18, country: r.chance(0.8) ? 'USA' : undefined, potBoost: r.int(0, 8) });
+    w.players.push(p);
   }
 }
 

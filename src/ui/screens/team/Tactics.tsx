@@ -44,7 +44,7 @@ export default function Tactics() {
     <Page
       title="Tactics"
       subtitle="Games resolve instantly: your roster, your coach and these settings decide them."
-      actions={<Button onClick={() => { act((ww) => coachSetsTactics(ww, getClub(ww, c.id), true)); notify(`Coach ${coach?.lastName ?? '(interim)'} set the game plan.`); }}>Let the coach decide</Button>}
+      actions={<Button onClick={() => { if (!confirm('Let the coach replace your systems and lineup with his own plan?')) return; act((ww) => coachSetsTactics(ww, getClub(ww, c.id), true)); notify(`Coach ${coach?.lastName ?? '(interim)'} set the game plan.`); }}>Let the coach decide</Button>}
     >
       {delegated && (
         <div className="mb8" style={{ marginBottom: 14 }}>
@@ -139,7 +139,7 @@ export default function Tactics() {
         </Card>
       </div>
 
-      <Card title="Lineup & rotation order" className="mt16" actions={<Button size="sm" onClick={() => set({ starters: [], rotationOrder: [] })}>Reset to automatic</Button>}>
+      <Card title="Lineup & rotation order" className="mt16" actions={<Button size="sm" onClick={() => { if (confirm('Clear your starters and bench order? The best available players will start automatically.')) set({ starters: [], rotationOrder: [] }); }}>Reset to automatic</Button>}>
         <div className="small muted mb8">
           {t.starters.length === 5 ? 'Custom lineup: the first five start, then the bench comes in this order.' : 'Automatic: the coach picks the best balanced five each game. Move anyone to set a custom order.'} Injured players are skipped automatically. Minute cap 0 = no cap.
         </div>

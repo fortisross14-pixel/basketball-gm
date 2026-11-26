@@ -1,4 +1,4 @@
-import { useMemo, useState, type CSSProperties, type ReactNode } from 'react';
+import { useEffect, useId, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import type { Club, Player } from '../../engine/types';
 import { fmtMoney } from '../../engine/world';
@@ -59,11 +59,15 @@ export function Button({ children, onClick, variant, size, disabled, title, type
 
 export function Tabs<T extends string>({ tabs, value, onChange }: { tabs: { id: T; label: ReactNode }[]; value: T; onChange: (v: T) => void }) {
   return (
-    <div className="tabs">
+    <div className="tabs" role="tablist" onKeyDown={(e) => {
+      const i = tabs.findIndex((t) => t.id === value);
+      if (e.key === 'ArrowRight') onChange(tabs[(i + 1) % tabs.length].id);
+      if (e.key === 'ArrowLeft') onChange(tabs[(i - 1 + tabs.length) % tabs.length].id);
+    }}>
       {tabs.map((t) => (
-        <div key={t.id} className={`tab ${t.id === value ? 'active' : ''}`} onClick={() => onChange(t.id)}>
+        <button type="button" role="tab" aria-selected={t.id === value} tabIndex={t.id === value ? 0 : -1} key={t.id} className={`tab ${t.id === value ? 'active' : ''}`} onClick={() => onChange(t.id)}>
           {t.label}
-        </div>
+        </button>
       ))}
     </div>
   );
@@ -73,7 +77,7 @@ export function Pills<T extends string>({ options, value, onChange }: { options:
   return (
     <div className="pill-group">
       {options.map((o) => (
-        <button key={o.id} className={o.id === value ? 'on' : ''} onClick={() => onChange(o.id)} title={o.title}>
+        <button type="button" key={o.id} className={o.id === value ? 'on' : ''} aria-pressed={o.id === value} onClick={() => onChange(o.id)} title={o.title}>
           {o.label}
         </button>
       ))}
@@ -81,15 +85,39 @@ export function Pills<T extends string>({ options, value, onChange }: { options:
   );
 }
 
+const FOCUSABLE = 'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
+/** Accessible dialog: focuses its primary control, traps Tab, closes on Esc, restores focus. */
 export function Modal({ title, onClose, children, wide, actions }: { title: ReactNode; onClose: () => void; children: ReactNode; wide?: boolean; actions?: ReactNode }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const titleId = useId();
+  const closeRef = useRef(onClose);
+  closeRef.current = onClose;
+  useEffect(() => {
+    const prev = document.activeElement as HTMLElement | null;
+    const el = ref.current!;
+    const first = (el.querySelector('[data-autofocus], input, .btn.primary') ?? el.querySelector(FOCUSABLE)) as HTMLElement | null;
+    first?.focus();
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') { e.stopPropagation(); closeRef.current(); }
+      if (e.key !== 'Tab') return;
+      const items = [...el.querySelectorAll<HTMLElement>(FOCUSABLE)];
+      if (!items.length) return;
+      const a = items[0], z = items[items.length - 1];
+      if (e.shiftKey && document.activeElement === a) { e.preventDefault(); z.focus(); }
+      else if (!e.shiftKey && document.activeElement === z) { e.preventDefault(); a.focus(); }
+    };
+    el.addEventListener('keydown', onKey);
+    return () => { el.removeEventListener('keydown', onKey); prev?.focus?.(); };
+  }, []);
   return (
     <div className="modal-back" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
-      <div className={`modal ${wide ? 'wide' : ''}`}>
+      <div ref={ref} className={`modal ${wide ? 'wide' : ''}`} role="dialog" aria-modal="true" aria-labelledby={titleId}>
         <div className="modal-head">
-          <h2>{title}</h2>
+          <h2 id={titleId}>{title}</h2>
           <div className="spacer" />
           {actions}
-          <Button variant="ghost" size="sm" onClick={onClose}>✕</Button>
+          <button type="button" className="btn ghost sm" aria-label="Close dialog" onClick={onClose}>✕</button>
         </div>
         {children}
       </div>
@@ -144,6 +172,9 @@ export function Table<T>({ columns, rows, rowKey, initialSort, initialDir = 'des
                 className={`${c.align ?? ''} ${c.sort ? 'sortable' : ''}`}
                 title={c.title}
                 style={c.width ? { width: c.width } : undefined}
+                aria-sort={sortKey === c.key ? (dir === 'asc' ? 'ascending' : 'descending') : undefined}
+                tabIndex={c.sort ? 0 : undefined}
+                onKeyDown={(e) => { if (c.sort && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); (e.currentTarget as HTMLElement).click(); } }}
                 onClick={() => {
                   if (!c.sort) return;
                   if (sortKey === c.key) setDir(dir === 'asc' ? 'desc' : 'asc');
@@ -197,16 +228,21 @@ export function ratingColor(v: number): string {
   return '#b91c1c';
 }
 
+/** Mid-tone chips use dark text for WCAG contrast. */
+function ratingText(v: number) {
+  return v >= 75 || v < 45 ? 'white' : '#111';
+}
+
 export function Rating({ v, range, title }: { v: number; range?: [number, number] | null; title?: string }) {
   if (range && range[0] !== range[1]) {
     return (
-      <span className="rating" style={{ background: ratingColor((range[0] + range[1]) / 2), color: 'white' }} title={title ?? 'Scouted range — scout the player for more precision'}>
+      <span className="rating" style={{ background: ratingColor((range[0] + range[1]) / 2), color: ratingText((range[0] + range[1]) / 2) }} title={title ?? 'Scouted range — scout the player for more precision'}>
         {range[0]}–{range[1]}
       </span>
     );
   }
   return (
-    <span className="rating" style={{ background: ratingColor(v), color: 'white' }} title={title}>
+    <span className="rating" style={{ background: ratingColor(v), color: ratingText(v) }} title={title}>
       {Math.round(v)}
     </span>
   );
@@ -284,7 +320,7 @@ export function Meter({ value, label, max = 100 }: { value: number; label?: Reac
         <div className="row small" style={{ marginBottom: 3 }}>
           <span className="muted">{label}</span>
           <span className="spacer" />
-          <b>{v}</b>
+          <b>{v / max >= 0.66 ? '▲ ' : v / max >= 0.4 ? '' : '▼ '}{v}</b>
         </div>
       )}
       <Bar value={value} max={max} color={color} />

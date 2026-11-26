@@ -256,7 +256,8 @@ export function proposeBudget(w: World, c: Club): Budget {
   const cashCushion = Math.max(0, c.finances.cash) * (0.15 + ambition * 0.2);
   const available = est + cashCushion - staff - ops - maint - academyB - medical - scouting - marketing;
   // the board always funds existing commitments, plus a little room to complete the squad
-  const payrollB = Math.max(est * 0.3, available * (0.82 + ambition * 0.12), payroll(w, c) * 1.04);
+  const floor = c.ai.strategy === 'survive' && !isUser(w, c.id) ? 0.9 : 1.04; // struggling AI clubs must shrink payroll
+  const payrollB = Math.max(est * 0.3, available * (0.82 + ambition * 0.12), payroll(w, c) * floor);
   const transfer = Math.max(0, c.finances.cash * (0.1 + ambition * 0.25));
   return {
     payroll: Math.round(payrollB / 1000) * 1000,

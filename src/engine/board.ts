@@ -20,7 +20,13 @@ export function generateBoard(w: World, c: Club): Board {
     trust: { results: 60, finances: 60, fans: 60, media: 60, promises: 60, relationship: 60 },
     overall: 60,
     objectives: [],
-    plan: {
+    plan: c.leagueId === 'COLLEGE' ? {
+      years: r.int(3, 5),
+      vision: c.prestige >= 60 ? r.pick(['Win a national title', 'Be a perennial NCL contender']) : r.pick(['Rebuild the program into a tournament team', 'Recruit better and grow the student fanbase', 'Become a respectable, solvent program']),
+      competitiveTarget: c.prestige >= 60 ? 'NCL title contention' : 'NCL Tournament',
+      profitTolerance: r.pick(['Break-even required', 'Small losses tolerated']),
+      development: 'Youth-first',
+    } : {
       years: r.int(3, 5),
       vision: t === 1 ? r.pick(['Become a continental regular', 'Compete for titles every season', 'Stable top-half club with a strong academy']) : t === 2 ? r.pick(['Reach the Liga Élite within three years', 'Build a stable, profitable club', 'Develop local talent and grow the fanbase']) : r.pick(['Climb to the Liga Oro', 'Survive and stay solvent', 'Rebuild the club around the community']),
       competitiveTarget: t === 1 ? 'Playoffs' : t === 2 ? 'Promotion contention' : 'Promotion contention',
@@ -42,7 +48,11 @@ export function setObjectives(w: World, c: Club) {
   const mk = (kind: Objective['kind'], target: number, label: string, weight: number): Objective => ({ id: nextId(w), kind, target, label, weight, status: 'pending', progress: 0 });
   const leaguePeers = w.clubs.filter((x) => x.leagueId === c.leagueId).sort((a, b2) => b2.prestige - a.prestige);
   const expectedRank = Math.max(1, leaguePeers.findIndex((x) => x.id === c.id) + 1);
-  if (t === 1) {
+  if (c.leagueId === 'COLLEGE') {
+    if (expectedRank <= 3) objs.push(mk('leaguePos', 2, 'Finish top 2 and contend for the NCL title', 3));
+    else if (expectedRank <= 9) objs.push(mk('leaguePos', 8, 'Make the NCL Tournament (top 8)', 3));
+    else objs.push(mk('leaguePos', 12, 'Win more games: finish 12th or better', 3));
+  } else if (t === 1) {
     if (expectedRank <= 3) objs.push(mk('leaguePos', 2, 'Finish in the top 2 of the regular season', 3));
     else if (expectedRank <= 8) objs.push(mk('leaguePos', 8, 'Reach the title playoffs (top 8)', 3));
     else objs.push(mk('avoidRelegation', 14, 'Avoid relegation (finish 14th or better)', 3));
@@ -110,9 +120,9 @@ export function weeklyBoard(w: World, c: Club) {
   const cashPenalty = c.finances.cash < 0 ? 25 : 0;
   const payrollOver = Math.max(0, payroll(w, c) / Math.max(1, c.finances.budget.payroll) - 1) * 100;
   const target: TrustComponents = {
-    results: 25 + sport * 70,
-    finances: clamp(30 + fin * 60 - cashPenalty - Math.max(0, debtRatio - 0.8) * 40 - payrollOver * 1.2, 0, 100),
-    fans: clamp(c.fans.sentiment, 0, 100),
+    results: 5 + sport * 90,
+    finances: clamp(10 + fin * 80 - cashPenalty - Math.max(0, debtRatio - 0.8) * 40 - payrollOver * 1.2, 0, 100),
+    fans: clamp(isUser(w, c.id) ? w.user.approval.fans : c.fans.sentiment, 0, 100),
     media: tr.media,
     promises: tr.promises,
     relationship: tr.relationship,
@@ -236,7 +246,8 @@ export function seasonReview(w: World, c: Club): { score: number; lines: string[
   }
   const score = wsum ? tot / wsum : 0.5;
   b.trust.results = clamp(b.trust.results + (score - 0.6) * 30, 0, 100);
-  b.trust.relationship = clamp(b.trust.relationship + (score - 0.5) * 10, 0, 100);
+  b.trust.relationship = clamp(b.trust.relationship + (score - 0.5) * 16, 0, 100);
+  b.trust.promises = clamp(b.trust.promises + (score - 0.5) * 10, 0, 100);
   if (score < 0.35) b.autonomy = 'restricted';
   else if (score > 0.7) b.autonomy = 'full';
   b.injectionsThisSeason = 0;

@@ -14,7 +14,7 @@ export interface ClubSeed {
   colors: [string, string];
   arena: string;
   seats: number;
-  tier: 1 | 2 | 3 | 0; // 0 = foreign (continental only)
+  tier: 1 | 2 | 3 | 0 | 4; // 0 = foreign (continental only), 4 = US college
 }
 
 export const CLUB_SEEDS: ClubSeed[] = [
@@ -85,4 +85,22 @@ export const CLUB_SEEDS: ClubSeed[] = [
   { name: 'Paris Lumière', nickname: 'Lumière', abbrev: 'PAR', city: 'Paris', region: 'Île-de-France', country: 'FRA', population: 11000000, economy: 1.2, prestige: 79, colors: ['#001e62', '#d6a461'], arena: 'Arena Lumière', seats: 8000, tier: 0 },
   { name: 'München Isar', nickname: 'Isar', abbrev: 'MUN', city: 'Munich', region: 'Bavaria', country: 'GER', population: 2900000, economy: 1.25, prestige: 80, colors: ['#dc052d', '#ffffff'], arena: 'Isar Dome', seats: 11500, tier: 0 },
   { name: 'Monaco Rocher', nickname: 'Rocher', abbrev: 'MON', city: 'Monaco', region: 'Monaco', country: 'MON', population: 40000, economy: 1.6, prestige: 81, colors: ['#e30613', '#ffffff'], arena: 'Salle du Rocher', seats: 4000, tier: 0 },
+
+  // ---------------------------------------------------------------- US college (fictional programs)
+  { name: 'Ridgeview University', nickname: 'Hawks', abbrev: 'RVU', city: 'Ridgeview', region: 'Midwest', country: 'USA', population: 210000, economy: 1.05, prestige: 86, colors: ['#0b3d91', '#ffd100'], arena: 'Ridgeview Fieldhouse', seats: 16500, tier: 4 },
+  { name: 'Lakemont State', nickname: 'Lakers', abbrev: 'LMS', city: 'Lakemont', region: 'Great Lakes', country: 'USA', population: 320000, economy: 1.0, prestige: 80, colors: ['#006341', '#ffffff'], arena: 'Lakemont Coliseum', seats: 14000, tier: 4 },
+  { name: 'Cascade University', nickname: 'Timberwolves', abbrev: 'CAS', city: 'Cascade City', region: 'Pacific Northwest', country: 'USA', population: 450000, economy: 1.1, prestige: 74, colors: ['#4b2e83', '#e8d3a2'], arena: 'Cascade Pavilion', seats: 12000, tier: 4 },
+  { name: 'Harbor City College', nickname: 'Mariners', abbrev: 'HCC', city: 'Harbor City', region: 'East Coast', country: 'USA', population: 900000, economy: 1.15, prestige: 70, colors: ['#002d72', '#a2aaad'], arena: 'Harbor Arena', seats: 10500, tier: 4 },
+  { name: 'Prairie Tech', nickname: 'Engineers', abbrev: 'PRT', city: 'Prairie Falls', region: 'Plains', country: 'USA', population: 140000, economy: 0.95, prestige: 66, colors: ['#b3a369', '#003057'], arena: 'Tech Gymnasium', seats: 9000, tier: 4 },
+  { name: 'Redstone State', nickname: 'Miners', abbrev: 'RSS', city: 'Redstone', region: 'Mountain West', country: 'USA', population: 180000, economy: 0.95, prestige: 60, colors: ['#c8102e', '#1c1c1c'], arena: 'Redstone Events Center', seats: 9500, tier: 4 },
+  { name: 'Silver Lake College', nickname: 'Otters', abbrev: 'SLC', city: 'Silver Lake', region: 'Northeast', country: 'USA', population: 95000, economy: 1.1, prestige: 55, colors: ['#7f8c8d', '#00205b'], arena: 'Silver Lake Gym', seats: 6000, tier: 4 },
+  { name: 'Westbrook University', nickname: 'Bison', abbrev: 'WBU', city: 'Westbrook', region: 'South', country: 'USA', population: 260000, economy: 0.9, prestige: 52, colors: ['#582c83', '#f1b82d'], arena: 'Westbrook Arena', seats: 8000, tier: 4 },
+  { name: 'Eastvale State', nickname: 'Eagles', abbrev: 'EVS', city: 'Eastvale', region: 'Southeast', country: 'USA', population: 170000, economy: 0.88, prestige: 47, colors: ['#00539b', '#f4aa00'], arena: 'Eastvale Center', seats: 7000, tier: 4 },
+  { name: 'Summit Valley', nickname: 'Peaks', abbrev: 'SMV', city: 'Summit Valley', region: 'Rockies', country: 'USA', population: 60000, economy: 1.0, prestige: 43, colors: ['#0f4d92', '#ffffff'], arena: 'Summit Gym', seats: 5000, tier: 4 },
+  { name: 'Iron Hills Tech', nickname: 'Forgers', abbrev: 'IHT', city: 'Iron Hills', region: 'Rust Belt', country: 'USA', population: 110000, economy: 0.85, prestige: 38, colors: ['#5b6770', '#ff8200'], arena: 'Iron Hills Fieldhouse', seats: 5500, tier: 4 },
+  { name: 'Maple Grove College', nickname: 'Owls', abbrev: 'MGC', city: 'Maple Grove', region: 'Upper Midwest', country: 'USA', population: 70000, economy: 0.95, prestige: 34, colors: ['#a6192e', '#ffffff'], arena: 'Maple Grove Gym', seats: 4200, tier: 4 },
+  { name: 'Bluewater State', nickname: 'Gulls', abbrev: 'BWS', city: 'Bluewater', region: 'Gulf Coast', country: 'USA', population: 130000, economy: 0.85, prestige: 30, colors: ['#00a3ad', '#ffffff'], arena: 'Bluewater Hall', seats: 4500, tier: 4 },
+  { name: 'Oakhaven University', nickname: 'Acorns', abbrev: 'OHU', city: 'Oakhaven', region: 'Appalachia', country: 'USA', population: 55000, economy: 0.8, prestige: 27, colors: ['#3a5d23', '#d4a017'], arena: 'Oakhaven Gymnasium', seats: 3500, tier: 4 },
+  { name: 'Sunridge College', nickname: 'Suns', abbrev: 'SRC', city: 'Sunridge', region: 'Desert Southwest', country: 'USA', population: 85000, economy: 0.85, prestige: 24, colors: ['#ff7f00', '#5c0f8b'], arena: 'Sunridge Gym', seats: 3200, tier: 4 },
+  { name: 'Kingsport State', nickname: 'Monarchs', abbrev: 'KPS', city: 'Kingsport', region: 'Mid-South', country: 'USA', population: 75000, economy: 0.8, prestige: 21, colors: ['#6f263d', '#ffc72c'], arena: 'Kingsport Fieldhouse', seats: 3000, tier: 4 },
 ];

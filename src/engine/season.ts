@@ -8,11 +8,11 @@ import { setObjectives, seasonReview, fireUser } from './board';
 import { placeMerchOrder, expireSponsors, tvMarketCheck } from './commercial';
 import { progressPlayer, retirementCheck, refreshValue, salaryAsk, roleFor, expectedMinutes } from './player';
 import { recallLoans, renewContract, projectedRank, aiPayFactor } from './market';
-import { academyRollover } from './squad';
+import { academyRollover, strategyProfile } from './squad';
 import { coachSetsTactics } from './delegation';
 import { estimateRevenue, avgLeaguePrestige } from './economy';
 import { capacity, avgAttendance, aiInvest } from './arena';
-import { updateReputation } from './career';
+import { updateReputation, fanReaction, boardNote } from './career';
 import { clamp } from './rng';
 import { staffAsk } from './staff';
 import { seasonLabel } from './calendar';
@@ -192,9 +192,9 @@ export function seasonEnd(w: World) {
     const lc = leagueComp(w, lid)!;
     const sorted = sortStandings(lc.standings);
     const champ = getClub(w, sorted[0].clubId);
-    const champion = lid === 'ELITE' ? w.competitions.find((x) => x.id === `ELITE-PO-${w.season}`)?.champion ?? sorted[0].clubId : sorted[0].clubId;
+    const champion = lid === 'ELITE' || lid === 'COLLEGE' ? w.competitions.find((x) => x.id === `${lid}-PO-${w.season}`)?.champion ?? sorted[0].clubId : sorted[0].clubId;
     book(w, getClub(w, champion), 'prize', w.rules.leagues[lid].prizeChampion);
-    if (lid !== 'ELITE') champ.trophies.push({ season: w.season, name: `${w.rules.leagues[lid].name} (regular season)` });
+    if (lid !== 'ELITE' && lid !== 'COLLEGE') champ.trophies.push({ season: w.season, name: `${w.rules.leagues[lid].name} (regular season)` });
   }
   const cup = w.competitions.find((x) => x.id === `CUP-${w.season}`);
   if (cup) for (const id of cup.clubIds) book(w, getClub(w, id), 'prize', id === cup.champion ? w.rules.cup.prizeWinner : w.rules.cup.prizeParticipation);
@@ -226,7 +226,7 @@ export function seasonEnd(w: World) {
     c.history.push(rec);
     // prestige drifts with success
     const tier = tierOf(w, c);
-    const tierBase = tier === 1 ? 60 : tier === 2 ? 38 : tier === 3 ? 24 : c.prestige;
+    const tierBase = c.leagueId === 'COLLEGE' ? c.prestige : tier === 1 ? 60 : tier === 2 ? 38 : tier === 3 ? 24 : c.prestige;
     const perf = lc ? (sorted.length / 2 - rank) / sorted.length : 0;
     c.prestige = Math.round(clamp(c.prestige + perf * 6 + (tierBase - c.prestige) * 0.05 + (rec.promoted ? 4 : 0) - (rec.relegated ? 5 : 0) + (comp.playoff === 'Champion' ? 3 : 0) + (comp.euro === 'Champion' ? 4 : 0), 5, 99));
   }
@@ -245,7 +245,14 @@ export function seasonEnd(w: World) {
     updateReputation(w, rep, ach.join(', ') || undefined);
     addNews(w, `Season review: ${Math.round(review.score * 100)}% of objectives`, review.lines.join(' · ') + `. Executive reputation now ${w.user.reputation}.`, { tags: ['board'], clubIds: [uc.id], importance: 3 });
     hold(w, 'seasonEvent', `Season review: ${review.lines.join(' · ')}`);
-    if (w.user.role === 'gm' && review.score < 0.25 && uc.board.overall < 40) fireUser(w, uc, 'The board decided not to continue after a season that missed its key objectives.');
+    if (rec.promoted) fanReaction(w, 15, `Promotion to the ${w.rules.leagues[moves.find((m) => m.clubId === uc.id)!.to].name}`);
+    if (rec.relegated) fanReaction(w, -20, 'Relegation');
+    if (rec.playoff === 'Champion' || rec.cup === 'Champion' || rec.euro === 'Champion') fanReaction(w, 15, 'A trophy for the club');
+    boardNote(w, Math.round((review.score - 0.5) * 20), `Season review: ${Math.round(review.score * 100)}% of objectives met`);
+    // the owner decides on your future, weighing objectives and how the supporters rate you
+    const verdict = review.score * 0.6 + (uc.board.overall / 100) * 0.25 + (w.user.approval.fans / 100) * 0.15;
+    const bar = { relaxed: 0.3, standard: 0.38, demanding: 0.44, brutal: 0.5 }[w.settings.difficulty];
+    if (w.user.role === 'gm' && verdict < bar) fireUser(w, uc, `The owner decided not to continue: ${Math.round(review.score * 100)}% of objectives met, board confidence ${uc.board.overall}/100, fan approval ${Math.round(w.user.approval.fans)}/100.`);
   }
   for (const m of moves) {
     const c = getClub(w, m.clubId);
@@ -276,7 +283,8 @@ export function rollover(w: World) {
     if (m.reason !== 'Relegated') { c.fans.hype = clamp(c.fans.hype + 20, 0, 100); c.fans.local = Math.round(c.fans.local * 1.08); }
     else { c.fans.hype = clamp(c.fans.hype - 15, 0, 100); }
   }
-  // contracts & retirements happen at the season boundary
+  // contracts & retirements happen at the season boundary; pay factors snapshot before any contract expires
+  const payFactor = new Map(w.clubs.map((c) => [c.id, aiPayFactor(w, c)]));
   w.season = nextSeason;
   w.day = 0;
   recallLoans(w);
@@ -286,14 +294,19 @@ export function rollover(w: World) {
       retire(w, p);
       continue;
     }
+    const pc = p.teamId != null ? getClub(w, p.teamId) : null;
+    if (pc?.leagueId === 'COLLEGE' && p.contract && p.contract.expires >= w.season && p.ovr >= 62 && age(w, p) >= 19 && r.chance(0.55)) {
+      addNews(w, `${playerName(p)} declares for the pros`, `${pc.name}'s ${p.pos} (rated ${p.ovr}) leaves college early and enters the professional market.`, { tags: ['transfer'], clubIds: [pc.id], playerIds: [p.id], importance: isUser(w, pc.id) ? 2 : 1 });
+      p.teamId = null; p.contract = null; continue;
+    }
     if (p.contract && p.contract.expires < w.season && !p.academy) {
       const c = p.teamId != null ? getClub(w, p.teamId) : null;
-      if (c && !isUser(w, c.id) && aiWantsRenewal(w, c, p) && r.chance(0.5 + p.personality.loyalty / 250)) {
-        const sal = Math.round(salaryAsk(w, p, c) * aiPayFactor(w, c) / 1000) * 1000;
+      if (c && !isUser(w, c.id) && c.leagueId !== 'COLLEGE' && aiWantsRenewal(w, c, p) && r.chance(0.5 + p.personality.loyalty / 250)) {
+        const sal = Math.round(salaryAsk(w, p, c) * (payFactor.get(c.id) ?? 1) / 1000) * 1000;
         p.contract = null;
         renewContract(w, c, p, { salary: sal, years: r.int(1, 3), role: roleFor(projectedRank(w, c, p)), buyout: null, signingBonus: 0 });
       } else {
-        if (c && isUser(w, c.id)) addNews(w, `${playerName(p)} leaves as a free agent`, 'His contract expired.', { tags: ['transfer'], clubIds: [c.id], playerIds: [p.id] });
+        if (c && isUser(w, c.id)) addNews(w, c.leagueId === 'COLLEGE' ? `${playerName(p)} graduates` : `${playerName(p)} leaves as a free agent`, c.leagueId === 'COLLEGE' ? 'His college eligibility is over; he moves on to the professional market.' : 'His contract expired.', { tags: ['transfer'], clubIds: [c.id], playerIds: [p.id] });
         p.teamId = null;
         p.contract = null;
         p.transferListed = false;
@@ -343,6 +356,8 @@ export function rollover(w: World) {
       c.finances.loans = [];
       c.prestige = Math.max(5, c.prestige - 6);
       c.board.owner = 'New investor group';
+      c.ai.strategy = 'survive';
+      c.ai.lockedUntil = w.season; // a rescued club must cut costs for a full season
       addNews(w, `${c.name} rescued by new investors`, 'The club avoided administration after a change of ownership.', { tags: ['finance', 'league'], clubIds: [c.id] });
     }
   }
@@ -355,7 +370,7 @@ export function rollover(w: World) {
 function aiWantsRenewal(w: World, c: Club, p: Player): boolean {
   const sq = roster(w, c.id).sort((a, b) => b.ovr - a.ovr);
   const rank = sq.indexOf(p);
-  return age(w, p) <= 33 && rank >= 0 && rank < 10 && salaryAsk(w, p, c) <= c.ai.payrollTarget * 0.22;
+  return age(w, p) <= strategyProfile(c).renewAgeMax && rank >= 0 && rank < 10 && salaryAsk(w, p, c) <= c.ai.payrollTarget * 0.22;
 }
 
 function retire(w: World, p: Player) {

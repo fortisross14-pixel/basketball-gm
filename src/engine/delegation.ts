@@ -102,8 +102,9 @@ export function coachSetsTactics(w: World, c: Club, log = false) {
   const offs: OffSystem[] = ['paceSpace', 'motion', 'pnr', 'post', 'isolation'];
   const defs: DefScheme[] = ['switch', 'drop', 'packPaint', 'pressure', 'zone'];
   const adapt = coach ? coach.rating / 100 : 0.3;
-  const bestOff = offs.map((o) => ({ o, s: offFit(players, o) * adapt + (coach?.offPref === o ? 22 : 0) })).sort((a, b) => b.s - a.s)[0].o;
-  const bestDef = defs.map((d) => ({ d, s: defFit(players, d) * adapt + (coach?.defPref === d ? 22 : 0) })).sort((a, b) => b.s - a.s)[0].d;
+  // the current plan gets a familiarity bonus so one injury doesn't flip the system
+  const bestOff = offs.map((o) => ({ o, s: offFit(players, o) * adapt + (coach?.offPref === o ? 22 : 0) + (c.tactics.off === o ? 6 : 0) })).sort((a, b) => b.s - a.s)[0].o;
+  const bestDef = defs.map((d) => ({ d, s: defFit(players, d) * adapt + (coach?.defPref === d ? 22 : 0) + (c.tactics.def === d ? 6 : 0) })).sort((a, b) => b.s - a.s)[0].d;
   const changed = c.tactics.off !== bestOff || c.tactics.def !== bestDef;
   c.tactics.off = bestOff;
   c.tactics.def = bestDef;

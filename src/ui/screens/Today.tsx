@@ -10,13 +10,16 @@ import { clubStrength } from '../../engine/matchday';
 import { sortStandings } from '../../engine/competitions';
 import { OFF_LABEL, DEF_LABEL } from '../../engine/staff';
 import { useAct, useNotify, useWorld, useGame } from '../store';
+import { JobOfferCard } from '../components/career';
+import { jobSecurity } from '../../engine/career';
 import { Badge, Button, Card, Crest, Meter, Page, Stat, Empty } from '../components/ui';
 
 export default function Today() {
   const w = useWorld();
   const c = userClub(w);
   const digest = buildDigest(w);
-  const decisions = w.decisions.filter((d) => !d.resolved).sort((a, b) => b.urgency + b.impact - (a.urgency + a.impact));
+  const offers = w.decisions.filter((d) => !d.resolved && d.kind === 'jobOffer');
+  const decisions = w.decisions.filter((d) => !d.resolved && d.kind !== 'jobOffer').sort((a, b) => b.urgency + b.impact - (a.urgency + a.impact));
   const advance = useGame((s) => s.advance);
   const name = w.user.name.split(' ')[0];
   return (
@@ -28,6 +31,13 @@ export default function Today() {
       {w.gameOver && <div className="callout bad mb8"><b>Career over.</b> {w.gameOver.reason}</div>}
       <div className="grid" style={{ gridTemplateColumns: 'minmax(0, 1.5fr) minmax(0, 1fr)' }}>
         <div className="col gap16">
+          {offers.length > 0 && (
+            <Card title={c ? `Job offers (${offers.length})` : `Your offers (${offers.length}) — choose where your career starts`}>
+              <div className="col">{offers.map((d) => <JobOfferCard key={d.id} d={d} />)}</div>
+            </Card>
+          )}
+          {!c && offers.length === 0 && <Card title="Waiting for offers"><p className="muted">No offers right now. Advance time: clubs approach you at a rate that grows with your reputation ({Math.round(w.user.reputation)}/100).</p></Card>}
+          {c && <FirstWeeks />}
           {decisions.length > 0 && (
             <Card title={`Decisions waiting (${decisions.length})`}>
               <div className="list">
@@ -91,6 +101,7 @@ function DecisionRow({ d }: { d: Decision }) {
             variant={d.recommended === o.id ? 'primary' : o.tone === 'bad' ? 'danger' : undefined}
             title={o.detail}
             onClick={() => {
+              if ((o.tone === 'bad' || d.impact >= 3) && !confirm(`${o.label}?\n\n${o.detail ?? d.title}\n\nThis cannot be undone.`)) return;
               const msg = act((ww) => resolveDecision(ww, d, o.id));
               notify(msg || 'Done.', 'good');
             }}
@@ -100,6 +111,11 @@ function DecisionRow({ d }: { d: Decision }) {
         ))}
         {d.recommended && d.recommendedBy && <span className="small muted">★ recommended by {d.recommendedBy}</span>}
       </div>
+      {d.options.some((o) => o.detail) && (
+        <ul className="small muted" style={{ margin: '6px 0 0', paddingLeft: 18 }}>
+          {d.options.filter((o) => o.detail).map((o) => <li key={o.id}><b>{o.label}:</b> {o.detail}</li>)}
+        </ul>
+      )}
     </div>
   );
 }
@@ -151,7 +167,7 @@ function ClubSnapshot() {
         <Stat label="Cash" value={fmtMoney(c.finances.cash)} tone={c.finances.cash < 0 ? 'bad' : undefined} sub={wk ? `This week ${fmtMoney(wk.cashDelta, true)}` : undefined} />
         <Stat label="Board confidence" value={`${c.board.overall}/100`} tone={c.board.overall < 40 ? 'bad' : c.board.overall > 65 ? 'good' : undefined} sub={c.board.ultimatum ? 'Ultimatum active' : c.board.autonomy === 'restricted' ? 'Autonomy restricted' : undefined} />
         <Stat label="Fan sentiment" value={`${Math.round(c.fans.sentiment)}/100`} sub={`Hype ${Math.round(c.fans.hype)} · ${Math.round(c.fans.local).toLocaleString('en')} local fans`} />
-        <Stat label="Reputation" value={`${w.user.reputation}/100`} sub="Executive standing" />
+        <Stat label="Job security" value={w.user.role === 'owner' ? 'Owner' : `${jobSecurity(w)}/100`} tone={w.user.role !== 'owner' && jobSecurity(w) < 35 ? 'bad' : undefined} sub={`Owner ${Math.round(w.user.approval.board)} · Fans ${Math.round(w.user.approval.fans)} · Rep ${Math.round(w.user.reputation)}`} />
       </div>
       <div className="col mt8">
         {c.board.objectives.map((o) => (
@@ -235,6 +251,41 @@ function LatestNews() {
           ))}
         </div>
       )}
+    </Card>
+  );
+}
+
+const STEPS: { path: string; label: string; why: string }[] = [
+  { path: '/club/board', label: 'Read the board\'s objectives and how you are evaluated', why: 'The owner and the fans grade you every week against these expectations.' },
+  { path: '/team/players', label: 'Review your squad', why: 'Who is good, who is unhappy, whose contract is ending.' },
+  { path: '/team/tactics', label: 'Set your tactics', why: 'Pick systems your players and your coach fit — your main game-day lever.' },
+  { path: '/club/finance', label: 'Check the finances', why: 'Cash, payroll budget and the 90-day forecast decide what you can afford.' },
+  { path: '/infrastructure/tickets', label: 'Set ticket prices', why: 'Gate revenue vs full arenas and happy supporters.' },
+  { path: '/club/commercial', label: 'Look at sponsors & TV', why: 'Empty sponsor slots are free money waiting for a partner.' },
+  { path: '/team/market', label: 'Browse free agents', why: 'Cheap improvements before the window closes.' },
+];
+
+function FirstWeeks() {
+  const w = useWorld();
+  const act = useAct();
+  const ob = w.user.onboarding;
+  const stint = w.user.career[w.user.career.length - 1];
+  if (!ob || ob.dismissed || !stint || absDay(w) - stint.from > 90) return null;
+  const done = STEPS.filter((s) => ob.visited.includes(s.path)).length;
+  if (done === STEPS.length) return null;
+  return (
+    <Card title={`Your first weeks (${done}/${STEPS.length})`} actions={<Button size="sm" variant="ghost" onClick={() => act((ww) => { ww.user.onboarding!.dismissed = true; })}>Hide</Button>}>
+      <div className="list">
+        {STEPS.map((s) => {
+          const ok = ob.visited.includes(s.path);
+          return (
+            <Link key={s.path} to={s.path} className="list-item row">
+              <Badge tone={ok ? 'good' : undefined}>{ok ? '✓ done' : 'to do'}</Badge>
+              <div><b className={ok ? 'muted' : ''}>{s.label}</b><div className="small muted">{s.why}</div></div>
+            </Link>
+          );
+        })}
+      </div>
     </Card>
   );
 }

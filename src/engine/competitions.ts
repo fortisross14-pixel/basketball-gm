@@ -164,6 +164,22 @@ export function createElitePlayoffs(w: World) {
   for (const cid of top) if (isUser(w, cid)) hold(w, 'seasonEvent', 'Your team has qualified for the title playoffs!');
 }
 
+export function createCollegePlayoffs(w: World) {
+  const id = `COLLEGE-PO-${w.season}`;
+  if (getComp(w, id) || !leagueComp(w, 'COLLEGE')) return;
+  const lc = leagueComp(w, 'COLLEGE')!;
+  const n = w.rules.leagues.COLLEGE.playoffTeams;
+  const top = sortStandings(lc.standings).slice(0, n).map((s) => s.clubId);
+  const cmp = newCompetition(id, 'playoffs', `NCL Tournament ${w.season}-${String((w.season + 1) % 100).padStart(2, '0')}`, w.season, top, 'COLLEGE');
+  cmp.stage = 'Quarterfinal';
+  const p = buildCalendar(w.season).playoffStart;
+  cmp.roundDays = [[p + 1], [p + 5], [p + 7]];
+  w.competitions.push(cmp);
+  for (let i = 0; i < n / 2; i++) createSeries(w, cmp, 'Quarterfinal', 0, top[i], top[n - 1 - i], 1, cmp.roundDays[0], 'playoffs');
+  invalidateIndex(w);
+  for (const cid of top) if (isUser(w, cid)) hold(w, 'seasonEvent', 'Your program made the NCL Tournament!');
+}
+
 export function createPromoPlayoffs(w: World, lid: LeagueId) {
   const id = `${lid}-PO-${w.season}`;
   if (getComp(w, id)) return;
@@ -265,8 +281,9 @@ function advanceKnockout(w: World, cmp: Competition, roundIndex: number) {
   const name = winners.length === 2 ? 'Final' : ROUND_NAMES[Math.min(next, 2)] ?? `Round ${next + 1}`;
   cmp.stage = name;
   const compType: CompType = cmp.kind === 'cup' ? 'cup' : cmp.kind === 'euro' ? 'euro' : cmp.kind === 'promo' ? 'promo' : 'playoffs';
-  const neutral = cmp.kind === 'cup' || (cmp.kind === 'euro' && next >= 1);
-  const bestOf = cmp.kind === 'cup' || (cmp.kind === 'euro' && next >= 1) ? 1 : cmp.kind === 'promo' ? 3 : 5;
+  const college = cmp.leagueId === 'COLLEGE';
+  const neutral = cmp.kind === 'cup' || (cmp.kind === 'euro' && next >= 1) || (college && next >= 1);
+  const bestOf = college || cmp.kind === 'cup' || (cmp.kind === 'euro' && next >= 1) ? 1 : cmp.kind === 'promo' ? 3 : 5;
   // reseed: keep bracket order (1v8 winner meets 4v5 winner etc.)
   const ordered = bracketOrder(winners);
   for (let i = 0; i < ordered.length; i += 2) {

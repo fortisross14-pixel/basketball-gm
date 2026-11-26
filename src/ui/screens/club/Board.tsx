@@ -1,3 +1,4 @@
+import { EvaluationCard } from '../../components/career';
 import { useState } from 'react';
 import { club as getClub, fmtMoney } from '../../../engine/world';
 import { promise, requestBudgetIncrease, requestInjection } from '../../../engine/board';
@@ -29,6 +30,7 @@ export default function Board() {
 
   return (
     <Page title="Board" subtitle={`${b.owner} · ${owner ? 'You are the owner-president' : 'You answer to the board'}`}>
+      <div className="mb8"><EvaluationCard /></div>
       <div className="grid g4 mb8">
         <Stat label="Board confidence" value={`${b.overall}/100`} tone={b.overall < 40 ? 'bad' : b.overall > 65 ? 'good' : undefined} sub={owner ? 'Owners cannot be fired — but can go bankrupt' : 'Below ~30 risks an ultimatum'} />
         <Stat label="Autonomy" value={b.autonomy === 'full' ? 'Full' : 'Restricted'} tone={b.autonomy === 'restricted' ? 'warn' : undefined} sub={b.autonomy === 'restricted' ? 'Big salaries need approval' : 'Act freely within budget'} />

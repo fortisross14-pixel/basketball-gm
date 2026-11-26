@@ -240,7 +240,15 @@ function buildLog(w: World, f: Fixture, res: SimResult, clubs: [Club, Club], us:
   for (const t of inputs) for (const p of t.players) names.set(p.id, p.name);
   const ourStarters = res.teams[us].players.filter((b) => b.starter);
   const starterFoulMinutesLost = ourStarters.filter((b) => b.pf >= 4).reduce((a, b) => a + Math.max(0, 27 - b.min), 0);
-  const factors = explainGame(res, { us, tactics: [inputs[0].tactics, inputs[1].tactics], names, injuredNames, starterFoulMinutesLost });
+  const fit = (t: SimTeamIn) => (t.coach.offPref === t.tactics.off ? 1 : 0) + (t.coach.defPref === t.tactics.def ? 1 : 0);
+  const rotAvg = (t: SimTeamIn, k: 'freshness' | 'morale') => { const top = [...t.players].sort((a, b) => b.ovr - a.ovr).slice(0, 8); return top.reduce((a, p) => a + p[k], 0) / Math.max(1, top.length); };
+  const context = {
+    coachFit: [fit(inputs[0]), fit(inputs[1])] as [number, number],
+    freshness: [rotAvg(inputs[0], 'freshness'), rotAvg(inputs[1], 'freshness')] as [number, number],
+    morale: [rotAvg(inputs[0], 'morale'), rotAvg(inputs[1], 'morale')] as [number, number],
+    cohesion: [inputs[0].cohesion, inputs[1].cohesion] as [number, number],
+  };
+  const factors = explainGame(res, { us, tactics: [inputs[0].tactics, inputs[1].tactics], names, injuredNames, starterFoulMinutesLost, context });
   const all = [...res.teams[0].players, ...res.teams[1].players];
   const winSide = res.teams[0].score > res.teams[1].score ? 0 : 1;
   const mvp = res.teams[winSide].players.reduce((best, b) => {

@@ -3,7 +3,10 @@ import type { LeagueId, Ruleset } from './types';
 // Versioned, data-driven ruleset. Everything regulatory lives here so it can be
 // audited in game (Results → Rules) and changed per season without code edits.
 
-export const LEAGUE_IDS: LeagueId[] = ['ELITE', 'ORO', 'PLATA'];
+export const LEAGUE_IDS: LeagueId[] = ['ELITE', 'ORO', 'PLATA', 'COLLEGE'];
+/** The Spanish pyramid (promotion & relegation). */
+export const PYRAMID: LeagueId[] = ['ELITE', 'ORO', 'PLATA'];
+export const LEAGUE_COUNTRY: Record<LeagueId, string> = { ELITE: 'ESP', ORO: 'ESP', PLATA: 'ESP', COLLEGE: 'USA' };
 
 export function defaultRuleset(season: number): Ruleset {
   return {
@@ -11,7 +14,7 @@ export function defaultRuleset(season: number): Ruleset {
     season,
     leagues: {
       ELITE: {
-        tier: 1, name: 'Liga Élite', short: 'Élite', teams: 16,
+        kind: 'pro', country: 'ESP', tier: 1, name: 'Liga Élite', short: 'Élite', teams: 16,
         rosterMin: 10, rosterMax: 15, matchdaySquad: 12,
         maxNonEU: 3, minHomegrown: 4,
         minArenaSeats: 5000, promotionFee: 450_000,
@@ -20,7 +23,7 @@ export function defaultRuleset(season: number): Ruleset {
         prizeChampion: 600_000, minPayrollGuarantee: 1_000_000,
       },
       ORO: {
-        tier: 2, name: 'Liga Oro', short: 'Oro', teams: 16,
+        kind: 'pro', country: 'ESP', tier: 2, name: 'Liga Oro', short: 'Oro', teams: 16,
         rosterMin: 10, rosterMax: 14, matchdaySquad: 12,
         maxNonEU: 2, minHomegrown: 5,
         minArenaSeats: 2500, promotionFee: 60_000,
@@ -29,13 +32,22 @@ export function defaultRuleset(season: number): Ruleset {
         prizeChampion: 80_000, minPayrollGuarantee: 200_000,
       },
       PLATA: {
-        tier: 3, name: 'Liga Plata', short: 'Plata', teams: 16,
+        kind: 'pro', country: 'ESP', tier: 3, name: 'Liga Plata', short: 'Plata', teams: 16,
         rosterMin: 10, rosterMax: 14, matchdaySquad: 12,
         maxNonEU: 1, minHomegrown: 6,
         minArenaSeats: 800, promotionFee: 0,
         centralTv: 30_000, centralTvMerit: 15_000, leagueFee: 6_000,
         directPromotion: 1, playoffPromotion: 1, relegation: 0, playoffTeams: 4,
         prizeChampion: 20_000, minPayrollGuarantee: 0,
+      },
+      COLLEGE: {
+        kind: 'college', country: 'USA', tier: 2, name: 'National Collegiate League', short: 'NCL', teams: 16,
+        rosterMin: 10, rosterMax: 15, matchdaySquad: 13,
+        maxNonEU: 99, minHomegrown: 0,
+        minArenaSeats: 0, promotionFee: 0,
+        centralTv: 260_000, centralTvMerit: 180_000, leagueFee: 15_000,
+        directPromotion: 0, playoffPromotion: 0, relegation: 0, playoffTeams: 8,
+        prizeChampion: 250_000, minPayrollGuarantee: 0,
       },
     },
     euro: { teams: 16, fromElite: 4, prizeParticipation: 400_000, prizePerWin: 60_000, prizeChampion: 1_500_000, tvShare: 500_000 },
@@ -55,4 +67,5 @@ export const RULE_EXPLAINERS: Record<string, string> = {
   relegation: 'Number of bottom-placed clubs relegated at season end.',
   directPromotion: 'Number of top-placed clubs promoted directly.',
   playoffPromotion: 'Number of extra promotion places decided by playoff.',
+  kind: 'College leagues have no promotion or relegation. Players are amateurs on scholarship plus a small NIL (name, image & likeness) payment, must be 22 or younger, and leave when their eligibility ends or when they declare for the pros.',
 };

@@ -8,6 +8,8 @@ interface Ctx {
   names: Map<number, string>;
   injuredNames: string[];
   starterFoulMinutesLost: number;
+  /** Management inputs the player controls: [home, away]. */
+  context?: { coachFit: [number, number]; freshness: [number, number]; morale: [number, number]; cohesion: [number, number] };
 }
 
 /**
@@ -148,6 +150,20 @@ export function explainGame(res: SimResult, ctx: Ctx): ExplanationFactor[] {
       impact: -3 * ctx.injuredNames.length,
       category: 'injury',
     });
+  }
+
+  // Management factors — the levers the player actually pulls between games
+  if (ctx.context) {
+    const k = ctx.context;
+    const me = ctx.us, them = 1 - ctx.us;
+    if (k.coachFit[me] < 2) f.push({ title: k.coachFit[me] === 0 ? 'Your coach was running systems he doesn\'t believe in' : 'Only half of the game plan matched your coach', detail: 'Execution suffers when the offensive or defensive system differs from the head coach\'s preferred philosophy.', impact: -(2 - k.coachFit[me]) * 1.5, category: 'tactics', suggestion: 'Align tactics with the coach\'s preferences (Team → Tactics shows them), or hire a coach who fits your plan.' });
+    else if (k.coachFit[them] < 2) f.push({ title: 'Your coach was in his element', detail: 'Both systems matched his philosophy; the opponent\'s staff did not have that edge.', impact: 1.5, category: 'tactics' });
+    const fd = k.freshness[me] - k.freshness[them];
+    if (Math.abs(fd) >= 6) f.push({ title: fd < 0 ? 'Tired legs' : 'Fresher legs', detail: `Average freshness of your rotation ${Math.round(k.freshness[me])} vs ${Math.round(k.freshness[them])}.`, impact: fd * 0.25, category: 'fatigue', suggestion: fd < 0 ? 'Lighten training intensity, deepen the rotation, or improve the physio and locker-room facilities.' : undefined });
+    const md = k.morale[me] - k.morale[them];
+    if (Math.abs(md) >= 8) f.push({ title: md < 0 ? 'A divided locker room' : 'High morale', detail: `Average morale ${Math.round(k.morale[me])} vs ${Math.round(k.morale[them])}.`, impact: md * 0.12, category: 'tactics', suggestion: md < 0 ? 'Check roles and minutes promises in Team → Players; unhappy players shoot worse.' : undefined });
+    const cd = k.cohesion[me] - k.cohesion[them];
+    if (Math.abs(cd) >= 12) f.push({ title: cd < 0 ? 'New squad, little chemistry' : 'Chemistry of a settled squad', detail: `Team cohesion ${Math.round(k.cohesion[me])} vs ${Math.round(k.cohesion[them])}.`, impact: cd * 0.08, category: 'tactics', suggestion: cd < 0 ? 'Cohesion grows week by week; tactical training and fewer roster changes speed it up.' : undefined });
   }
 
   // Pick factors aligned with the outcome, biggest magnitude first.

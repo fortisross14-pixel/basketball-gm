@@ -1,4 +1,4 @@
-import type { Club, Player, ScoutAssignment, World, Position } from './types';
+import type { AiStrategy, Club, Player, ScoutAssignment, World, Position } from './types';
 import { absDay } from './types';
 import { academy, addNews, age, club as getClub, hold, isUser, nextId, playerName, roster, rng, staffRating, userClub, fmtMoney, tierOf } from './world';
 import { trainingTick, generatePlayer, expectedMinutes, updateOvr } from './player';
@@ -101,7 +101,7 @@ export function weeklyScouting(w: World) {
   if (!c) return;
   const r = rng(w);
   const scout = staffRating(w, c, 'scoutDirector', 15);
-  const gain = 8 + scout / 6;
+  const gain = (8 + scout / 6) * (w.user.background === 'analyst' ? 1.3 : 1);
   // shortlist gets steady attention
   for (const s of w.user.shortlist) {
     w.user.knowledge[s.playerId] = Math.min(100, (w.user.knowledge[s.playerId] ?? 20) + gain);
@@ -129,7 +129,7 @@ export function weeklyScouting(w: World) {
 // Academy
 // ---------------------------------------------------------------------------
 export function youthIntake(w: World, c: Club) {
-  if (c.foreign) return;
+  if (c.foreign || c.leagueId === 'COLLEGE') return;
   const r = rng(w);
   const lvl = c.arena.levels.academy;
   const dir = staffRating(w, c, 'academyDirector', 20);
@@ -184,16 +184,42 @@ export function academyRollover(w: World, c: Club) {
   }
 }
 
+/** How each sporting plan shapes AI decisions (utility weights, not hard switches). */
+export const STRATEGY_PROFILE: Record<AiStrategy, { ageMax: number; potWeight: number; spend: number; renewAgeMax: number; invest: boolean }> = {
+  contend: { ageMax: 32, potWeight: 0.1, spend: 1.15, renewAgeMax: 34, invest: true },
+  balanced: { ageMax: 30, potWeight: 0.3, spend: 1.0, renewAgeMax: 33, invest: true },
+  develop: { ageMax: 25, potWeight: 0.75, spend: 0.9, renewAgeMax: 29, invest: true },
+  rebuild: { ageMax: 26, potWeight: 0.65, spend: 0.85, renewAgeMax: 30, invest: false },
+  survive: { ageMax: 31, potWeight: 0.25, spend: 0.7, renewAgeMax: 32, invest: false },
+};
+
+export function strategyProfile(c: Club) {
+  return STRATEGY_PROFILE[c.ai.strategy] ?? STRATEGY_PROFILE.balanced;
+}
+
+/** Monthly re-plan with hysteresis: entering a plan needs a stronger signal than staying in it. */
 export function aiStrategy(w: World, c: Club) {
+  if (c.ai.lockedUntil != null && w.season <= c.ai.lockedUntil) { c.ai.strategy = 'survive'; return; }
   const squad = roster(w, c.id);
   const avgAge = squad.reduce((a, p) => a + age(w, p), 0) / Math.max(1, squad.length);
   const st = w.competitions.find((x) => x.id === `${c.leagueId}-${w.season}`)?.standings.find((s) => s.clubId === c.id);
-  const winPct = st && st.w + st.l > 5 ? st.w / (st.w + st.l) : 0.5;
-  if (c.finances.cash < 0) c.ai.strategy = 'survive';
-  else if (winPct > 0.65 || c.prestige >= 80) c.ai.strategy = 'contend';
-  else if (winPct < 0.3 && avgAge > 27) c.ai.strategy = 'rebuild';
-  else if (avgAge < 24) c.ai.strategy = 'develop';
-  else c.ai.strategy = 'balanced';
+  const g = st ? st.w + st.l : 0;
+  const last = c.history[c.history.length - 1];
+  const lastPct = last ? last.wins / Math.max(1, last.wins + last.losses) : 0.5;
+  const k = Math.min(1, g / 15);
+  const winPct = (g ? st!.w / g : 0.5) * k + lastPct * (1 - k);
+  const cur = c.ai.strategy;
+  const cashNeg = c.finances.cash < -Math.max(50000, c.finances.budget.payroll * 0.05);
+  let next: AiStrategy = cur;
+  if (cashNeg) next = 'survive';
+  else if (cur === 'survive' && c.finances.cash > c.finances.budget.payroll * 0.1) next = 'balanced';
+  else if (cur !== 'contend' && (winPct > 0.68 || c.prestige >= 82)) next = 'contend';
+  else if (cur === 'contend' && winPct < 0.52 && c.prestige < 82) next = 'balanced';
+  else if (cur !== 'rebuild' && winPct < 0.3 && avgAge > 27) next = 'rebuild';
+  else if (cur === 'rebuild' && (winPct > 0.45 || avgAge < 25)) next = 'develop';
+  else if (cur === 'balanced' && avgAge < 23.5) next = 'develop';
+  else if (cur === 'develop' && avgAge > 26) next = 'balanced';
+  c.ai.strategy = next;
 }
 
 export function positionNeeds(w: World, c: Club): Position[] {

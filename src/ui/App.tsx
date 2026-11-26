@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { HashRouter, NavLink, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import { useGame, useWorld } from './store';
 import { Badge, Button, Crest, Modal } from './components/ui';
@@ -58,7 +58,8 @@ function Root() {
         <Route path="/new" element={<NewGame />} />
         <Route path="*" element={world ? <GameShell /> : <Navigate to="/" replace />} />
       </Routes>
-      {toast && <div className={`toast ${toast.tone ?? ''}`}>{toast.msg}</div>}
+      <div role="status" aria-live="polite" className="sr-only">{toast?.msg}</div>
+      {toast && <div className={`toast ${toast.tone ?? ''}`}><div className="row" style={{ alignItems: 'flex-start' }}><span style={{ flex: 1 }}>{toast.msg}</span><button type="button" className="btn ghost sm" aria-label="Dismiss" onClick={() => useGame.setState({ toast: null })}>✕</button></div></div>}
       {busy && (
         <div className="overlay">
           <div className="center">
@@ -81,12 +82,28 @@ const NAV: { head: string; icon: string; items: [string, string][] }[] = [
 function GameShell() {
   const w = useWorld();
   const c = userClub(w);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const loc = useLocation();
+  useEffect(() => {
+    setMenuOpen(false);
+    // onboarding checklist progress (no re-render needed)
+    const ob = (w.user.onboarding ??= { visited: [], dismissed: false });
+    if (!ob.visited.includes(loc.pathname)) ob.visited.push(loc.pathname);
+  }, [loc.pathname, w]);
   useEffect(() => {
     if (c) document.documentElement.style.setProperty('--accent', pickAccent(c.colors));
   }, [c]);
+  useEffect(() => {
+    document.documentElement.style.setProperty('--text-scale', String(w.settings.textScale ?? 1));
+  }, [w.settings.textScale]);
+  useEffect(() => {
+    const t = () => setMenuOpen((v) => !v);
+    window.addEventListener('bd-menu', t);
+    return () => window.removeEventListener('bd-menu', t);
+  }, []);
   return (
     <div className="app">
-      <aside className="sidebar">
+      <aside className={`sidebar ${menuOpen ? 'open' : ''}`} aria-label="Main navigation">
         <div className="brand">
           <div className="logo">🏀</div>
           <div>
@@ -172,7 +189,7 @@ function pickAccent(colors: [string, string]): string {
   };
   for (const c of colors) {
     const l = lum(c);
-    if (l > 0.25 && l < 0.92) return c;
+    if (l > 0.42 && l < 0.92) return c;
   }
   return '#f28c28';
 }
@@ -196,6 +213,21 @@ function TopBar() {
   const nextF = nextDay != null && c ? w.fixtures.find((f) => f.day === nextDay && !f.played && !f.cancelled && (f.homeId === c.id || f.awayId === c.id)) : null;
   const opp = nextF && c ? getClub(w, nextF.homeId === c.id ? nextF.awayId : nextF.homeId) : null;
   const pending = w.decisions.filter((d) => !d.resolved).length;
+  const menuRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: MouseEvent) => { if (!menuRef.current?.contains(e.target as Node)) setOpen(false); };
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false); };
+    document.addEventListener('mousedown', onDown);
+    document.addEventListener('keydown', onKey);
+    (menuRef.current?.querySelector('.dropdown-menu button') as HTMLElement | null)?.focus();
+    return () => { document.removeEventListener('mousedown', onDown); document.removeEventListener('keydown', onKey); };
+  }, [open]);
+  const go = (mode: AdvanceMode) => {
+    const long = mode === 'week' || mode === 'month' || mode === 'endOfPhase';
+    if (long && pending > 0 && !confirm(`${pending} decision${pending > 1 ? 's are' : ' is'} waiting. If deadlines pass while advancing, they resolve with the staff recommendation or the default option. Continue?`)) return;
+    doAdvance(mode);
+  };
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if ((e.target as HTMLElement)?.tagName === 'INPUT' || (e.target as HTMLElement)?.tagName === 'TEXTAREA') return;
@@ -206,24 +238,25 @@ function TopBar() {
   }, [doAdvance]);
   return (
     <header className="topbar">
+      <button type="button" className="btn ghost sm menu-toggle" aria-label="Open menu" onClick={() => window.dispatchEvent(new CustomEvent('bd-menu'))}>☰</button>
       {c ? (
-        <div className="club" onClick={() => nav(`/clubs/${c.id}`)} style={{ cursor: 'pointer' }}>
+        <button type="button" className="club" onClick={() => nav(`/clubs/${c.id}`)} style={{ cursor: 'pointer', background: 'none', border: 'none', color: 'inherit', font: 'inherit', textAlign: 'left', padding: 0 }}>
           <Crest club={c} />
           <div>
             {c.name}
-            <div className="small muted" style={{ fontWeight: 500 }}>{c.leagueId ? w.rules.leagues[c.leagueId].name : ''} · {w.user.role === 'owner' ? 'Owner-President' : 'General Manager'}</div>
+            <div className="small muted" style={{ fontWeight: 500 }}>{c.leagueId ? w.rules.leagues[c.leagueId].name : ''} · {w.user.role === 'owner' ? 'Owner-President' : c.leagueId === 'COLLEGE' ? 'Athletic Director' : 'General Manager'}</div>
           </div>
-        </div>
+        </button>
       ) : (
         <div className="club">Unemployed — {w.user.name}</div>
       )}
       <div className="kpi"><span>Date</span><b>{fmtDate(w.season, w.day)}</b></div>
-      <div className="kpi"><span>Phase</span><b>{PHASE_LABEL[phaseOf(w.season, w.day)]}</b></div>
+      <div className="kpi optional"><span>Phase</span><b>{PHASE_LABEL[phaseOf(w.season, w.day)]}</b></div>
       {c && (
         <>
-          <div className="kpi"><span>Cash</span><b className={c.finances.cash < 0 ? 'bad' : ''}>{fmtMoney(c.finances.cash)}</b></div>
-          <div className="kpi" title="Board confidence"><span>Board</span><b className={c.board.overall < 40 ? 'bad' : c.board.overall > 65 ? 'good' : ''}>{c.board.overall}/100</b></div>
-          <div className="kpi" title="Fan sentiment"><span>Fans</span><b>{Math.round(c.fans.sentiment)}/100</b></div>
+          <div className="kpi optional"><span>Cash</span><b className={c.finances.cash < 0 ? 'bad' : ''}>{fmtMoney(c.finances.cash)}</b></div>
+          <div className="kpi" title="How the owner/board rates you"><span>Owner</span><b className={w.user.approval.board < 35 ? 'bad' : w.user.approval.board > 65 ? 'good' : ''}>{Math.round(w.user.approval.board)}/100</b></div>
+          <div className="kpi" title="How the supporters rate you"><span>Fans</span><b className={w.user.approval.fans < 30 ? 'bad' : w.user.approval.fans > 65 ? 'good' : ''}>{Math.round(w.user.approval.fans)}/100</b></div>
           {nextF && opp && (
             <div className="kpi" title={nextF.label}>
               <span>Next game · {fmtDate(w.season, nextF.day, false)}</span>
@@ -238,15 +271,15 @@ function TopBar() {
       {w.gameOver ? (
         <Badge tone="bad">Game over</Badge>
       ) : (
-        <div className="dropdown row gap4">
-          <Button variant="primary" onClick={() => doAdvance(c ? 'nextGame' : 'week')} title="Shift+Space">
+        <div className="dropdown row gap4" ref={menuRef}>
+          <Button variant="primary" onClick={() => go(c ? 'nextGame' : 'week')} title="Shift+Space">
             {c ? '▶ Play next game' : '▶ Advance week'}
           </Button>
-          <Button onClick={() => setOpen(!open)}>▾</Button>
+          <button type="button" className="btn" aria-label="More ways to advance time" aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen(!open)}>▾</button>
           {open && (
-            <div className="dropdown-menu" onMouseLeave={() => setOpen(false)}>
+            <div className="dropdown-menu" role="menu">
               {MODES.map((m) => (
-                <button key={m.mode} onClick={() => { setOpen(false); doAdvance(m.mode); }}>
+                <button role="menuitem" key={m.mode} onClick={() => { setOpen(false); go(m.mode); }}>
                   <div style={{ fontWeight: 600 }}>{m.label}</div>
                   <div className="small muted">{m.desc}</div>
                 </button>
@@ -347,13 +380,14 @@ function GlobalSearch() {
   const go = (to: string) => { setOpen(false); setQ(''); nav(to); };
   return (
     <Modal title="Search" onClose={() => setOpen(false)}>
-      <input autoFocus placeholder="Player, club or staff…" value={q} onChange={(e) => setQ(e.target.value)} style={{ width: '100%', fontSize: 16, padding: 10 }} />
+      <input autoFocus aria-label="Search" placeholder="Player, club or staff… (Enter opens the first result)" value={q} onChange={(e) => setQ(e.target.value)} style={{ width: '100%', fontSize: '1.15rem', padding: 10 }}
+        onKeyDown={(e) => { if (e.key === 'Enter') { if (clubs[0]) go(`/clubs/${clubs[0].id}`); else if (players[0]) go(`/player/${players[0].id}`); } }} />
       <div className="col mt16">
         {clubs.map((c) => (
-          <div key={`c${c.id}`} className="row link" onClick={() => go(`/clubs/${c.id}`)}><Crest club={c} /> {c.name} <span className="muted small">{c.leagueId ? w.rules.leagues[c.leagueId].name : 'Continental'}</span></div>
+          <button type="button" key={`c${c.id}`} className="row link btn ghost" onClick={() => go(`/clubs/${c.id}`)}><Crest club={c} /> {c.name} <span className="muted small">{c.leagueId ? w.rules.leagues[c.leagueId].name : 'Continental'}</span></button>
         ))}
         {players.map((p) => (
-          <div key={`p${p.id}`} className="row link" onClick={() => go(`/player/${p.id}`)}>🏀 {p.firstName} {p.lastName} <span className="muted small">{p.pos} · {p.teamId != null ? getClub(w, p.teamId).abbrev : 'Free agent'}</span></div>
+          <button type="button" key={`p${p.id}`} className="row link btn ghost" onClick={() => go(`/player/${p.id}`)}>🏀 {p.firstName} {p.lastName} <span className="muted small">{p.pos} · {p.teamId != null ? getClub(w, p.teamId).abbrev : 'Free agent'}</span></button>
         ))}
         {staff.map((x) => (
           <div key={`s${x.id}`} className="row"><span>👔 {x.firstName} {x.lastName}</span> <span className="muted small">{x.role} · rating {x.rating} · {x.teamId != null ? getClub(w, x.teamId).abbrev : 'Available'}</span></div>

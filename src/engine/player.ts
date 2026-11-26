@@ -192,9 +192,20 @@ export function baseSalary(ovr: number): number {
   return Math.round(clamp(6000 * Math.exp((ovr - 35) * 0.135), 5000, 9_000_000) / 1000) * 1000;
 }
 
+/** NIL payment for a college athlete (scholarship costs are part of the academy/ops budget). */
+export function nilSalary(ovr: number): number {
+  return Math.max(2000, Math.round(baseSalary(ovr) * 0.12 / 500) * 500);
+}
+
+/** Seasons of eligibility left for a player of this age (college players are 18–22). */
+export function eligibilityYears(age: number): number {
+  return Math.max(1, Math.min(4, 23 - age));
+}
+
 export function salaryAsk(w: World, p: Player, forClub?: Club): number {
   const a = age(w, p);
   const effective = a <= 23 ? p.ovr * 0.75 + p.pot * 0.25 : p.ovr;
+  if (forClub?.leagueId === 'COLLEGE') return nilSalary(effective);
   let s = baseSalary(effective);
   s *= 0.85 + p.personality.greed / 333; // 0.88 – 1.13
   if (a >= 33) s *= 0.75;
@@ -249,7 +260,8 @@ export function developmentEnv(w: World, p: Player): number {
   const academy = p.academy ? c.arena.levels.academy : 0;
   const ad = p.academy ? staffRating(w, c, 'academyDirector') : 50;
   const focus = c.training.focus === 'development' ? 0.06 : 0;
-  return 0.75 + coach / 500 + dev / 350 + training * 0.04 + academy * 0.04 + ad / 1000 + focus;
+  const coachingExec = w.user.background === 'coach' && w.user.clubId === p.teamId ? 0.04 : 0;
+  return coachingExec + 0.75 + coach / 500 + dev / 350 + training * 0.04 + academy * 0.04 + ad / 1000 + focus;
 }
 
 /** Annual progression. Returns delta in ovr. */

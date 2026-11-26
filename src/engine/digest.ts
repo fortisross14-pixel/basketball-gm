@@ -75,10 +75,10 @@ export function buildDigest(w: World): DigestItem[] {
   const empty = SPONSOR_SLOTS.filter((s) => !c.sponsors.some((x) => x.slot === s) && (s !== 'naming' || c.arena.owned));
   if (empty.length >= 3) items.push({ id: 'sponsors', title: `${empty.length} sponsorship slots empty`, detail: empty.map((s) => SLOT_INFO[s].label).join(', ') + '. Offers arrive weekly; a better commercial director attracts more.', urgency: 0, impact: 1, deadline: null, owner: 'Commercial director', link: '/club/commercial', tone: 'info' });
   // promotion readiness
-  if (c.leagueId && c.leagueId !== 'ELITE') {
+  if (c.leagueId === 'ORO' || c.leagueId === 'PLATA') {
     const up = c.leagueId === 'ORO' ? 'ELITE' : 'ORO';
     const lic = licenceCheck(w, c, up);
-    if (!lic.ok && w.day > cal.leagueRoundDays[10]) items.push({ id: 'licence', title: `Not licensed for the ${w.rules.leagues[up].name}`, detail: `If you win promotion: ${lic.reasons.join(' ')}`, urgency: w.day > cal.leagueRoundDays[22] ? 3 : 1, impact: 3, deadline: null, owner: 'You', link: '/infrastructure/stadium', tone: 'warn' });
+    if (!lic.ok && true) items.push({ id: 'licence', title: `Not licensed for the ${w.rules.leagues[up].name}`, detail: `If you win promotion: ${lic.reasons.join(' ')}`, urgency: w.day > cal.leagueRoundDays[22] ? 3 : 1, impact: 3, deadline: null, owner: 'You', link: '/infrastructure/stadium', tone: 'warn' });
   }
   // academy
   const ready = academy(w, c.id).filter((p) => p.ovr >= (squad.sort((a, b) => a.ovr - b.ovr)[0]?.ovr ?? 99) && registrationCheck(w, c, p).ok);

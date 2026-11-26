@@ -1,12 +1,14 @@
 import type { Club, Negotiation, Player, RolePromise, World, Decision } from './types';
 import { absDay } from './types';
 import { addNews, age, book, club as getClub, freeAgents, isUser, nextId, player as getPlayer, playerName, roster, rng, staffRating, tierOf, fmtMoney, hold, logDelegation } from './world';
-import { marketValue, roleFor, salaryAsk, ROLE_MINUTES, ROLE_LABEL, generatePlayer } from './player';
+import { marketValue, roleFor, salaryAsk, ROLE_MINUTES, ROLE_LABEL, generatePlayer, eligibilityYears } from './player';
 import { payroll } from './finance';
 import { transferWindowOpen, buildCalendar } from './calendar';
 import { clubStrength } from './matchday';
 import { clamp } from './rng';
 import { inEuro } from './economy';
+import { strategyProfile } from './squad';
+import { fanReaction } from './career';
 
 // ---------------------------------------------------------------------------
 // Registration rules
@@ -21,6 +23,10 @@ export function registrationCheck(w: World, c: Club, p: Player, leaving: Player 
   const res: RegCheck = { ok: true, reasons: [], warnings: [] };
   if (!c.leagueId) return res;
   const rules = w.rules.leagues[c.leagueId];
+  if (rules.kind === 'college') {
+    if (age(w, p) > 22) { res.ok = false; res.reasons.push(`NCL eligibility: college players must be 22 or younger (he is ${age(w, p)}).`); }
+    if (p.career.some((x) => x.tier === 1)) { res.ok = false; res.reasons.push('NCL eligibility: he has played professionally at the top level and is no longer an amateur.'); }
+  }
   const squad = roster(w, c.id).filter((x) => x.id !== p.id && x.id !== leaving?.id);
   if (squad.length + 1 > rules.rosterMax) {
     res.ok = false;
@@ -79,6 +85,7 @@ export function playerInterest(w: World, p: Player, c: Club, offer: ContractOffe
   // money
   const money = (offer.salary + offer.signingBonus / Math.max(1, offer.years)) / Math.max(1, ask);
   let moneyW = 0.5 + pers.greed / 100;
+  if (c.leagueId === 'COLLEGE') moneyW *= 0.4; // recruits weigh playing time, coach and program over NIL money
   if (style === 'cash') moneyW *= 1.5;
   let moneyScore = (money - 1) * moneyW * 100;
   if (style === 'hardline' && money < 0.97) moneyScore -= 15;
@@ -92,6 +99,11 @@ export function playerInterest(w: World, p: Player, c: Club, offer: ContractOffe
   if (style === 'empowerment' || (style === 'development' && a <= 23)) roleScore *= 1.4;
   factors.push({ label: `Role: ${ROLE_LABEL[offer.role]} (expects ${ROLE_LABEL[deserved]})`, value: roleScore });
   // club level
+  if (c.leagueId === 'COLLEGE') {
+    factors.push({ label: `Program prestige & exposure (${c.prestige})`, value: (c.prestige - 45) / 3 });
+    if (a >= 21) factors.push({ label: 'Wants a professional contract, not college', value: -(a - 20) * 6 });
+  }
+  if (w.user.background === 'formerPlayer' && isUser(w, c.id)) factors.push({ label: 'Respects you as a former player', value: 4 });
   const t = tierOf(w, c) || 1;
   const fromT = p.teamId != null ? tierOf(w, getClub(w, p.teamId)) || 1 : p.career.length ? p.career[p.career.length - 1].tier || 2 : 3;
   const levelScore = ((fromT - t) * 6 + (c.prestige - 45) / 6) * (0.5 + pers.ambition / 100) * (style === 'media' ? 1.4 : 1);
@@ -139,6 +151,10 @@ export function getNegotiation(w: World, playerId: number): Negotiation | undefi
 
 export function offerContract(w: World, c: Club, p: Player, offer: ContractOffer, mode: 'sign' | 'renew', feeAgreed = 0): NegotiationResult {
   const r = rng(w);
+  if (c.leagueId === 'COLLEGE') {
+    if (mode === 'renew') return { outcome: 'blocked', message: 'College scholarships run until eligibility ends; there is nothing to renew.' };
+    offer = { ...offer, years: eligibilityYears(age(w, p)), buyout: null };
+  }
   if (mode === 'sign') {
     const reg = registrationCheck(w, c, p);
     if (!reg.ok) return { outcome: 'blocked', message: reg.reasons.join(' ') };
@@ -212,7 +228,8 @@ export function moveTo(w: World, p: Player, c: Club, offer: ContractOffer, fee: 
   p.loan = null;
   p.transferListed = false;
   p.untouchable = false;
-  p.contract = { salary: offer.salary, expires: contractStart(w) + offer.years - 1, buyout: offer.buyout, rolePromise: offer.role, signedSeason: w.season, signingBonus: offer.signingBonus };
+  const years = c.leagueId === 'COLLEGE' ? eligibilityYears(age(w, p)) : offer.years;
+  p.contract = { salary: offer.salary, expires: contractStart(w) + years - 1, buyout: offer.buyout, rolePromise: offer.role, signedSeason: w.season, signingBonus: offer.signingBonus };
   p.joinedDay = absDay(w);
   p.morale = clamp(65 + (offer.role === 'star' || offer.role === 'starter' ? 8 : 0), 0, 100);
   p.minutesExpectation = ROLE_MINUTES[offer.role];
@@ -223,7 +240,12 @@ export function moveTo(w: World, p: Player, c: Club, offer: ContractOffer, fee: 
   if (taken.has(p.jersey) || retired.has(p.jersey)) {
     for (let j = 0; j < 100; j++) if (!taken.has(j) && !retired.has(j)) { p.jersey = j; break; }
   }
-  if (isUser(w, c.id)) w.user.knowledge[p.id] = 100;
+  if (isUser(w, c.id)) {
+    w.user.knowledge[p.id] = 100;
+    const rank = roster(w, c.id).sort((a, b) => b.ovr - a.ovr).findIndex((x) => x.id === p.id);
+    if (rank >= 0 && rank < 3 && kind !== 'youth') fanReaction(w, 6, `Exciting signing: ${playerName(p)}`);
+    if (kind === 'youth') fanReaction(w, 2, `Academy graduate ${playerName(p)} promoted`);
+  }
   c.cohesion = clamp(c.cohesion - 2.5, 0, 100);
   w.transfers.unshift({ id: nextId(w), day: absDay(w), season: w.season, playerId: p.id, playerName: playerName(p), fromId, toId: c.id, fee, salary: offer.salary, kind });
   if (w.transfers.length > 800) w.transfers.length = 800;
@@ -259,16 +281,21 @@ export interface BidResult {
 
 export function sellerMinimum(w: World, seller: Club, p: Player): number {
   const rank = roster(w, seller.id).sort((a, b) => b.ovr - a.ovr).findIndex((x) => x.id === p.id);
-  const importance = rank < 3 ? 1.45 : rank < 6 ? 1.2 : rank < 9 ? 1.0 : 0.8;
-  const distress = seller.finances.cash < 0 ? 0.75 : 1;
-  const strat = seller.ai.strategy === 'rebuild' && age(w, p) >= 28 ? 0.85 : seller.ai.strategy === 'contend' ? 1.15 : 1;
-  const listed = p.transferListed ? 0.8 : 1;
-  return Math.round((p.value * importance * distress * strat * listed) / 1000) * 1000;
+  const importance = rank < 3 ? 1.45 : rank < 6 ? 1.2 : rank < 9 ? 1.0 : 0.85;
+  // discounts compound but never below 70%: a distressed seller is cheaper, not a fire sale
+  const discount = Math.max(0.7, (seller.finances.cash < 0 ? 0.85 : 1) * (seller.ai.strategy === 'rebuild' && age(w, p) >= 28 ? 0.9 : 1) * (p.transferListed ? 0.88 : 1));
+  const strat = seller.ai.strategy === 'contend' ? 1.15 : 1;
+  // stable per-club/per-player valuation noise (±10%) so the floor can't be reverse-engineered
+  const h = Math.sin(seller.id * 12.9898 + p.id * 78.233 + w.season * 3.7) * 43758.5453;
+  const noise = 0.9 + (h - Math.floor(h)) * 0.2;
+  return Math.round((p.value * importance * discount * strat * noise) / 1000) * 1000;
 }
 
 export function bidForPlayer(w: World, buyer: Club, p: Player, fee: number): BidResult {
   if (p.teamId == null) return { outcome: 'blocked', message: 'He is a free agent: negotiate directly.' };
   const seller = getClub(w, p.teamId);
+  if (seller.leagueId === 'COLLEGE') return { outcome: 'blocked', message: 'College athletes cannot be bought. He becomes available when his eligibility ends or he declares for the pros.' };
+  if (buyer.leagueId === 'COLLEGE') return { outcome: 'blocked', message: 'College programs cannot pay transfer fees: recruit free agents and high-school players instead.' };
   const can = canSignNow(w, true);
   if (!can.ok) return { outcome: 'blocked', message: can.reason! };
   if (fee > buyer.finances.cash + 100000) return { outcome: 'blocked', message: `You cannot cover a ${fmtMoney(fee)} fee with ${fmtMoney(buyer.finances.cash)} in cash.` };
@@ -279,7 +306,7 @@ export function bidForPlayer(w: World, buyer: Club, p: Player, fee: number): Bid
   const min = sellerMinimum(w, seller, p);
   if (fee >= min) return { outcome: 'accepted', message: `${seller.name} accept ${fmtMoney(fee)}. Now agree personal terms with ${playerName(p)}.` };
   if (fee >= min * 0.7) return { outcome: 'counter', message: `${seller.name} want ${fmtMoney(min)}.${p.contract?.buyout ? ` (Release clause: ${fmtMoney(p.contract.buyout)}.)` : ''}`, counterFee: min };
-  return { outcome: 'rejected', message: `${seller.name} reject the offer outright: they value him around ${fmtMoney(Math.round(min / 50000) * 50000)}.` };
+  return { outcome: 'rejected', message: `${seller.name} reject the offer outright: "That is nowhere near what he is worth to us."${p.contract?.buyout ? ` His release clause is ${fmtMoney(p.contract.buyout)}.` : ''}` };
 }
 
 // ---------------------------------------------------------------------------
@@ -355,10 +382,14 @@ export function aiFillRosters(w: World, aggressive: boolean) {
     while (squad.length < target && tries++ < 4) {
       const room = Math.max(c.ai.payrollTarget - payroll(w, c), 0);
       const needs = neededPositions(w, c);
-      const floor = tierOf(w, c) === 1 || c.foreign ? 40000 : tierOf(w, c) === 2 ? 14000 : 7000;
-      const cand = fas.find((p) => p.teamId == null && (needs.length === 0 || needs.includes(p.pos) || r.chance(0.4)) && salaryAsk(w, p, c) <= Math.max(room, floor * 1.5) && (c.foreign || registrationCheck(w, c, p).ok) && acceptsAi(w, p, c));
+      const floor = c.leagueId === 'COLLEGE' ? 2000 : tierOf(w, c) === 1 || c.foreign ? 40000 : tierOf(w, c) === 2 ? 14000 : 7000;
+      const college = c.leagueId === 'COLLEGE';
+      const prof = strategyProfile(c);
+      const score = (p: Player) => p.ovr * (1 - prof.potWeight) + p.pot * prof.potWeight;
+      if (!college) fas.sort((a, b) => score(b) - score(a));
+      const cand = fas.find((p) => p.teamId == null && (college || age(w, p) <= prof.ageMax || w.day > 80) && (!college || age(w, p) <= 20) && (college || age(w, p) >= 19 || p.ovr >= 50) && (needs.length === 0 || needs.includes(p.pos) || r.chance(0.4)) && salaryAsk(w, p, c) <= Math.max(room, floor * 1.5) && (c.foreign || registrationCheck(w, c, p).ok) && acceptsAi(w, p, c));
       if (!cand) break;
-      const salary = Math.max(floor, Math.round(salaryAsk(w, cand, c) * r.float(0.95, 1.05) * Math.max(1, aiPayFactor(w, c)) / 1000) * 1000);
+      const salary = Math.max(floor, Math.round(salaryAsk(w, cand, c) * r.float(0.95, 1.05) * aiPayFactor(w, c) / 1000) * 1000);
       moveTo(w, cand, c, { salary, years: r.int(1, 3), role: roleFor(projectedRank(w, c, cand)), buyout: null, signingBonus: 0 }, 0, 'freeAgent');
       fas.splice(fas.indexOf(cand), 1);
       squad = roster(w, c.id);
@@ -366,7 +397,7 @@ export function aiFillRosters(w: World, aggressive: boolean) {
     // desperation: never field fewer than the league minimum — sign local amateurs
     const min = rules?.rosterMin ?? 10;
     while (squad.length < min) {
-      const floor = tierOf(w, c) === 1 || c.foreign ? 40000 : tierOf(w, c) === 2 ? 14000 : 7000;
+      const floor = c.leagueId === 'COLLEGE' ? 2000 : tierOf(w, c) === 1 || c.foreign ? 40000 : tierOf(w, c) === 2 ? 14000 : 7000;
       const cheap = fas.find((p) => p.teamId == null && salaryAsk(w, p, c) <= floor * 2.2 && (c.foreign || registrationCheck(w, c, p).ok));
       const p = cheap ?? localAmateur(w, c);
       moveTo(w, p, c, { salary: floor, years: 1, role: 'bench', buyout: null, signingBonus: 0 }, 0, 'freeAgent');
@@ -386,15 +417,16 @@ export function aiFillRosters(w: World, aggressive: boolean) {
 function localAmateur(w: World, c: Club): Player {
   const r = rng(w);
   const tier = tierOf(w, c) || 1;
-  const p = generatePlayer(w, { targetOvr: Math.round(r.normal(tier === 1 ? 50 : tier === 2 ? 42 : 36, 3)), age: r.int(19, 24), region: c.foreign ? undefined : 'ESP', country: c.foreign ? c.country : undefined });
-  p.homegrown = !c.foreign;
+  const college = c.leagueId === 'COLLEGE';
+  const p = generatePlayer(w, { targetOvr: Math.round(r.normal(college ? 40 : tier === 1 ? 50 : tier === 2 ? 42 : 36, 3)), age: college ? 18 : r.int(19, 24), region: c.foreign || college ? undefined : 'ESP', country: c.foreign || college ? c.country : undefined });
+  p.homegrown = !c.foreign && !college;
   w.players.push(p);
   return p;
 }
 
 /** Rich AI clubs pay over the odds; poor ones under. */
 export function aiPayFactor(w: World, c: Club): number {
-  return clamp(c.ai.payrollTarget / Math.max(1, payroll(w, c)), 0.85, 1.45);
+  return clamp((c.ai.payrollTarget / Math.max(1, payroll(w, c))) * strategyProfile(c).spend, 0.85, 1.4);
 }
 
 function acceptsAi(w: World, p: Player, c: Club): boolean {
@@ -409,12 +441,13 @@ export function aiTransfers(w: World) {
   if (!transferWindowOpen(w.season, w.day)) return;
   const r = rng(w);
   for (const buyer of w.clubs) {
-    if (isUser(w, buyer.id) || !r.chance(0.06)) continue;
+    const prof = strategyProfile(buyer);
+    if (isUser(w, buyer.id) || buyer.leagueId === 'COLLEGE' || buyer.ai.strategy === 'survive' || !r.chance(0.06 * prof.spend)) continue;
     const squad = roster(w, buyer.id).sort((a, b) => b.ovr - a.ovr);
     const fifth = squad[4]?.ovr ?? 40;
     const room = buyer.ai.payrollTarget - payroll(w, buyer);
-    const budget = Math.max(0, buyer.finances.cash * 0.3);
-    const cands = w.players.filter((p) => p.teamId != null && p.teamId !== buyer.id && !p.academy && !p.loan && p.ovr > fifth + 2 && !isUser(w, p.teamId) && getClub(w, p.teamId).prestige < buyer.prestige - 5 && age(w, p) <= 30);
+    const budget = Math.max(0, buyer.finances.cash * 0.3 * prof.spend);
+    const cands = w.players.filter((p) => p.teamId != null && p.teamId !== buyer.id && !p.academy && !p.loan && p.ovr > fifth + 2 && !isUser(w, p.teamId) && getClub(w, p.teamId).leagueId !== 'COLLEGE' && getClub(w, p.teamId).prestige < buyer.prestige - 5 && age(w, p) <= prof.ageMax);
     const target = cands.sort((a, b) => b.ovr - a.ovr).find((p) => {
       const seller = getClub(w, p.teamId!);
       const fee = p.contract?.buyout ?? sellerMinimum(w, seller, p);
@@ -432,19 +465,24 @@ export function aiTransfers(w: World) {
 /** AI clubs make bids for the user's players → decision for the user (or delegated GM). */
 export function aiBidsForUser(w: World) {
   const uc = w.user.clubId != null ? getClub(w, w.user.clubId) : null;
-  if (!uc || !transferWindowOpen(w.season, w.day)) return;
+  if (!uc || uc.leagueId === 'COLLEGE' || !transferWindowOpen(w.season, w.day)) return;
   const r = rng(w);
   const noise = w.settings.worldNoise === 'quiet' ? 0.5 : w.settings.worldNoise === 'handsOn' ? 1.5 : 1;
   if (!r.chance(0.22 * noise)) return;
   const mine = roster(w, uc.id).filter((p) => !p.untouchable && (p.ovr >= 50 || p.transferListed));
   if (!mine.length) return;
   const p = r.weighted(mine, mine.map((x) => x.ovr * (x.transferListed ? 3 : 1) * (x.pot > x.ovr + 5 ? 1.5 : 1)));
-  const buyers = w.clubs.filter((c) => c.id !== uc.id && c.prestige >= uc.prestige - 5 && c.finances.cash > p.value * 0.6);
+  // buyers that need him (he'd make their top six), can afford him and whose plan fits his age
+  const buyers = w.clubs.filter((c) => {
+    if (c.id === uc.id || c.leagueId === 'COLLEGE' || c.ai.strategy === 'survive' || c.prestige < uc.prestige - 5) return false;
+    const sixth = roster(w, c.id).sort((a, b) => b.ovr - a.ovr)[5]?.ovr ?? 0;
+    return p.ovr > sixth && age(w, p) <= strategyProfile(c).ageMax + 1 && c.finances.cash * 0.5 >= p.value * 0.8;
+  });
   if (!buyers.length) return;
-  const buyer = r.pick(buyers);
+  const buyer = r.weighted(buyers, buyers.map((c) => c.finances.cash));
   const existing = w.decisions.find((d) => !d.resolved && d.kind === 'transferBid' && d.payload.playerId === p.id);
   if (existing) return;
-  let fee = Math.round(p.value * r.float(0.75, 1.35) / 5000) * 5000;
+  let fee = Math.round(Math.min(buyer.finances.cash * 0.5, p.value * r.float(0.75, 1.3)) / 5000) * 5000;
   if (p.contract?.buyout && fee >= p.contract.buyout) fee = p.contract.buyout;
   const forced = p.contract?.buyout != null && fee >= p.contract.buyout;
   const policy = w.user.delegation.transfers;
@@ -483,7 +521,10 @@ export function resolveTransferBid(w: World, d: Decision, choice: string): strin
   let fee = d.payload.fee as number;
   if (choice === 'counter') {
     fee = Math.round(fee * 1.25 / 5000) * 5000;
-    if (!r.chance(0.45 + (buyer.finances.cash > fee * 3 ? 0.2 : 0))) return `${buyer.name} walk away from the deal.`;
+    // the buyer accepts a counter only if it still sits inside its own valuation and budget
+    const valuation = p.value * (1.05 + (buyer.ai.strategy === 'contend' ? 0.25 : 0.1));
+    const pAccept = fee > buyer.finances.cash * 0.6 ? 0 : 1 / (1 + Math.exp(-((valuation - fee) / Math.max(1, p.value)) * 6));
+    if (!r.chance(pAccept)) return `${buyer.name} walk away from the deal at ${fmtMoney(fee)}.`;
   }
   if (choice === 'persuade') {
     if (r.chance(0.3 + p.personality.loyalty / 250)) {
@@ -493,6 +534,8 @@ export function resolveTransferBid(w: World, d: Decision, choice: string): strin
     choice = 'accept';
   }
   if (choice === 'accept' || choice === 'counter') {
+    const rankBefore = roster(w, uc.id).sort((a, b) => b.ovr - a.ovr).findIndex((x) => x.id === p.id);
+    if (rankBefore >= 0 && rankBefore < 3) fanReaction(w, -10 - (p.homegrown ? 4 : 0), `Sold ${playerName(p)}, one of the team's best players`);
     book(w, uc, 'transfersIn', fee);
     book(w, buyer, 'transfersOut', -fee);
     moveTo(w, p, buyer, { salary: Math.max(p.contract?.salary ?? 0, salaryAsk(w, p, buyer)), years: 3, role: roleFor(projectedRank(w, buyer, p)), buyout: null, signingBonus: 0 }, fee, 'transfer');
