@@ -169,3 +169,11 @@ season awards, titles.
 Put the files in `public/art/` (or send them in a zip). Names: `bodies.png`, `bodies-map.png`,
 `faces.png`, `faces-map.png`, `venues-outside.png`, `venues-inside.png`, `shop.png`,
 `shop-map.png`, `icons.png`, `banners.png`, `facilities.png`, `emblems.png`, `emblems-map.png`.
+
+## Status
+
+All nine sheets were delivered (November 2026) and are in `public/art/`. Shop, faces and emblems
+had the key colours painted straight onto the art, which works too. To replace or update a sheet,
+put the new file (same name, `.png`) in a folder and run
+`python3 scripts/prepare-art.py <folder>`. It resizes the sheet to the exact grid, splits painted
+key colours into a shaded base plus a map, and compresses everything for tablets.

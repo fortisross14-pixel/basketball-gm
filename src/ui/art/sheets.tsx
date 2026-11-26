@@ -6,16 +6,16 @@ import { artUrl } from './assets';
 
 export type SheetName = 'bodies' | 'faces' | 'venues-outside' | 'venues-inside' | 'shop' | 'icons' | 'banners' | 'facilities' | 'emblems';
 
-export const SHEETS: Record<SheetName, { cols: number; rows: number; map: boolean }> = {
-  bodies: { cols: 8, rows: 2, map: true },
-  faces: { cols: 8, rows: 4, map: true },
-  'venues-outside': { cols: 2, rows: 2, map: false },
-  'venues-inside': { cols: 2, rows: 2, map: false },
-  shop: { cols: 4, rows: 2, map: true },
-  icons: { cols: 8, rows: 4, map: false },
-  banners: { cols: 2, rows: 4, map: false },
-  facilities: { cols: 8, rows: 4, map: false },
-  emblems: { cols: 8, rows: 4, map: true },
+export const SHEETS: Record<SheetName, { cols: number; rows: number; map: boolean; ext: string }> = {
+  bodies: { cols: 8, rows: 2, map: true, ext: 'webp' },
+  faces: { cols: 8, rows: 4, map: true, ext: 'webp' },
+  'venues-outside': { cols: 2, rows: 2, map: false, ext: 'jpg' },
+  'venues-inside': { cols: 2, rows: 2, map: false, ext: 'jpg' },
+  shop: { cols: 4, rows: 2, map: true, ext: 'webp' },
+  icons: { cols: 8, rows: 4, map: false, ext: 'webp' },
+  banners: { cols: 2, rows: 4, map: false, ext: 'jpg' },
+  facilities: { cols: 8, rows: 4, map: false, ext: 'webp' },
+  emblems: { cols: 8, rows: 4, map: true, ext: 'webp' },
 };
 
 interface Loaded { url: string; masks: { r: string; g: string; b: string } | null }
@@ -65,8 +65,10 @@ function load(name: SheetName): Promise<Loaded | null> {
   let p = cache.get(name);
   if (!p) {
     p = (async () => {
-      const url = artUrl(`${name}.png`);
-      const img = await loadImage(url);
+      // prepared files (scripts/prepare-art.py) first, raw PNG as a fallback
+      let url = artUrl(`${name}.${SHEETS[name].ext}`);
+      let img = await loadImage(url);
+      if (!img) { url = artUrl(`${name}.png`); img = await loadImage(url); }
       if (!img) return null;
       let masks: Loaded['masks'] = null;
       if (SHEETS[name].map) {
