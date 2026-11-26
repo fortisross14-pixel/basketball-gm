@@ -35,7 +35,7 @@ export function startSeason(w: World) {
     c.finances.budget = proposeBudget(w, c);
     c.ai.payrollTarget = c.finances.budget.payroll;
     setObjectives(w, c);
-    if (!isUser(w, c.id) || w.user.delegation.tactics.mode !== 'manual') coachSetsTactics(w, c);
+    if (!isUser(w, c.id) || ['policy', 'notify', 'full'].includes(w.user.delegation.tactics.mode)) coachSetsTactics(w, c);
     const sq = roster(w, c.id).sort((a, b) => b.ovr - a.ovr);
     sq.forEach((p, i) => (p.minutesExpectation = expectedMinutes(i, p)));
   }

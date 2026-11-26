@@ -33,6 +33,7 @@ export const SECTIONS: Section[] = [
       { to: '/club/commercial', label: 'Sponsors & TV', icon: 'coin', blurb: 'Partners on the kit and court, media rights.' },
       { to: '/club/contracts', label: 'Contracts', icon: 'contract', blurb: 'Payroll sheet, renewals and releases.' },
       { to: '/club/board', label: 'Board', icon: 'board', blurb: 'Objectives, trust and how you are rated.' },
+      { to: '/club/licence', label: 'Promotion Licence', icon: 'rules', blurb: 'Seats and guarantees the league above demands, and your plan.' },
       { to: '/club/media', label: 'News & Media', icon: 'news', blurb: 'The newsroom and the delegation log.' },
     ],
   },
@@ -53,7 +54,8 @@ export const SECTIONS: Section[] = [
     items: [
       { to: '/infrastructure/arena', label: 'Arena', icon: 'arena', blurb: 'Ticket prices and arena upgrades.' },
       { to: '/infrastructure/sports', label: 'Sports Facilities', icon: 'training', blurb: 'Training ground, gym, locker rooms, academy residence.' },
-      { to: '/infrastructure/commercial', label: 'Commercial Facilities', icon: 'store', blurb: 'Club stores, products, food & drink.' },
+      { to: '/infrastructure/commercial/merchandise', label: 'Merchandise', icon: 'store', blurb: 'Stock, suppliers, prices and the club stores.' },
+      { to: '/infrastructure/commercial/food', label: 'Food & Drink', icon: 'food', blurb: 'Matchday food concepts, menus and the arena restaurant.' },
       { to: '/infrastructure/club-facilities', label: 'Club Facilities', icon: 'board', blurb: 'PR office, press room and corporate offices.' },
     ],
   },
@@ -67,7 +69,7 @@ export const SECTIONS: Section[] = [
       { to: '/results/rules', label: 'Rules', icon: 'rules', blurb: 'The versioned ruleset and licensing.' },
     ],
   },
-  { id: 'legacy', label: 'Legacy', icon: 'legacy', to: '/legacy', prefixes: ['/legacy'] },
+  { id: 'legacy', label: 'Legacy', icon: 'legacy', to: '/legacy', prefixes: ['/legacy', '/career'] },
   { id: 'settings', label: 'Settings', icon: 'settings', to: '/settings', prefixes: ['/settings'] },
 ];
 
@@ -89,3 +91,20 @@ export function subsectionOf(path: string) {
   const item = s?.items?.find((i) => path === i.to || path.startsWith(`${i.to}/`));
   return { section: s, item, index: item && s?.items ? s.items.indexOf(item) : -1 };
 }
+
+/** Searchable page index (global search): direct routes with keywords. */
+export const PAGE_INDEX: { to: string; label: string; keywords: string }[] = [
+  ...SECTIONS.flatMap((s) => [
+    { to: s.to, label: s.label, keywords: s.tagline ?? '' },
+    ...(s.items ?? []).map((i) => ({ to: i.to, label: i.label, keywords: `${s.label} ${i.blurb}` })),
+  ]),
+  { to: '/business/merchandise', label: 'Merchandise', keywords: 'shop store jerseys scarves caps keychains stock orders supplier merch' },
+  { to: '/business/food', label: 'Food & Drink', keywords: 'restaurant kiosk grill lounge concessions menu catering bar food drink' },
+  { to: '/business/tickets', label: 'Ticket prices', keywords: 'tickets seats season tickets prices gate attendance' },
+  { to: '/business/revenue-drive', label: 'Revenue drive', keywords: 'money naming rights sponsor members tv cash fundraising' },
+  { to: '/team/tactics/lineup', label: 'Lineup & Minutes', keywords: 'starters rotation bench minutes lineup' },
+  { to: '/team/tactics/feedback', label: 'Coach feedback', keywords: 'coach feedback analysis suggestions' },
+  { to: '/career', label: 'Career offers', keywords: 'job offers career clubs interested' },
+  { to: '/club/licence', label: 'Promotion licence', keywords: 'licence license promotion seats guarantee elite' },
+  { to: '/club/commercial/media', label: 'Media rights', keywords: 'tv broadcaster streaming rights' },
+];

@@ -38,7 +38,7 @@ import Stats from './screens/results/Stats';
 import Rules from './screens/results/Rules';
 import ClubProfile from './screens/results/ClubProfile';
 import ClubHub from './screens/hubs/ClubHub';
-import { SECTIONS, sectionOf, depthOf, subsectionOf } from './screens/hubs/nav';
+import { SECTIONS, sectionOf, depthOf, subsectionOf, PAGE_INDEX } from './screens/hubs/nav';
 import { SectionHeader } from './screens/hubs/SectionHeader';
 import TeamHub from './screens/hubs/TeamHub';
 import ResultsHub from './screens/hubs/ResultsHub';
@@ -48,6 +48,8 @@ import SportsFacilities from './screens/infra/SportsFacilities';
 import CommercialFacilities from './screens/infra/CommercialFacilities';
 import ClubFacilities from './screens/infra/ClubFacilities';
 import LiveGame from './screens/live/LiveGame';
+import CareerOffers from './screens/career/CareerOffers';
+import Licence from './screens/club/Licence';
 
 export default function App() {
   return (
@@ -176,11 +178,19 @@ function GameShell() {
               <Route path="/club/finance" element={<RequireClub><Finance /></RequireClub>} />
               <Route path="/club/marketing" element={<RequireClub><Marketing /></RequireClub>} />
               <Route path="/club/commercial" element={<RequireClub><Commercial /></RequireClub>} />
+              <Route path="/club/commercial/:tab" element={<RequireClub><Commercial /></RequireClub>} />
+              <Route path="/club/licence" element={<RequireClub><Licence /></RequireClub>} />
+              <Route path="/career" element={<CareerOffers />} />
+              <Route path="/business/merchandise" element={<Navigate to="/infrastructure/commercial/merchandise" replace />} />
+              <Route path="/business/food" element={<Navigate to="/infrastructure/commercial/food" replace />} />
+              <Route path="/business/tickets" element={<Navigate to="/infrastructure/arena/tickets" replace />} />
+              <Route path="/business/revenue-drive" element={<Navigate to="/club/commercial/drive" replace />} />
               <Route path="/club/contracts" element={<RequireClub><Contracts /></RequireClub>} />
               <Route path="/club/board" element={<RequireClub><Board /></RequireClub>} />
               <Route path="/club/media" element={<Media />} />
               <Route path="/team/players" element={<RequireClub><Players /></RequireClub>} />
               <Route path="/team/tactics" element={<RequireClub><Tactics /></RequireClub>} />
+              <Route path="/team/tactics/:tab" element={<RequireClub><Tactics /></RequireClub>} />
               <Route path="/team/training" element={<RequireClub><Training /></RequireClub>} />
               <Route path="/team/staff" element={<RequireClub><StaffScreen /></RequireClub>} />
               <Route path="/team/medical" element={<RequireClub><Medical /></RequireClub>} />
@@ -195,11 +205,12 @@ function GameShell() {
               <Route path="/infrastructure/arena/:tab" element={<RequireClub><Arena /></RequireClub>} />
               <Route path="/infrastructure/sports" element={<RequireClub><SportsFacilities /></RequireClub>} />
               <Route path="/infrastructure/commercial" element={<RequireClub><CommercialFacilities /></RequireClub>} />
+              <Route path="/infrastructure/commercial/:tab" element={<RequireClub><CommercialFacilities /></RequireClub>} />
               <Route path="/infrastructure/club-facilities" element={<RequireClub><ClubFacilities /></RequireClub>} />
               <Route path="/infrastructure/stadium" element={<Navigate to="/infrastructure/arena" replace />} />
               <Route path="/infrastructure/tickets" element={<Navigate to="/infrastructure/arena/tickets" replace />} />
-              <Route path="/infrastructure/stores" element={<Navigate to="/infrastructure/commercial" replace />} />
-              <Route path="/infrastructure/restaurants" element={<Navigate to="/infrastructure/commercial" replace />} />
+              <Route path="/infrastructure/stores" element={<Navigate to="/infrastructure/commercial/merchandise" replace />} />
+              <Route path="/infrastructure/restaurants" element={<Navigate to="/infrastructure/commercial/food" replace />} />
               <Route path="/live/:id" element={<RequireClub><LiveGame /></RequireClub>} />
               <Route path="/results/standings" element={<Standings />} />
               <Route path="/results/schedule" element={<Schedule />} />
@@ -476,13 +487,17 @@ function GlobalSearch() {
   const s = q.trim().toLowerCase();
   const players = s.length >= 2 ? w.players.filter((p) => !p.retired && `${p.firstName} ${p.lastName}`.toLowerCase().includes(s)).slice(0, 12) : [];
   const clubs = s.length >= 1 ? w.clubs.filter((c) => `${c.name} ${c.abbrev} ${c.city}`.toLowerCase().includes(s)).slice(0, 8) : [];
+  const pages = s.length >= 2 ? PAGE_INDEX.filter((pg, i, arr) => arr.findIndex((x) => x.to === pg.to) === i && `${pg.label} ${pg.keywords}`.toLowerCase().includes(s)).sort((a, b) => Number(!a.label.toLowerCase().includes(s)) - Number(!b.label.toLowerCase().includes(s))).slice(0, 6) : [];
   const staff = s.length >= 2 ? w.staff.filter((x) => `${x.firstName} ${x.lastName}`.toLowerCase().includes(s)).slice(0, 6) : [];
   const go = (to: string) => { setOpen(false); setQ(''); nav(to); };
   return (
     <Modal title="Search" onClose={() => setOpen(false)}>
-      <input autoFocus aria-label="Search" placeholder="Player, club or staff… (Enter opens the first result)" value={q} onChange={(e) => setQ(e.target.value)} style={{ width: '100%', fontSize: '1.15rem', padding: 10 }}
-        onKeyDown={(e) => { if (e.key === 'Enter') { if (clubs[0]) go(`/clubs/${clubs[0].id}`); else if (players[0]) go(`/player/${players[0].id}`); } }} />
+      <input autoFocus aria-label="Search" placeholder="Page, player, club or staff… (Enter opens the first result)" value={q} onChange={(e) => setQ(e.target.value)} style={{ width: '100%', fontSize: '1.15rem', padding: 10 }}
+        onKeyDown={(e) => { if (e.key === 'Enter') { if (pages[0]) go(pages[0].to); else if (clubs[0]) go(`/clubs/${clubs[0].id}`); else if (players[0]) go(`/player/${players[0].id}`); } }} />
       <div className="col mt16">
+        {pages.map((pg) => (
+          <button type="button" key={`pg${pg.to}`} className="row link btn ghost" onClick={() => go(pg.to)}><Icon name="chevronRight" size={16} /> {pg.label} <span className="muted small">{pg.to}</span></button>
+        ))}
         {clubs.map((c) => (
           <button type="button" key={`c${c.id}`} className="row link btn ghost" onClick={() => go(`/clubs/${c.id}`)}><Crest club={c} /> {c.name} <span className="muted small">{c.leagueId ? w.rules.leagues[c.leagueId].name : 'Continental'}</span></button>
         ))}
@@ -492,7 +507,7 @@ function GlobalSearch() {
         {staff.map((x) => (
           <div key={`s${x.id}`} className="row"><span>👔 {x.firstName} {x.lastName}</span> <span className="muted small">{x.role} · rating {x.rating} · {x.teamId != null ? getClub(w, x.teamId).abbrev : 'Available'}</span></div>
         ))}
-        {s && !clubs.length && !players.length && !staff.length && <div className="muted">No results.</div>}
+        {s && !pages.length && !clubs.length && !players.length && !staff.length && <div className="muted">No results.</div>}
       </div>
     </Modal>
   );

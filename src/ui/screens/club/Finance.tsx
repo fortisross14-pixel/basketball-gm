@@ -29,7 +29,7 @@ export default function Finance() {
   const pr = payroll(w, c);
   const cur = statement(c, w.season);
   return (
-    <Page title="Finance" subtitle={`Season ${seasonLabel(w.season)} · the balance sheet is gameplay`}>
+    <Page tone="quiet" title="Finance" subtitle={`Season ${seasonLabel(w.season)} · the balance sheet is gameplay`}>
       <div className="grid g4 mb8">
         <Stat label="Cash on hand" value={<Money v={c.finances.cash} />} tone={c.finances.cash < 0 ? 'bad' : undefined} sub={c.finances.overdueDays ? `Overdrawn for ${c.finances.overdueDays} days` : undefined} />
         <Stat label="Season result so far" value={<Money v={cur.net} signed tone />} sub={`Income ${fmtMoney(cur.totalIncome)} · costs ${fmtMoney(-cur.totalExpenses)}`} />

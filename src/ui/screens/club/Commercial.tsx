@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import type { Club, Decision, SponsorOffer, SponsorSlot, TvOffer } from '../../../engine/types';
 import { SPONSOR_SLOTS, absDay } from '../../../engine/types';
@@ -22,7 +23,11 @@ export default function Commercial() {
   const notify = useNotify();
   const c = getClub(w, w.user.clubId!);
   const now = absDay(w);
-  const [tab, setTab] = useState<Tab>(() => (['offseason', 'preseason'].includes(phaseOf(w.season, w.day)) ? 'drive' : 'partners'));
+  const params = useParams();
+  const navTo = useNavigate();
+  const TABS: Tab[] = ['drive', 'partners', 'offers', 'media', 'department'];
+  const tab: Tab = TABS.includes(params.tab as Tab) ? (params.tab as Tab) : (['offseason', 'preseason'].includes(phaseOf(w.season, w.day)) ? 'drive' : 'partners');
+  const setTab = (t: Tab) => navTo(`/club/commercial/${t}`, { replace: true });
   const [sel, setSel] = useState<SponsorSlot>(() => SPONSOR_SLOTS.find((s) => !c.sponsors.some((x) => x.slot === s)) ?? 'shirt');
   const sponsorTotal = c.sponsors.reduce((a, s) => a + s.annual, 0);
   const offers: SponsorOffer[] = (w.sponsorOffers[c.id] ?? []).filter((o) => o.expiresDay >= now);

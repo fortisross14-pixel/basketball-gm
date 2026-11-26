@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, Link } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import type { FacilityKey, ProjectKind } from '../../../engine/types';
 import { absDay } from '../../../engine/types';
@@ -51,6 +51,7 @@ export default function Arena() {
 function Upgrades() {
   const { w, c } = useUserClub();
   const [zone, setZone] = useState<ArenaZone | null>('seating');
+  const goTo = useNavigate();
   const [pick, setPick] = useState<ProjectOption | null>(null);
   const opts = projectOptions(w, c);
   const now = absDay(w);
@@ -74,7 +75,7 @@ function Upgrades() {
       {lic && !lic.ok && <div className="mb8" style={{ marginBottom: 12 }}><Callout tone="warn"><b>Licence for the league above:</b> {lic.reasons.join(' ')}</Callout></div>}
       <div className="arena-stage">
         <div>
-          <ArenaModel markers={markers} selected={zone} onSelect={setZone} colors={c.colors} seatsFill={{ general: occ, lower: Math.min(1, occ * 1.05), premium: Math.min(1, occ * 0.9) }} />
+          <ArenaModel markers={markers} selected={zone} onSelect={(z) => (z === 'concessions' ? goTo('/business/food') : setZone(z))} colors={c.colors} seatsFill={{ general: occ, lower: Math.min(1, occ * 1.05), premium: Math.min(1, occ * 0.9) }} />
           <div className="zone-legend">
             {ZONES.map((z) => (
               <button key={z.zone} type="button" className={zone === z.zone ? 'on' : ''} onClick={() => setZone(z.zone)}><i style={{ background: z.color }} />{z.label}</button>
@@ -136,7 +137,7 @@ function ZoneState({ zone }: { zone: ArenaZone }) {
       );
     case 'scoreboard': return <div className="col gap4">{fac('videoboard')}</div>;
     case 'vip': return <div className="col gap4">{row('Suites sold', `${c.ticketing.suitesSold}/${c.arena.suites}`)}{row('Suite price', `${fmtMoney(c.ticketing.suitePrice)}/season`)}{row('Suite demand', suiteDemand(w, c))}{fac('hospitality')}</div>;
-    case 'concessions': return <div className="col gap4">{fac('concessions')}{fac('restaurant')}{row('Pricing', c.concessions.pricing)}</div>;
+    case 'concessions': return <div className="col gap4">{fac('concessions')}{fac('restaurant')}{row('Pricing', c.concessions.pricing)}<Link className="btn primary sm" to="/business/food" style={{ alignSelf: 'flex-start', marginTop: 6 }}>Open Food &amp; Drink</Link></div>;
     case 'access': return <div className="col gap4">{fac('accessibility')}{row('Licence relevance', 'Required for modern venues')}</div>;
     case 'parking': return <div className="col gap4">{fac('parking')}</div>;
   }

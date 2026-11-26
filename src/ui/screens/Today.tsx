@@ -1,7 +1,7 @@
 import { Link, useNavigate } from 'react-router-dom';
 import type { Decision } from '../../engine/types';
 import { absDay } from '../../engine/types';
-import { buildDigest } from '../../engine/digest';
+import { buildDigest, clubWarnings } from '../../engine/digest';
 import { resolveDecision } from '../../engine/events';
 import { userClub, club as getClub, fmtMoney, roster } from '../../engine/world';
 import { fmtAbs, fmtDate, seasonLabel, phaseOf, PHASE_LABEL } from '../../engine/calendar';
@@ -38,13 +38,18 @@ export default function Today() {
     >
       {w.gameOver && <div className="callout bad mb8"><b>Career over.</b> {w.gameOver.reason}</div>}
       <LiveBanner />
-      <ActionPanel offers={offers} decisions={decisions} />
-      {c && <MatchStrip />}
+      {!c ? <ActionPanel offers={offers} decisions={decisions} /> : <WeekBoard decisions={decisions} offers={offers} />}
+      {c && <BusinessLinks />}
       {c && <HubTiles />}
       {c && <RecentStrip />}
       <div className="grid" style={{ gridTemplateColumns: 'minmax(0, 1.5fr) minmax(0, 1fr)' }}>
         <div className="col gap16">
           {!c && offers.length === 0 && <Card title="Waiting for offers"><p className="muted">No offers right now. Advance time: clubs approach you at a rate that grows with your reputation ({Math.round(w.user.reputation)}/100).</p></Card>}
+          {c && decisions.length > 3 && (
+            <Card title={`All decisions (${decisions.length})`}>
+              <div id="decisions" className="col">{decisions.map((d) => <div key={d.id} className="decision-card"><DecisionRow d={d} /></div>)}</div>
+            </Card>
+          )}
           {c && <FirstWeeks />}
           <Card title="Executive digest">
             {digest.filter((x) => !x.decisionId).length === 0 ? <Empty>All quiet. Nothing needs your attention.</Empty> : (
@@ -366,5 +371,101 @@ function RecentStrip() {
         })}
       </div>
     </Card>
+  );
+}
+
+// ---------------------------------------------------------------- week board (first viewport)
+function deadlineText(w: ReturnType<typeof useWorld>, d: Decision) {
+  const left = d.deadlineDay - absDay(w);
+  return left <= 0 ? 'today' : left === 1 ? '1 day' : `${left} days`;
+}
+
+function WeekBoard({ decisions, offers }: { decisions: Decision[]; offers: Decision[] }) {
+  const w = useWorld();
+  const last = useGame((st) => st.lastAdvance);
+  const [hidden, setHidden] = useState<unknown>(null);
+  const stops = last && hidden !== last ? last.holds : [];
+  const byDeadline = [...decisions].sort((a, b) => a.deadlineDay - b.deadlineDay || b.urgency + b.impact - (a.urgency + a.impact));
+  const top = byDeadline.slice(0, 3);
+  const warnings = clubWarnings(w).filter((x) => x.tone !== 'good');
+  const main = warnings[0];
+  return (
+    <section className="week-board" aria-label="This week">
+      <div className="wb-match"><MatchStrip /></div>
+      <div className="wb-col">
+        <div className="wb-head">
+          <h3>Decisions</h3>
+          <span className="spacer" />
+          {decisions.length > 3 && <a className="link small" href="#decisions">All {decisions.length}</a>}
+        </div>
+        {top.length === 0 ? <div className="small muted">Nothing waiting on you. Advance when ready.</div> : (
+          <div className="col" style={{ gap: 8 }}>{top.map((d) => <CompactDecision key={d.id} d={d} due={deadlineText(w, d)} />)}</div>
+        )}
+        {offers.length > 0 && (
+          <Link to="/career" className="wb-offers"><Icon name="owner" size={16} /> {offers.length} job offer{offers.length > 1 ? 's' : ''} waiting in Career Offers <Icon name="chevronRight" size={14} /></Link>
+        )}
+      </div>
+      <div className={`wb-col wb-warn ${main ? `tone-${main.tone}` : ''}`}>
+        <div className="wb-head"><h3>Club warning</h3><span className="spacer" />{warnings.length > 1 && <span className="small faint">+{warnings.length - 1} in the digest</span>}</div>
+        {main ? (
+          <>
+            <div className="wb-warn-title">{main.title}</div>
+            <div className="small muted wb-clamp">{main.detail}</div>
+            <div className="row mt8" style={{ flexWrap: 'wrap' }}>
+              <Link className="btn primary sm" to={main.link}>{main.action ?? 'Open'}</Link>
+              {warnings.slice(1, 3).map((x) => <Link key={x.id} className="btn sm" to={x.link} title={x.detail}>{x.action ?? x.title}</Link>)}
+            </div>
+          </>
+        ) : <div className="small muted">No warnings. The club is in order.</div>}
+        {stops.length > 0 && (
+          <div className="wb-stops">
+            <span className="small faint">Clock stopped:</span> <span className="small">{stops.slice(0, 2).map((h) => h.message).join(' · ')}{stops.length > 2 ? ` · +${stops.length - 2}` : ''}</span>
+            <button type="button" className="link small" onClick={() => setHidden(last)} style={{ marginLeft: 6 }}>dismiss</button>
+          </div>
+        )}
+      </div>
+    </section>
+  );
+}
+
+function CompactDecision({ d, due }: { d: Decision; due: string }) {
+  const act = useAct();
+  const notify = useNotify();
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="cdec">
+      <div className="row gap4" style={{ alignItems: 'flex-start' }}>
+        <button type="button" className="cdec-title" onClick={() => setOpen(!open)} aria-expanded={open}>{d.title}</button>
+        <span className="spacer" />
+        <Badge tone={due === 'today' || due === '1 day' ? 'bad' : d.urgency >= 2 ? 'warn' : undefined}>{due}</Badge>
+      </div>
+      {open && <div className="small muted mt8">{d.body}</div>}
+      <div className="row wrap" style={{ gap: 6, marginTop: 6 }}>
+        {d.options.map((o) => (
+          <Button key={o.id} size="sm" variant={d.recommended === o.id ? 'primary' : o.tone === 'bad' ? 'danger' : undefined} title={o.detail}
+            onClick={() => {
+              if ((o.tone === 'bad' || d.impact >= 3) && !confirm(`${o.label}?\n\n${o.detail ?? d.title}\n\nThis cannot be undone.`)) return;
+              const msg = act((ww) => resolveDecision(ww, d, o.id));
+              notify(msg || 'Done.', 'good');
+            }}>{o.label}</Button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+const BUSINESS: { to: string; icon: IconName; label: string }[] = [
+  { to: '/business/merchandise', icon: 'store', label: 'Merchandise' },
+  { to: '/business/food', icon: 'food', label: 'Food & Drink' },
+  { to: '/business/tickets', icon: 'ticket', label: 'Ticket prices' },
+  { to: '/business/revenue-drive', icon: 'coin', label: 'Revenue drive' },
+];
+
+function BusinessLinks() {
+  return (
+    <nav className="biz-links" aria-label="Business shortcuts">
+      <span className="small faint">Business</span>
+      {BUSINESS.map((b) => <Link key={b.to} to={b.to} className="biz-link"><Icon name={b.icon} size={16} /> {b.label}</Link>)}
+    </nav>
   );
 }

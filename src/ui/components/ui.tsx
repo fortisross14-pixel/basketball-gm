@@ -8,9 +8,9 @@ import type { Club, Player } from '../../engine/types';
 import { fmtMoney } from '../../engine/world';
 
 // ---------------------------------------------------------------- layout
-export function Page({ title, subtitle, actions, children, kicker }: { title: ReactNode; subtitle?: ReactNode; actions?: ReactNode; children: ReactNode; kicker?: ReactNode }) {
+export function Page({ title, subtitle, actions, children, kicker, tone }: { title: ReactNode; subtitle?: ReactNode; actions?: ReactNode; children: ReactNode; kicker?: ReactNode; tone?: 'quiet' }) {
   return (
-    <div>
+    <div className={tone === 'quiet' ? 'page-quiet' : undefined}>
       <div className="page-head">
         <div>
           {kicker && <div className="kicker">{kicker}</div>}

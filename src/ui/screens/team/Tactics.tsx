@@ -1,13 +1,22 @@
-import { Link } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useAct, useNotify, useWorld } from '../../store';
-import { Badge, Button, Callout, Card, Meter, NumberField, Page, Pills, PlayerLink } from '../../components/ui';
+import { Badge, Button, Callout, Card, Meter, NumberField, Page, Pills, PlayerLink, Tabs } from '../../components/ui';
 import { OvrCell, InjuryBadge } from '../../helpers';
 import { club as getClub, roster, staffOf } from '../../../engine/world';
 import { fmtAbs as fmtAbsDay } from '../../../engine/calendar';
 import { OFF_LABEL, DEF_LABEL } from '../../../engine/staff';
-import { offFit, defFit, OFF_INFO, DEF_INFO, coachSetsTactics, MODE_LABEL } from '../../../engine/delegation';
+import { offFit, defFit, OFF_INFO, DEF_INFO, coachSetsTactics } from '../../../engine/delegation';
 import { GamePlanPanel, useLikes } from './GamePlan';
-import type { Club, DefScheme, OffSystem, Pace, Player, RotationStyle, Tactics as T } from '../../../engine/types';
+import { presetPlan, planOf, PACE_LABEL, executionPoints, planScores } from '../../../engine/gameplan';
+import type { Club, DefScheme, DelegationMode, OffSystem, Pace, Player, RotationStyle, Tactics as T } from '../../../engine/types';
+
+type TacTab = 'plan' | 'lineup' | 'feedback';
+const CONTROL: { id: DelegationMode; label: string; title: string }[] = [
+  { id: 'manual', label: 'You', title: 'You set everything. The coach never changes it.' },
+  { id: 'recommend', label: 'You, coach advises', title: 'You decide; the coach shows his suggestions.' },
+  { id: 'notify', label: 'Coach (tells you)', title: 'Every week the coach replaces systems and lineup with his plan and tells you.' },
+  { id: 'full', label: 'Coach (silent)', title: 'Every week the coach replaces systems and lineup with his plan.' },
+];
 
 const OFFS: OffSystem[] = ['paceSpace', 'motion', 'pnr', 'post', 'isolation'];
 const DEFS: DefScheme[] = ['switch', 'drop', 'packPaint', 'pressure', 'zone'];
@@ -36,6 +45,10 @@ export default function Tactics() {
   const coach = staffOf(w, c, 'headCoach');
   const mode = w.user.delegation.tactics.mode;
   const delegated = mode === 'policy' || mode === 'notify' || mode === 'full';
+  const params = useParams();
+  const navTo = useNavigate();
+  const tab: TacTab = params.tab === 'lineup' || params.tab === 'feedback' ? params.tab : 'plan';
+  const setTab = (x: TacTab) => navTo(x === 'plan' ? '/team/tactics' : `/team/tactics/${x}`, { replace: true });
   const set = (patch: Partial<T>) => act(() => { Object.assign(c.tactics, patch); });
 
   const recent = w.games.filter((g) => g.home.clubId === c.id || g.away.clubId === c.id).slice(-3).reverse();
@@ -44,17 +57,22 @@ export default function Tactics() {
 
   return (
     <Page
+      tone="quiet"
       title="Tactics"
       subtitle="Your roster, your coach and these settings decide games. When you watch a game live you can adjust them at every quarter break."
-      actions={<Button onClick={() => { if (!confirm('Let the coach replace your systems and lineup with his own plan?')) return; act((ww) => coachSetsTactics(ww, getClub(ww, c.id), true)); notify(`Coach ${coach?.lastName ?? '(interim)'} set the game plan.`); }}>Let the coach decide</Button>}
+      actions={<Button onClick={() => { if (!confirm('Let the coach replace your systems and lineup with his own plan?')) return; act((ww) => coachSetsTactics(ww, getClub(ww, c.id), true)); notify(`Coach ${coach?.lastName ?? '(interim)'} set the game plan.`); }}>Apply the coach's plan once</Button>}
     >
-      {delegated && (
-        <div className="mb8" style={{ marginBottom: 14 }}>
-          <Callout tone="warn">
-            Tactics are delegated (<b>{MODE_LABEL[mode]}</b>): the head coach rewrites systems and lineups every week. Change it in <Link className="link" to="/settings">Settings → Delegation</Link> to keep your own plan.
-          </Callout>
+      <div className={`tac-control ${delegated ? 'coach' : ''}`}>
+        <div style={{ minWidth: 0 }}>
+          <div className="small faint">Who controls tactics</div>
+          <b>{delegated ? `Coach ${coach?.lastName ?? '(interim)'}` : 'You'}</b>
+          <div className="small muted">{delegated ? 'Every week the coach rewrites systems and lineup with his own plan. Your edits on this screen last until the next week.' : mode === 'recommend' ? 'Your plan stands; the coach only advises (see Coach feedback).' : 'Your plan stands until you change it. The coach never overwrites it.'}</div>
         </div>
-      )}
+        <span className="spacer" />
+        <Pills<DelegationMode> value={mode === 'policy' ? 'notify' : mode} onChange={(v) => { act((ww) => { ww.user.delegation.tactics = { ...ww.user.delegation.tactics, mode: v }; }); notify(v === 'manual' || v === 'recommend' ? 'You now control tactics.' : `Coach ${coach?.lastName ?? ''} now sets tactics every week.`, 'good'); }} options={CONTROL} />
+      </div>
+      <Tabs<TacTab> value={tab} onChange={setTab} tabs={[{ id: 'plan', label: 'Game plan' }, { id: 'lineup', label: 'Lineup & minutes' }, { id: 'feedback', label: 'Coach feedback' }]} />
+      {tab === 'plan' && (<>
       <GamePlanPanel />
       <div className="grid g2">
         <Card title="Offensive system">
@@ -78,17 +96,12 @@ export default function Tactics() {
       </div>
 
       <div className="grid g2 mt16">
-        <Card title="Tempo & rotation">
+        <Card title="Tempo & emphasis">
           <div className="col">
             <div>
               <div className="small muted mb8">Pace</div>
               <Pills<Pace> value={t.pace} onChange={(v) => set({ pace: v })} options={[{ id: 'slow', label: 'Slow', title: 'Fewer possessions: narrows the gap vs better teams' }, { id: 'normal', label: 'Normal' }, { id: 'fast', label: 'Fast', title: 'More possessions and transition; more fatigue and turnovers' }]} />
               <div className="small faint mt8">{(['slow', 'normal', 'fast'] as const).map((p) => likes.pace(p).length ? <span key={p} style={{ marginRight: 10 }}>{p[0].toUpperCase() + p.slice(1)}: {likes.pace(p).join(', ')}</span> : null)}</div>
-            </div>
-            <div>
-              <div className="small muted mb8">Rotation</div>
-              <Pills<RotationStyle> value={t.rotation} onChange={(v) => set({ rotation: v })} options={ROT.map((r) => ({ id: r.id, label: r.label, title: r.desc }))} />
-              <div className="small faint mt8">{ROT.find((r) => r.id === t.rotation)?.desc}</div>
             </div>
             {SLIDERS.map((s) => (
               <div key={s.key}>
@@ -103,45 +116,16 @@ export default function Tactics() {
             ))}
           </div>
         </Card>
-        <Card title="Coach & recent feedback">
-          {coach ? (
-            <div className="small mb8">
-              <b>{coach.firstName} {coach.lastName}</b> (rating {coach.rating}) prefers <b>{coach.offPref ? OFF_LABEL[coach.offPref] : '—'}</b> and <b>{coach.defPref ? DEF_LABEL[coach.defPref] : '—'}</b>. See the game plan above for how he, the squad, the fans and the owner feel about your plan.
-            </div>
-          ) : (
-            <Callout tone="bad">No head coach: execution is poor. <Link className="link" to="/team/staff">Hire one</Link>.</Callout>
-          )}
-          <div className="col mt8">
-            {recent.length === 0 && <div className="muted small">No games played yet this season.</div>}
-            {recent.map((g) => {
-              const us = g.home.clubId === c.id;
-              const ours = us ? g.home.score : g.away.score;
-              const theirs = us ? g.away.score : g.home.score;
-              const opp = getClub(w, us ? g.away.clubId : g.home.clubId);
-              const sugg = g.factors.filter((f) => f.suggestion);
-              return (
-                <div key={g.id} className="list-item">
-                  <div className="row small">
-                    <Badge tone={ours > theirs ? 'good' : 'bad'}>{ours > theirs ? 'W' : 'L'} {ours}–{theirs}</Badge>
-                    <span>{us ? 'vs' : '@'} {opp.abbrev}</span>
-                    <span className="faint">{fmtAbsDay(g.day)}</span>
-                    <span className="spacer" />
-                    <Link className="link" to={`/game/${g.id}`}>Analysis</Link>
-                  </div>
-                  {sugg.length ? (
-                    <ul className="small" style={{ margin: '4px 0 0', paddingLeft: 18 }}>
-                      {sugg.map((f, i) => <li key={i}><span className="muted">{f.title}:</span> {f.suggestion}</li>)}
-                    </ul>
-                  ) : (
-                    <div className="small faint">{g.factors[0]?.title ?? ''}</div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </Card>
       </div>
-
+      </>)}
+      {tab === 'lineup' && (<>
+        <Card title="Rotation style" className="mb8" style={{ marginBottom: 14 }}>
+            <div>
+              <div className="small muted mb8">Rotation</div>
+              <Pills<RotationStyle> value={t.rotation} onChange={(v) => set({ rotation: v })} options={ROT.map((r) => ({ id: r.id, label: r.label, title: r.desc }))} />
+              <div className="small faint mt8">{ROT.find((r) => r.id === t.rotation)?.desc}</div>
+            </div>
+        </Card>
       <Card title="Lineup & rotation order" className="mt16" actions={<Button size="sm" onClick={() => { if (confirm('Clear your starters and bench order? The best available players will start automatically.')) set({ starters: [], rotationOrder: [] }); }}>Reset to automatic</Button>}>
         <div className="small muted mb8">
           {t.starters.length === 5 ? 'Custom lineup: the first five start, then the bench comes in this order.' : 'Automatic: the coach picks the best balanced five each game. Move anyone to set a custom order.'} Injured players are skipped automatically. Minute cap 0 = no cap.
@@ -175,6 +159,49 @@ export default function Tactics() {
           </tbody>
         </table>
       </Card>
+      </>)}
+      {tab === 'feedback' && (
+        <div className="grid g2">
+        <CoachSuggestion />
+        <Card title="Coach & recent feedback">
+          {coach ? (
+            <div className="small mb8">
+              <b>{coach.firstName} {coach.lastName}</b> (rating {coach.rating}) prefers <b>{coach.offPref ? OFF_LABEL[coach.offPref] : '—'}</b> and <b>{coach.defPref ? DEF_LABEL[coach.defPref] : '—'}</b>. The Game plan tab shows how he, the squad, the fans and the owner feel about your plan.
+            </div>
+          ) : (
+            <Callout tone="bad">No head coach: execution is poor. <Link className="link" to="/team/staff">Hire one</Link>.</Callout>
+          )}
+          <div className="col mt8">
+            {recent.length === 0 && <div className="muted small">No games played yet this season.</div>}
+            {recent.map((g) => {
+              const us = g.home.clubId === c.id;
+              const ours = us ? g.home.score : g.away.score;
+              const theirs = us ? g.away.score : g.home.score;
+              const opp = getClub(w, us ? g.away.clubId : g.home.clubId);
+              const sugg = g.factors.filter((f) => f.suggestion);
+              return (
+                <div key={g.id} className="list-item">
+                  <div className="row small">
+                    <Badge tone={ours > theirs ? 'good' : 'bad'}>{ours > theirs ? 'W' : 'L'} {ours}–{theirs}</Badge>
+                    <span>{us ? 'vs' : '@'} {opp.abbrev}</span>
+                    <span className="faint">{fmtAbsDay(g.day)}</span>
+                    <span className="spacer" />
+                    <Link className="link" to={`/game/${g.id}`}>Analysis</Link>
+                  </div>
+                  {sugg.length ? (
+                    <ul className="small" style={{ margin: '4px 0 0', paddingLeft: 18 }}>
+                      {sugg.map((f, i) => <li key={i}><span className="muted">{f.title}:</span> {f.suggestion}</li>)}
+                    </ul>
+                  ) : (
+                    <div className="small faint">{g.factors[0]?.title ?? ''}</div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </Card>
+              </div>
+      )}
     </Page>
   );
 }
@@ -219,4 +246,32 @@ function swap(arr: Player[], a: number, b: number): Player[] {
 function applyOrder(c: Club, order: Player[]) {
   c.tactics.starters = order.slice(0, 5).map((p) => p.id);
   c.tactics.rotationOrder = order.slice(5).map((p) => p.id);
+}
+
+function CoachSuggestion() {
+  const w = useWorld();
+  const act = useAct();
+  const notify = useNotify();
+  const c = getClub(w, w.user.clubId!);
+  const cur = planOf(c);
+  const sug = presetPlan(w, c, 'results');
+  const now = planScores(w, c, cur);
+  const then = planScores(w, c, sug);
+  const gain = Math.round((executionPoints(then.coach, then.players) - executionPoints(now.coach, now.players)) * 10) / 10;
+  const diffs = [
+    cur.off !== sug.off && `Offence: ${OFF_LABEL[cur.off]} → ${OFF_LABEL[sug.off]}`,
+    cur.def !== sug.def && `Defence: ${DEF_LABEL[cur.def]} → ${DEF_LABEL[sug.def]}`,
+    cur.pace !== sug.pace && `Tempo: ${PACE_LABEL[cur.pace]} → ${PACE_LABEL[sug.pace]}`,
+  ].filter(Boolean) as string[];
+  return (
+    <Card title="What the coach would change">
+      {diffs.length === 0 ? <div className="small good">Nothing: your plan is already the best fit for coach and squad.</div> : (
+        <>
+          <ul className="small" style={{ margin: 0, paddingLeft: 18 }}>{diffs.map((d) => <li key={d}>{d}</li>)}</ul>
+          <div className="small muted mt8">Expected execution {gain >= 0 ? '+' : ''}{gain} pts/game. Fans and owner may see it differently (Game plan tab).</div>
+          <div className="mt8"><Button size="sm" onClick={() => { act((ww) => { Object.assign(getClub(ww, c.id).tactics, sug); }); notify("Coach suggestion applied.", "good"); }}>Apply suggestion</Button></div>
+        </>
+      )}
+    </Card>
+  );
 }

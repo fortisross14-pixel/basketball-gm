@@ -29,7 +29,7 @@ export default function Board() {
   const now = absDay(w);
 
   return (
-    <Page title="Board" subtitle={`${b.owner} · ${owner ? 'You are the owner-president' : 'You answer to the board'}`}>
+    <Page tone="quiet" title="Board" subtitle={`${b.owner} · ${owner ? 'You are the owner-president' : 'You answer to the board'}`}>
       <div className="mb8"><EvaluationCard /></div>
       <div className="grid g4 mb8">
         <Stat label="Board confidence" value={`${b.overall}/100`} tone={b.overall < 40 ? 'bad' : b.overall > 65 ? 'good' : undefined} sub={owner ? 'Owners cannot be fired — but can go bankrupt' : 'Below ~30 risks an ultimatum'} />

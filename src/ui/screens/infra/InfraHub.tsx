@@ -18,7 +18,7 @@ export default function InfraHub() {
   const tiles: { to: string; art: InfraArtKind; title: string; kpis: [string, string][]; accent: string }[] = [
     { to: '/infrastructure/arena', art: 'arena', title: 'Arena', accent: '#ff8a1f', kpis: [['Capacity', capacity(c).toLocaleString('en')], ['Occupancy', `${Math.round(avgOccupancy(w, c) * 100)}%`], ['Suites', `${c.arena.suites}`], ['Condition', `${Math.round(c.arena.condition)}`]] },
     { to: '/infrastructure/sports', art: 'sports', title: 'Sports facilities', accent: '#36d1ff', kpis: [['Training', `Lvl ${c.arena.levels.training}`], ['Academy', `Lvl ${c.arena.levels.academy}`], ['Medical', `Lvl ${c.arena.levels.medical}`], ['Owned', `${owned}/${OWNED_KEYS.length}`]] },
-    { to: '/infrastructure/commercial', art: 'commercial', title: 'Commercial', accent: '#34d399', kpis: [['Stores', `${f.stores.length}`], ['Merch (season)', fmtMoney(seasonTotal(c, w.season, 'merch'))], ['Food & drink', fmtMoney(seasonTotal(c, w.season, 'concessions'))], ['Last week', fmtMoney(f.stores.reduce((a, s) => a + s.lastWeekSales, 0))]] },
+    { to: '/infrastructure/commercial/merchandise', art: 'commercial', title: 'Commercial', accent: '#34d399', kpis: [['Stores', `${f.stores.length}`], ['Merch (season)', fmtMoney(seasonTotal(c, w.season, 'merch'))], ['Food & drink', fmtMoney(seasonTotal(c, w.season, 'concessions'))], ['Last week', fmtMoney(f.stores.reduce((a, s) => a + s.lastWeekSales, 0))]] },
     { to: '/infrastructure/club-facilities', art: 'offices', title: 'Club facilities', accent: '#ffd23f', kpis: [['Staff desks', `${staffUsed(w, c)}/${staffCapacity(w, c)}`], ['Offices', `Lvl ${f.offices.corporate}`], ['PR office', `Lvl ${f.offices.pr}`], ['Press', `${Math.round(c.board.trust.media)}`]] },
   ];
   return (

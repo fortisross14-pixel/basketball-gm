@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import type { ClubStore, MerchLine } from '../../../engine/types';
 import { MERCH_LINES, REF_JERSEY, SPEND_PER_HEAD, merchDemandUnits, spendPerHead, tier } from '../../../engine/economy';
@@ -10,25 +11,28 @@ import { InfraArt } from '../../art/InfraArt';
 import { useAct, useNotify } from '../../store';
 import { ConstructionList, FacilityLevel, FacilityUpgrades, InfraKicker, OptionRow, ProjectModal, StaffSelect, useUserClub } from './common';
 
-type Tab = 'stores' | 'food';
+type Tab = 'merchandise' | 'food';
 
 export default function CommercialFacilities() {
-  const [tab, setTab] = useState<Tab>('stores');
+  const params = useParams();
+  const navTo = useNavigate();
+  const tab: Tab = params.tab === 'food' ? 'food' : 'merchandise';
+  const setTab = (t: Tab) => navTo(`/infrastructure/commercial/${t}`, { replace: true });
   const { w, c } = useUserClub();
   const f = ensureFacilities(w, c);
   const merch = seasonTotal(c, w.season, 'merch');
   const merchCost = seasonTotal(c, w.season, 'merchCost');
   const lastWeek = f.stores.reduce((a, s) => a + s.lastWeekSales, 0);
   return (
-    <Page kicker={<InfraKicker />} title="Commercial facilities" subtitle="Club stores and matchday food & drink: what you sell, where, and at what price.">
+    <Page tone="quiet" kicker={<InfraKicker />} title="Commercial facilities" subtitle="Club stores and matchday food & drink: what you sell, where, and at what price.">
       <div className="grid g4 mb8" style={{ marginBottom: 14 }}>
         <Stat label="Merch revenue (season)" value={fmtMoney(merch)} sub={`net of stock ${fmtMoney(merch + merchCost)}`} />
         <Stat label="Last week, all stores" value={fmtMoney(lastWeek)} />
         <Stat label="Stores" value={f.stores.length} sub={f.stores.map((s) => STORE_INFO[s.kind].label).join(' · ')} />
         <Stat label="Food & drink (season)" value={fmtMoney(seasonTotal(c, w.season, 'concessions'))} sub={`${fmtMoney(spendPerHead(w, c))} net per fan`} />
       </div>
-      <Tabs<Tab> value={tab} onChange={setTab} tabs={[{ id: 'stores', label: 'Club stores' }, { id: 'food', label: 'Food & drink' }]} />
-      {tab === 'stores' ? <Stores /> : <Food />}
+      <Tabs<Tab> value={tab} onChange={setTab} tabs={[{ id: 'merchandise', label: 'Merchandise' }, { id: 'food', label: 'Food & drink' }]} />
+      {tab === 'merchandise' ? <Stores /> : <Food />}
     </Page>
   );
 }

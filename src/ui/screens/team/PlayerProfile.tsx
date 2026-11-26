@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { useAct, useNotify, useWorld } from '../../store';
 import { Badge, Button, Callout, Card, ClubLink, Crest, Empty, Money, Page, Rating, Table } from '../../components/ui';
 import { MoraleBadge, InjuryBadge, potRange, pctStr } from '../../helpers';
@@ -48,7 +48,8 @@ export default function PlayerProfile() {
   const w = useWorld();
   const act = useAct();
   const notify = useNotify();
-  const [modal, setModal] = useState<'renew' | 'sign' | 'bid' | null>(null);
+  const [search] = useSearchParams();
+  const [modal, setModal] = useState<'renew' | 'sign' | 'bid' | null>(() => (search.get('do') === 'renew' ? 'renew' : null));
   const p = idx(w).players.get(Number(id));
   if (!p) return <Page title="Player not found"><Empty>This player no longer exists in the database.</Empty></Page>;
   const uc = userClub(w);

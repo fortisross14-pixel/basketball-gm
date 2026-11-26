@@ -33,7 +33,7 @@ export default function Contracts() {
   };
 
   return (
-    <Page title="Contracts" subtitle="Payroll sheet, renewals, releases and transfer status">
+    <Page tone="quiet" title="Contracts" subtitle="Payroll sheet, renewals, releases and transfer status">
       <div className="grid g4 mb8">
         <Stat label="Payroll" value={<Money v={pr} />} sub={`Budget ${fmtMoney(budget)}`} tone={pr > budget ? 'bad' : undefined} />
         <Stat label="Room under budget" value={<Money v={budget - pr} tone />} />

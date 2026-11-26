@@ -412,3 +412,16 @@ a.list-item:hover { background: rgba(46, 168, 255, 0.07); padding-left: 6px; }
 .stake-quote { font-style: italic; color: #cfe0ff; }
 .likes { display: inline-flex; gap: 4px; flex-wrap: wrap; }
 .likes span { font-size: 0.7rem; padding: 0 6px; border-radius: 3px; background: rgba(54, 209, 255, 0.14); color: var(--electric); text-transform: uppercase; letter-spacing: 0.04em; }
+
+/* ---- Working screens: quieter surfaces (strong colour and motion are kept for matchday & big moments) */
+.page-quiet .card { background: rgba(12, 24, 54, 0.88); box-shadow: none; clip-path: none; backdrop-filter: none; animation: none; }
+.page-quiet .card::before { display: none; }
+.page-quiet .card > .card-head h3::before { box-shadow: none; background: var(--line-strong); width: 4px; transform: none; }
+.page-quiet .page-head::after { opacity: 0.35; animation: none; }
+.page-quiet .page-head h1 { text-shadow: none; }
+.page-quiet .stat { background: rgba(255, 255, 255, 0.03); }
+.page-quiet .stat::after { display: none; }
+
+/* tactics control bar */
+.tac-control { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; padding: 10px 14px; margin-bottom: 12px; border: 1px solid var(--line); border-left: 3px solid var(--good); border-radius: var(--radius); background: rgba(12, 24, 54, 0.88); }
+.tac-control.coach { border-left-color: var(--warn); }
