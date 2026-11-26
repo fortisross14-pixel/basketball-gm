@@ -8,7 +8,7 @@ Every system is in and playable end to end, with a broadcast-style **visual pass
 
 ```bash
 npm install
-npm run dev        # http://localhost:5173
+npm run dev        # http://localhost:5173 (live build: https://fortisross14-pixel.github.io/basketball-gm/)
 npm test           # engine regression tests (vitest)
 npm run build      # production build in dist/
 ```
