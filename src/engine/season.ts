@@ -256,8 +256,11 @@ export function seasonEnd(w: World) {
     if (rec.playoff === 'Champion' || rec.cup === 'Champion' || rec.euro === 'Champion') fanReaction(w, 15, 'A trophy for the club');
     boardNote(w, Math.round((review.score - 0.5) * 20), `Season review: ${Math.round(review.score * 100)}% of objectives met`);
     // the owner decides on your future, weighing objectives and how the supporters rate you
-    const verdict = review.score * 0.6 + (uc.board.overall / 100) * 0.25 + (w.user.approval.fans / 100) * 0.15;
-    const bar = { relaxed: 0.3, standard: 0.38, demanding: 0.44, brutal: 0.5 }[w.settings.difficulty];
+    const verdict = review.score * 0.45 + (uc.board.overall / 100) * 0.35 + (w.user.approval.fans / 100) * 0.2;
+    const stint = w.user.career[w.user.career.length - 1];
+    const firstSeason = stint && stint.clubId === uc.id && absDay(w) - stint.from < 400;
+    const grace = firstSeason ? (w.settings.difficulty === 'relaxed' ? 0.14 : 0.08) : uc.promotedSeason === w.season && w.settings.difficulty === 'relaxed' ? 0.08 : 0;
+    const bar = { relaxed: 0.26, standard: 0.34, demanding: 0.42, brutal: 0.48 }[w.settings.difficulty] - grace;
     if (w.user.role === 'gm' && verdict < bar) fireUser(w, uc, `The owner decided not to continue: ${Math.round(review.score * 100)}% of objectives met, board confidence ${uc.board.overall}/100, fan approval ${Math.round(w.user.approval.fans)}/100.`);
   }
   for (const m of moves) {
@@ -328,9 +331,11 @@ export function rollover(w: World) {
   for (const s of w.staff) {
     if (s.contract && s.contract.expires < w.season && s.teamId != null) {
       const c = getClub(w, s.teamId);
-      if (!isUser(w, c.id) && r.chance(0.7)) s.contract = { salary: staffAsk(w, s, tierOf(w, c) || 1), expires: w.season + r.int(1, 2) };
+      // your staff usually extend (unless ambition takes them elsewhere); AI staff renew 70% of the time
+      const stays = isUser(w, c.id) ? !r.chance(0.08 + s.ambition / 900) : r.chance(0.7);
+      if (stays) s.contract = { salary: staffAsk(w, s, tierOf(w, c) || 1), expires: w.season + r.int(1, 2) };
       else {
-        if (isUser(w, c.id)) addNews(w, `${s.firstName} ${s.lastName} leaves the club`, 'Staff contract expired.', { tags: ['staff'], clubIds: [c.id] });
+        if (isUser(w, c.id)) { addNews(w, `${s.firstName} ${s.lastName} leaves the club`, `${s.role === 'headCoach' ? 'Your head coach' : 'A member of staff'} did not extend an expiring contract. Hire a replacement in Team → Staff.`, { tags: ['staff'], clubIds: [c.id], importance: s.role === 'headCoach' ? 3 : 1 }); hold(w, 'decision', `${s.firstName} ${s.lastName} (${s.role === 'headCoach' ? 'head coach' : 'staff'}) has left: the post is vacant.`); }
         if (c.staff[s.role] === s.id) delete c.staff[s.role];
         s.teamId = null;
         s.contract = null;

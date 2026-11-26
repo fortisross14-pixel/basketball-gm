@@ -358,10 +358,15 @@ export function homeGamesEstimate(w: World, c: Club): number {
 export function estimateRevenue(w: World, c: Club): RevenueEstimate {
   const homeGames = homeGamesEstimate(w, c);
   const avgOpp = { prestige: c.leagueId ? avgLeaguePrestige(w, c.leagueId) : 75, rivals: [] as number[], id: -1 } as unknown as Club;
-  const d = gameDemand(w, c, avgOpp, 'league', 1);
   const st = c.ticketing.seasonSold;
   const stTarget = w.day <= buildCalendar(w.season).seasonTicketDeadline ? seasonTicketTarget(w, c) : st;
-  const seasonTickets = SEAT_ZONES.reduce((a, z) => a + Math.max(st[z], stTarget[z]) * c.ticketing.seasonPrices[z], 0);
+  const holders = Object.fromEntries(SEAT_ZONES.map((z) => [z, Math.min(c.arena.seats[z], Math.max(st[z], stTarget[z]))])) as Record<SeatZone, number>;
+  const seasonTickets = SEAT_ZONES.reduce((a, z) => a + holders[z] * c.ticketing.seasonPrices[z], 0);
+  // single-ticket demand per game with the expected season-ticket holders already in their seats
+  const saved = c.ticketing.seasonSold;
+  c.ticketing.seasonSold = holders;
+  const d = gameDemand(w, c, avgOpp, 'league', 1);
+  c.ticketing.seasonSold = saved;
   const suitesSold = Math.max(c.ticketing.suitesSold, suiteDemand(w, c));
   const merchUnits = merchDemandUnits(w, c);
   const shopF = c.shop ? annualShopForecast(w, c) : null;

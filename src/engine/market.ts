@@ -1,4 +1,4 @@
-import type { Club, Negotiation, Player, RolePromise, World, Decision } from './types';
+import type { Club, Negotiation, Player, RolePromise, World, Decision, Staff } from './types';
 import { absDay } from './types';
 import { addNews, age, book, club as getClub, freeAgents, isUser, nextId, player as getPlayer, playerName, roster, rng, staffRating, tierOf, fmtMoney, hold, logDelegation } from './world';
 import { marketValue, roleFor, salaryAsk, ROLE_MINUTES, ROLE_LABEL, generatePlayer, eligibilityYears } from './player';
@@ -8,6 +8,9 @@ import { clubStrength } from './matchday';
 import { clamp } from './rng';
 import { inEuro } from './economy';
 import { strategyProfile } from './squad';
+import { staffAsk, hireStaff } from './staff';
+import { candidateScore, recordLine } from './coaching';
+import { canAddStaff } from './facilities';
 import { fanReaction } from './career';
 
 // ---------------------------------------------------------------------------
@@ -555,6 +558,11 @@ export function delegatedSquadUpkeep(w: World) {
   const rules = uc.leagueId ? w.rules.leagues[uc.leagueId] : null;
   if (!rules) return;
   delegatedRenewals(w, uc);
+  const up = upgradeSquad(w, uc, pol.maxSalary);
+  if (up) {
+    logDelegation(w, 'transfers', 'Sporting director', `Signed ${playerName(up)} (${up.pos}, ${up.ovr}) for ${fmtMoney(up.contract!.salary)}`, 'Clear upgrade on the rotation within the payroll budget.', 'Stronger squad; check the payroll budget.');
+    if (pol.mode === 'notify') addNews(w, `Sporting director signs ${playerName(up)}`, `Rated ${up.ovr}, ${fmtMoney(up.contract!.salary)}/yr.`, { tags: ['delegation', 'transfer'], clubIds: [uc.id], playerIds: [up.id] });
+  }
   const squad = roster(w, uc.id);
   if (squad.length >= rules.rosterMin + 1) return;
   const can = canSignNow(w, false);
@@ -597,12 +605,74 @@ function delegatedRenewals(w: World, c: Club) {
     if (!p.contract || p.contract.youth || p.contract.expires !== w.season || age(w, p) >= 34) continue;
     const ask = salaryAsk(w, p, c);
     const room = c.finances.budget.payroll - payroll(w, c) + p.contract.salary;
-    if (ask > room * 1.02) continue;
+    if (ask > room * 1.02 && ask > p.contract.salary * 1.15) continue; // keeping a core player at a similar wage is always fine
     const years = age(w, p) <= 27 ? 3 : 2;
     const offer = { salary: ask, years, role: roleFor(squad.indexOf(p)), buyout: null, signingBonus: 0 };
     if (playerInterest(w, p, c, offer, 'renew').score < 0) continue;
     renewContract(w, c, p, offer);
+    void 0;
     logDelegation(w, 'transfers', 'Sporting director', `Renewed ${playerName(p)} (${p.ovr}) for ${years} years at ${fmtMoney(ask)}`, 'Core player out of contract in June; the ask fits the payroll budget.', 'Avoids losing him for nothing.');
     return; // one renewal a week
+  }
+}
+
+/**
+ * Summer / winter windows: clubs with payroll room sign a free agent who clearly improves the
+ * rotation, releasing their weakest player if the roster is full. Strong clubs use their money;
+ * promoted clubs use their new media income. One move per club per week.
+ */
+export function upgradeSquad(w: World, c: Club, maxSalary?: number): Player | null {
+  const cal = buildCalendar(w.season);
+  if (!canSignNow(w, false).ok || w.day > cal.faDeadline && w.day < cal.seasonEnd) return null;
+  const rules = c.leagueId ? w.rules.leagues[c.leagueId] : null;
+  if (!rules || c.leagueId === 'COLLEGE') return null;
+  const squad = roster(w, c.id).sort((a, b) => b.ovr - a.ovr);
+  const user = isUser(w, c.id);
+  const target = user ? c.finances.budget.payroll : c.ai.payrollTarget;
+  const room = target - payroll(w, c);
+  if (room <= 0) return null;
+  const pf = user ? 1 : aiPayFactor(w, c);
+  const bar = (squad[7]?.ovr ?? 0) + 2;
+  const prof = user ? null : strategyProfile(c);
+  const cand = freeAgents(w).filter((p) => p.ovr >= bar && (user || age(w, p) <= (prof?.ageMax ?? 34)) && (c.foreign || registrationCheck(w, c, p, squad.length >= rules.rosterMax ? squad[squad.length - 1] : null).ok))
+    .sort((a, b) => b.ovr - a.ovr)
+    .find((p) => { const s = salaryAsk(w, p, c) * pf; return s <= room && (maxSalary == null || maxSalary <= 0 || s <= maxSalary) && (user ? playerInterest(w, p, c, { salary: Math.round(s), years: 2, role: roleFor(projectedRank(w, c, p)), buyout: null, signingBonus: 0 }).score >= 0 : acceptsAi(w, p, c)); });
+  if (!cand) return null;
+  if (squad.length >= rules.rosterMax - (user ? 1 : 0)) {
+    const worst = squad[squad.length - 1];
+    if (worst.ovr >= cand.ovr - 3) return null;
+    releasePlayer(w, c, worst);
+  }
+  const salary = Math.round(salaryAsk(w, cand, c) * pf / 1000) * 1000;
+  moveTo(w, cand, c, { salary, years: age(w, cand) <= 28 ? 3 : 2, role: roleFor(projectedRank(w, c, cand)), buyout: null, signingBonus: 0 }, 0, 'freeAgent');
+  return cand;
+}
+
+export function aiUpgradeSquads(w: World) {
+  const r = rng(w);
+  for (const c of w.clubs) {
+    if (isUser(w, c.id) || c.foreign || c.leagueId === 'COLLEGE' || c.ai.strategy === 'survive') continue;
+    const dm = ({ relaxed: 0.5, standard: 0.8, demanding: 1, brutal: 1.2 } as const)[w.settings.difficulty];
+    if (r.chance(0.5 * strategyProfile(c).spend * dm)) upgradeSquad(w, c);
+  }
+}
+
+/** Delegated: the sporting director fills vacant key staff posts with the best affordable candidate. */
+export function delegatedStaffHiring(w: World) {
+  const c = w.user.clubId != null ? getClub(w, w.user.clubId) : null;
+  if (!c) return;
+  const pol = w.user.delegation.transfers;
+  if (pol.mode === 'manual' || pol.mode === 'recommend') return;
+  for (const role of ['headCoach', 'assistantOff', 'assistantDef', 'medicalLead', 'physio', 'commercialDirector'] as const) {
+    if (c.staff[role] != null) continue;
+    if (!canAddStaff(w, c).ok) return;
+    const pool = w.staff.filter((s) => s.teamId == null && !s.nba && s.role === role);
+    const budget = Math.max(c.finances.budget.staff * 0.35, staffAsk(w, { role, rating: 45, ambition: 50 } as Staff, tierOf(w, c) || 1));
+    const pick = pool.filter((s) => staffAsk(w, s, tierOf(w, c) || 1) <= budget).sort((a, b) => (role === 'headCoach' ? candidateScore(w, b, c) - candidateScore(w, a, c) : b.rating - a.rating))[0];
+    if (!pick) continue;
+    const salary = staffAsk(w, pick, tierOf(w, c) || 1);
+    hireStaff(w, c, pick, salary, 2);
+    logDelegation(w, 'transfers', 'Sporting director', `Hired ${pick.firstName} ${pick.lastName} as ${role}`, 'The post was vacant.', `${fmtMoney(salary)}/yr for 2 seasons.`);
+    addNews(w, `${c.name} appoint ${pick.firstName} ${pick.lastName}`, `New ${role === 'headCoach' ? 'head coach' : 'member of staff'} hired by the sporting director. ${role === 'headCoach' ? recordLine(pick) : ''}`, { tags: ['staff', 'delegation'], clubIds: [c.id] });
   }
 }

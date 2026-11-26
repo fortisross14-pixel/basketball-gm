@@ -149,3 +149,34 @@ export function takePayrollBridge(w: World, c: Club): { ok: boolean; message: st
   addNews(w, 'League advances media money', `${fmtMoney(o.amount)} against future TV income, repaid over ${o.years} seasons at ${(o.rate * 100).toFixed(1)}%. The payroll budget rises by the same amount.`, { tags: ['finance'], clubIds: [c.id] });
   return { ok: true, message: `Payroll bridge: +${fmtMoney(o.amount)} to the payroll budget.` };
 }
+
+/** Weekly: staff surface promotion needs in time (ground-share for missing seats, bridge after promotion). */
+export function weeklyLicenceWatch(w: World) {
+  const c = w.user.clubId != null ? w.clubs.find((x) => x.id === w.user.clubId) : undefined;
+  if (!c || !c.leagueId) return;
+  const cal = buildCalendar(w.season);
+  const pending = (key: string) => w.decisions.some((d) => !d.resolved && d.kind === 'shopApproval' && d.payload.key === key);
+  const bridge = payrollBridgeOffer(w, c);
+  if (bridge && !pending('bridge')) {
+    w.decisions.push(licenceDecision(w, 'bridge', `Take a ${fmtMoney(bridge.amount)} promotion payroll advance?`, `The league advances part of your bigger media income, repaid over ${bridge.years} seasons at ${(bridge.rate * 100).toFixed(1)}%. The payroll budget rises by the same amount.`, 'Finance director'));
+  }
+  const plan = licencePlan(w, c);
+  if (!plan || plan.ok) return;
+  const lc = w.competitions.find((x) => x.id === `${c.leagueId}-${w.season}`);
+  const st = lc ? [...lc.standings].sort((a, b) => b.w - a.w || (b.pf - b.pa) - (a.pf - a.pa)) : [];
+  const rank = st.findIndex((x) => x.clubId === c.id) + 1;
+  const inRace = rank > 0 && rank <= 6 && w.day >= cal.leagueRoundDays[14];
+  const seats = plan.items.find((i) => i.id === 'seats');
+  const share = groundShareOffer(w, c);
+  if (inRace && seats && !seats.ok && share && !(c.groundShare && c.groundShare.season >= share.season) && !pending('groundShare')) {
+    w.decisions.push(licenceDecision(w, 'groundShare', `Secure the ${plan.toName} licence with a ground-share?`, `You are ${rank}th and your arena is ${seats.gap} short of the licence. ${share.venue} offers ${share.seats.toLocaleString('en')} seats for next season: ${fmtMoney(share.rentPerGame)} per home game and a ${fmtMoney(share.deposit)} deposit.`, 'Sporting director'));
+  }
+}
+
+function licenceDecision(w: World, key: string, title: string, body: string, by: string) {
+  return {
+    id: nextId(w), kind: 'shopApproval' as const, title, body, createdDay: _abs(w), deadlineDay: _abs(w) + 14, urgency: 2, impact: 3, dept: 'board' as const,
+    options: [{ id: 'approve', label: 'Approve', tone: 'good' as const }, { id: 'decline', label: 'Not now', tone: 'neutral' as const }],
+    recommended: 'approve', recommendedBy: by, payload: { key, action: key }, defaultOption: 'decline', resolved: false,
+  };
+}

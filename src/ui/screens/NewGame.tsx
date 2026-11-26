@@ -203,7 +203,7 @@ export default function NewGame() {
             <div className="grid g2">
               <Card title="Difficulty">
                 <Pills value={difficulty} onChange={setDifficulty} options={[{ id: 'relaxed', label: 'Relaxed' }, { id: 'standard', label: 'Standard' }, { id: 'demanding', label: 'Demanding' }, { id: 'brutal', label: 'Brutal' }]} />
-                <p className="small muted mt8">Difficulty changes your starting financial cushion and board patience — never hidden boosts to opponents.</p>
+                <p className="small muted mt8">Difficulty sets your starting cash cushion, board and fan patience, how hard AI clubs chase upgrades, and a small on-court edge for your team (Relaxed +, Standard none, Demanding/Brutal −). Opponents never get hidden boosts.</p>
               </Card>
               <Card title="World noise">
                 <Pills value={noise} onChange={setNoise} options={[{ id: 'quiet', label: 'Quiet' }, { id: 'normal', label: 'Normal' }, { id: 'handsOn', label: 'Hands-on' }]} />

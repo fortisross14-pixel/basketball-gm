@@ -12,6 +12,7 @@ import { addNews, book, fmtMoney, hold, isUser, nextId, rng, staffRating, tierOf
 import { ensureFacilities, managerFactor } from './facilities';
 import { buildCalendar, monthOf } from './calendar';
 import { starPower, RESTAURANT_EVENTS, inEuro } from './economy';
+import { signGroundShare, takePayrollBridge } from './licence';
 import { clamp } from './rng';
 
 // ------------------------------------------------------------------ catalogue
@@ -542,6 +543,8 @@ export function resolveShopApproval(w: World, d: Decision, choice: string): stri
   if (pl.action === 'order') return placeOrder(w, c, pl.product as ProductId, pl.supplier as SupplierId, pl.units as number, undefined, 'director').message;
   if (pl.action === 'price') { setPrice(w, c, pl.product as ProductId, pl.price as number); return `Price set to ${fmtMoney(pl.price as number)}.`; }
   if (pl.action === 'popup') return openPopup(w, c, 'kiosk').message;
+  if (pl.action === 'groundShare') return signGroundShare(w, c).message;
+  if (pl.action === 'bridge') return takePayrollBridge(w, c).message;
   return 'Done.';
 }
 

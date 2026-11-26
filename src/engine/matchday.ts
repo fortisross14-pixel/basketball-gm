@@ -53,6 +53,7 @@ export function simTeamInput(w: World, c: Club): SimTeamIn {
     physio: staffRating(w, c, 'physio') + c.arena.levels.lockerRoom * 3,
     cohesion: c.cohesion,
     plan: planExecution(w, c),
+    edge: isUser(w, c.id) ? ({ relaxed: 0.008, standard: 0, demanding: -0.004, brutal: -0.008 } as const)[w.settings.difficulty] : 0,
   };
 }
 

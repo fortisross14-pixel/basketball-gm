@@ -59,8 +59,9 @@ export function setObjectives(w: World, c: Club) {
     else objs.push(mk('avoidRelegation', 14, 'Avoid relegation (finish 14th or better)', 3));
     if (expectedRank <= 5) objs.push(mk('euroQualify', 4, 'Qualify for continental competition (top 4)', 2));
   } else {
-    if (expectedRank <= 4) objs.push(mk('promotion', 1, 'Win promotion to the next tier', 3));
-    else if (expectedRank <= 10) objs.push(mk('leaguePos', 5, 'Reach the promotion playoffs (top 5)', 3));
+    if (expectedRank <= 3) objs.push(mk('promotion', 1, 'Win promotion to the next tier', 3));
+    else if (expectedRank <= 7) objs.push(mk('leaguePos', 5, 'Reach the promotion playoffs (top 5)', 3));
+    else if (expectedRank <= 11) objs.push(mk('leaguePos', 9, 'Finish in the top half (9th or better)', 3));
     else objs.push(mk('leaguePos', t === 2 ? 14 : 12, t === 2 ? 'Avoid relegation (14th or better)' : 'Finish in the top 12', 3));
   }
   const tol = b.plan.profitTolerance;
@@ -253,7 +254,7 @@ export function seasonReview(w: World, c: Club): { score: number; lines: string[
   for (const o of b.objectives) {
     o.progress = objectiveProgress(w, c, o);
     o.status = o.progress >= 1 ? 'met' : 'failed';
-    tot += (o.status === 'met' ? 1 : o.progress * 0.4) * o.weight;
+    tot += (o.status === 'met' ? 1 : o.progress * 0.6) * o.weight;
     wsum += o.weight;
     lines.push(`${o.status === 'met' ? '✔' : '✘'} ${o.label}`);
     if (o.promise) b.trust.promises = clamp(b.trust.promises + (o.status === 'met' ? 15 : -20), 0, 100);

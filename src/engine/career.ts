@@ -193,10 +193,14 @@ export interface EvaluationBreakdown {
 }
 
 export function fanEvaluation(w: World, c: Club): EvaluationBreakdown {
-  const winPct = currentWinPct(w, c);
+  const raw = currentWinPct(w, c);
   const expected = expectedWinPct(w, c);
+  // a handful of games says little: shrink toward expectations until the sample grows
+  const st = c.leagueId ? w.competitions.find((x) => x.id === `${c.leagueId}-${w.season}`)?.standings.find((x) => x.clubId === c.id) : undefined;
+  const games = st ? st.w + st.l : 0;
+  const winPct = games ? (raw * games + expected * 6) / (games + 6) : raw;
   const factors = [
-    { label: `Results vs expectations (${Math.round(winPct * 100)}% wins vs ${Math.round(expected * 100)}% expected)`, value: (winPct - expected) * 110 },
+    { label: `Results vs expectations (${Math.round(raw * 100)}% wins vs ${Math.round(expected * 100)}% expected)`, value: clamp((winPct - expected) * 110, -38, 38) },
     { label: 'Supporters\' mood (prices, atmosphere, hype)', value: (c.fans.sentiment - 55) * 0.5 },
     { label: 'Your recent decisions (signings, sales, promises)', value: w.user.approval.fanBonus },
   ];
@@ -233,7 +237,8 @@ export function weeklyEvaluation(w: World) {
       hold(w, 'boardUltimatum', 'The fans are calling for your dismissal.');
     }
     if (ap.lowFanWeeks >= 3) c.board.trust.relationship = clamp(c.board.trust.relationship - 3, 0, 100);
-    if (w.user.role === 'gm' && ap.lowFanWeeks >= 8 && c.board.overall < 50) {
+    const patience = w.settings.difficulty === 'relaxed' ? { weeks: 14, board: 40 } : w.settings.difficulty === 'standard' ? { weeks: 9, board: 48 } : { weeks: 7, board: 52 };
+    if (w.user.role === 'gm' && ap.lowFanWeeks >= patience.weeks && c.board.overall < patience.board) {
       fireUserFromCareer(w, c, 'The board bowed to sustained supporter pressure.');
       return;
     }

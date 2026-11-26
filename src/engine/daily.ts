@@ -9,7 +9,7 @@ import { weeklyCommercial, closeSeasonTickets, generateTvOffers } from './commer
 import { weeklyBoard, fireUser } from './board';
 import { weeklyProjects, monthlyArenaUpkeep } from './arena';
 import { monthlyFinance, weeklyCashSnapshot, octoberGrant } from './finance';
-import { aiFillRosters, aiTransfers, aiBidsForUser, delegatedSquadUpkeep } from './market';
+import { aiFillRosters, aiTransfers, aiBidsForUser, delegatedSquadUpkeep, aiUpgradeSquads, delegatedStaffHiring } from './market';
 import { weeklyEvents, expireDecisions } from './events';
 import { monthlyDelegation, weeklyTacticsDelegation } from './delegation';
 import { seasonEnd, rollover } from './season';
@@ -18,6 +18,7 @@ import { weeklyFacilities } from './facilities';
 import { estimateRevenue } from './economy';
 import { processQuickSales } from './extras';
 import { midseasonCoachChange } from './coaching';
+import { weeklyLicenceWatch } from './licence';
 import { generateRecruits } from './worldgen';
 
 /** Simulate the current day fully, then move to the next. */
@@ -115,10 +116,13 @@ function weekly(w: World) {
   const preseason = w.day < buildCalendar(w.season).leagueRoundDays[0];
   weeklyEvaluation(w);
   weeklyFacilities(w);
+  weeklyLicenceWatch(w);
   aiFillRosters(w, preseason);
   aiTransfers(w);
   aiBidsForUser(w);
   delegatedSquadUpkeep(w);
+  delegatedStaffHiring(w);
+  aiUpgradeSquads(w);
   weeklyScouting(w);
   weeklyEvents(w);
   if (w.user.clubId == null) jobMarket(w, true);

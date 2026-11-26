@@ -110,7 +110,9 @@ export function coachSetsTactics(w: World, c: Club, log = false) {
   c.tactics.def = bestDef;
   c.tactics.starters = [];
   c.tactics.rotationOrder = [];
-  if (c.ai.strategy === 'develop' || c.ai.strategy === 'rebuild') c.tactics.rotation = 'development';
+  const youthObjective = isUser(w, c.id) && c.board.objectives.some((o) => o.kind === 'youthMinutes') && players.filter((p) => w.season - p.born <= 22).length >= 2;
+  if (youthObjective) c.tactics.rotation = 'development';
+  else if (c.ai.strategy === 'develop' || c.ai.strategy === 'rebuild') c.tactics.rotation = 'development';
   else if (c.ai.strategy === 'contend') c.tactics.rotation = 'veteran';
   else c.tactics.rotation = 'balanced';
   if (log && changed) {
