@@ -68,9 +68,17 @@ export function licenceCheck(w: World, c: Club, to: LeagueId): LicenceCheck {
   const projects = w.projects[c.id] ?? [];
   const plannedSeats = capacity(c) + projects.reduce((a, p) => a + Object.values(p.seatsDelta ?? {}).reduce((x, y) => x + (y ?? 0), 0) + (p.newArenaSeats ? Object.values(p.newArenaSeats).reduce((x, y) => x + y, 0) - capacity(c) : 0), 0);
   if (plannedSeats < rules.minArenaSeats) reasons.push(`Arena capacity ${capacity(c).toLocaleString('en')} (incl. works under way: ${plannedSeats.toLocaleString('en')}) is below the ${rules.name} minimum of ${rules.minArenaSeats.toLocaleString('en')}.`);
-  if (c.finances.cash < rules.promotionFee) reasons.push(`The ${fmtMoney(rules.promotionFee)} entry guarantee cannot be paid (cash ${fmtMoney(c.finances.cash)}).`);
-  if (c.finances.cash + c.board.ownerWealth * 20000 < rules.minPayrollGuarantee) reasons.push(`Financial standard not met: cash plus owner guarantees must reach ${fmtMoney(rules.minPayrollGuarantee)}.`);
+  const credit = creditLine(w, c);
+  if (c.finances.cash + credit < rules.promotionFee) reasons.push(`The ${fmtMoney(rules.promotionFee)} entry guarantee cannot be covered (cash ${fmtMoney(c.finances.cash)} + bank credit ${fmtMoney(credit)}).`);
+  const guarantees = c.finances.cash + credit + c.board.ownerWealth * 25000;
+  if (guarantees < rules.minPayrollGuarantee) reasons.push(`Financial standard not met: cash, owner guarantees and credit total ${fmtMoney(guarantees)}; the league requires ${fmtMoney(rules.minPayrollGuarantee)}.`);
   return { ok: reasons.length === 0, reasons };
+}
+
+/** Bank credit a club can draw on: half of annual revenue minus existing debt. */
+export function creditLine(w: World, c: Club): number {
+  const debt = c.finances.loans.reduce((a, l) => a + l.balance, 0);
+  return Math.max(0, Math.round(estimateRevenue(w, c).total * 0.5 - debt - Math.max(0, -c.finances.cash)));
 }
 
 function computeLeagueMoves(w: World): LeagueMove[] {

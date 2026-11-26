@@ -1,50 +1,65 @@
-# React + TypeScript + Vite
+# Basketball Dynasty
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A single-player basketball **club-management** game in the spirit of PC Fútbol: take a modest club in the lower divisions, make the turnstiles work, make payroll, find undervalued players and coaches, improve the arena, and climb to the top tier and continental competition — or get fired trying.
 
-Currently, two official plugins are available:
+This is the **full pass** (v0.1). Every system is in and playable end to end; the **visual pass** (NBA 2K-style presentation) and the **balance pass** come next.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react/README.md) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+## Running
 
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type aware lint rules:
-
-- Configure the top-level `parserOptions` property like this:
-
-```js
-export default tseslint.config({
-  languageOptions: {
-    // other options...
-    parserOptions: {
-      project: ['./tsconfig.node.json', './tsconfig.app.json'],
-      tsconfigRootDir: import.meta.dirname,
-    },
-  },
-})
+```bash
+npm install
+npm run dev        # http://localhost:5173
+npm test           # engine regression tests (vitest)
+npm run build      # production build in dist/
 ```
 
-- Replace `tseslint.configs.recommended` to `tseslint.configs.recommendedTypeChecked` or `tseslint.configs.strictTypeChecked`
-- Optionally add `...tseslint.configs.stylisticTypeChecked`
-- Install [eslint-plugin-react](https://github.com/jsx-eslint/eslint-plugin-react) and update the config:
+Saves live in the browser (IndexedDB) and autosave after every advance. You can export/import a save file from **Settings & Saves**.
 
-```js
-// eslint.config.js
-import react from 'eslint-plugin-react'
+## How a career plays
 
-export default tseslint.config({
-  // Set the react version
-  settings: { react: { version: '18.3' } },
-  plugins: {
-    // Add the react plugin
-    react,
-  },
-  rules: {
-    // other rules...
-    // Enable its recommended rules
-    ...react.configs.recommended.rules,
-    ...react.configs['jsx-runtime'].rules,
-  },
-})
+- **Games are instant simulated results.** Your influence is who you sign, who coaches, and the tactics you set. Under the hood every game is simulated possession by possession (≈1 ms per game), so box scores are credible and tactics, coach fit, fatigue and depth change outcomes. Every game ends with a **"Why we won / lost"** report with at least three causal factors and tactical suggestions.
+- **The weekly loop:** Monday digest → decisions (offers, bids, events, press) → games → cash, fans and board react. Use **Play next game**, or the dropdown to advance a day, a week, a month, to the next event, or to the end of the season. Calendar holds (Settings) decide what stops the clock.
+- **Climb the pyramid:** Liga Plata → Liga Oro → Liga Élite (16 clubs each, 30 rounds) plus the Copa, title playoffs, promotion playoffs and the Continental Cup. Promotion is **licensed**: your arena must meet the next league's capacity and you must be able to pay its entry guarantee, or the place goes to someone else.
+- **Career mobility:** as General Manager the board can dismiss you; success raises your executive reputation and brings job offers from bigger clubs. As Owner-President you can't be fired but administration ends your career.
+
+## Sections
+
+| Section | What's there |
+|---|---|
+| **Today** | Executive digest ranked by urgency/impact, decisions with staff recommendations, next game, club snapshot, news |
+| **Calendar** | Month view of your fixtures and results, transfer windows, deadlines, Copa, playoffs, youth intake |
+| **Club Management** | Finance (P&L, 90-day and 5-year forecasts, loans), Marketing & fans (5 fan segments, campaigns), Sponsors & TV (8 sponsor slots, broadcaster bids), Contracts (payroll sheet, renewals, releases), Board (trust, objectives, promises, requests), News & Media |
+| **Team** | Players, Tactics (5 offensive systems × 5 defensive schemes with personnel-fit and coach agreement, rotation, sliders, starters, minute limits), Training, Coaching staff, Medical & support, Transfers & scouting, Academy |
+| **Infrastructure** | Stadium projects (seating, suites, 12 facilities, renovation, new arena) with ROI forecast and financing, Tickets (zone pricing, season tickets, suites, markups, dynamic pricing, promo nights), Stores (merch lines, inventory risk), Restaurants (concessions pricing) |
+| **Results** | Standings, fixtures & results, competitions/brackets, statistics, the versioned ruleset |
+| **Legacy** | Your career, trophies, club history, awards, records, Hall of Fame |
+| **Settings** | Delegation per department (Manual → Fully delegate, with policies), delegation log, calendar holds, world noise, difficulty, saves |
+
+## Code layout
+
 ```
+src/engine/        pure TypeScript simulation (no UI)
+  types.ts         the World data model (one save = one World)
+  worldgen.ts      fictional world: 48 domestic + 12 continental clubs, ~1,100 players, staff
+  sim/game.ts      possession-level quick-result game engine
+  sim/explain.ts   "why we won/lost" causal factors
+  economy.ts       demand, ticketing, concessions, merch, sponsors, TV, grants
+  finance.ts       ledger, monthly cash flows, loans, statements, forecasts, budgets
+  arena.ts         infrastructure projects, maintenance
+  market.ts        registration rules, player interest model, negotiation, transfers, AI market
+  board.ts         objectives, trust, ultimatums, requests
+  commercial.ts    sponsor/TV offers, campaigns, merch sales, season tickets, fan growth
+  events.ts        midweek events, press, decision routing & resolution
+  delegation.ts    delegation modes, tactical fit, coach & commercial-director automation
+  squad.ts         fatigue, morale, training, scouting, academy
+  competitions.ts  leagues, playoffs, Copa, Continental Cup
+  season.ts        season start/end, awards, licensing, promotion/relegation, rollover
+  career.ts        job offers, reputation
+  daily.ts         the day/week/month clock and advance modes
+  rules.ts         data-driven, versioned ruleset
+  save.ts          IndexedDB saves, versioned migrations, import/export
+src/ui/            React UI (store.ts, App.tsx shell, components/, screens/)
+tests/             vitest: sim credibility, schedule validity, rules, negotiation, multi-season run, save/load
+```
+
+All clubs, players, competitions and brands are fictional; city names are real places.

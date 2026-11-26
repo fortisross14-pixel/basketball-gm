@@ -201,6 +201,12 @@ export function contractStart(w: World): number {
 
 export function moveTo(w: World, p: Player, c: Club, offer: ContractOffer, fee: number, kind: 'transfer' | 'freeAgent' | 'youth') {
   const fromId = p.teamId;
+  if (fromId != null && fromId !== c.id) {
+    const old = getClub(w, fromId);
+    old.tactics.starters = old.tactics.starters.filter((x) => x !== p.id);
+    old.tactics.rotationOrder = old.tactics.rotationOrder.filter((x) => x !== p.id);
+    delete old.tactics.minuteLimits[p.id];
+  }
   p.teamId = c.id;
   p.academy = false;
   p.loan = null;
@@ -296,6 +302,7 @@ export function releasePlayer(w: World, c: Club, p: Player) {
   p.morale = 50;
   c.tactics.starters = c.tactics.starters.filter((x) => x !== p.id);
   c.tactics.rotationOrder = c.tactics.rotationOrder.filter((x) => x !== p.id);
+  delete c.tactics.minuteLimits[p.id];
   if (isUser(w, c.id)) addNews(w, `${c.name} release ${playerName(p)}`, `Settlement: ${fmtMoney(cost)}.`, { tags: ['transfer'], clubIds: [c.id], playerIds: [p.id] });
 }
 

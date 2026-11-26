@@ -112,7 +112,6 @@ export function isPromoNight(w: World, c: Club, roundIndex: number): boolean {
 
 /** Expected demand & revenue for one home game. Deterministic (noise applied by caller). */
 export function gameDemand(w: World, home: Club, away: Club | null, compType: CompType, roundIndex = 1, noise = 1): GameDemand {
-  const t = tier(w, home);
   const interest = interestIndex(w, home);
   const oppFactor = away ? 0.85 + away.prestige / 260 + (isRival(home, away) ? 0.18 : 0) : 1;
   const compFactor = compType === 'playoffs' ? 1.35 : compType === 'promo' ? 1.3 : compType === 'euro' ? 1.18 : compType === 'cup' ? 1.2 : 1;

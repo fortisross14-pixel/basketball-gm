@@ -7,10 +7,10 @@ import { generatePlayer, baseSalary, roleFor, marketValue, updateOvr } from './p
 import { generateStaff, STAFF_ROLES } from './staff';
 import { generateBoard } from './board';
 import { REF_PRICE, SUITE_REF, estimateRevenue, sponsorBenchmark, localTvBenchmark, BROADCASTER_PROFILE } from './economy';
-import { payroll, operatingEstimate } from './finance';
+import { payroll, operatingEstimate, proposeBudget } from './finance';
 import { staffPayroll } from './staff';
 import { maintenanceNeed } from './arena';
-import { nextId, invalidateIndex, rng, club as getClub, roster } from './world';
+import { nextId, invalidateIndex, rng, club as getClub, roster, addNews, fmtMoney } from './world';
 import { startSeason } from './season';
 import { absDay } from './types';
 
@@ -66,7 +66,7 @@ export function delegationPreset(style: ExecutiveStyle): Record<Department, Dele
     base.medical = { mode: 'full', riskTolerance: 30 };
     base.academy = all('full');
   } else if (style === 'gm') {
-    base.tactics = all('notify');
+    base.tactics = all('recommend');
     base.tickets = all('policy');
     base.sponsors = { mode: 'policy', sponsorFloor: 0.9, excludedCategories: ['Betting', 'Crypto'] };
     base.marketing = { mode: 'policy', spendCap: 0 };
@@ -174,18 +174,42 @@ export function createWorld(opts: NewGameOptions): World {
     c.board = generateBoard(w, c);
     calibrateFinances(w, r, c);
   }
-  if (opts.customClub && opts.clubId != null) applyCustomClub(w, opts.clubId, opts.customClub);
+  w.user.clubId = null;
   startSeason(w);
+  assignUser(w, opts);
+  return w;
+}
+
+/** Post-generation: put the user in charge of a club (or leave them unemployed). */
+export function assignUser(w: World, opts: Pick<NewGameOptions, 'userName' | 'role' | 'clubId' | 'style' | 'difficulty' | 'worldNoise' | 'customClub' | 'scenario'>) {
+  w.user.name = opts.userName || 'Executive';
+  w.user.role = opts.role;
+  w.user.style = opts.style;
+  w.user.delegation = delegationPreset(opts.style);
+  w.user.personalWealth = opts.role === 'owner' ? 1_500_000 : 0;
+  w.settings.difficulty = opts.difficulty;
+  w.settings.worldNoise = opts.worldNoise;
+  w.scenario = opts.scenario ?? null;
+  w.user.clubId = opts.clubId;
+  w.user.career = [];
+  if (opts.customClub && opts.clubId != null) applyCustomClub(w, opts.clubId, opts.customClub);
   if (opts.clubId != null) {
     const c = getClub(w, opts.clubId);
     w.user.career.push({ clubId: c.id, clubName: c.name, role: opts.role, from: absDay(w), to: null, achievements: [], exit: null });
     for (const p of roster(w, c.id)) w.user.knowledge[p.id] = 100;
     w.user.reputation = c.leagueId === 'ELITE' ? 45 : c.leagueId === 'ORO' ? 30 : 20;
+    if (opts.role === 'owner') { c.board.owner = w.user.name; c.board.ownerWealth = 60; }
+    const fin = (w.settings.difficulty === 'relaxed' ? 1.5 : w.settings.difficulty === 'demanding' ? 0.8 : w.settings.difficulty === 'brutal' ? 0.6 : 1);
+    if (c.finances.cash > 0) c.finances.cash = Math.round(c.finances.cash * fin);
+    c.board.patience = Math.round(c.board.patience * (w.settings.difficulty === 'relaxed' ? 1.3 : w.settings.difficulty === 'brutal' ? 0.7 : 1));
+    c.finances.budget = proposeBudget(w, c);
+    const rules = c.leagueId ? w.rules.leagues[c.leagueId] : null;
+    addNews(w, `${w.user.name} takes charge of ${c.name}`, `${c.board.owner} welcomes the new ${opts.role === 'owner' ? 'owner-president' : 'general manager'}. Vision: ${c.board.plan.vision}. The board has set ${c.board.objectives.length} objectives and a payroll budget of ${fmtMoney(c.finances.budget.payroll)}. ${rules ? `${rules.name}: ${rules.teams} clubs, max ${rules.maxNonEU} non-EU players, min ${rules.minHomegrown} homegrown.` : ''} The summer transfer window is open until 30 September.`, { tags: ['career', 'board'], clubIds: [c.id], importance: 3 });
   } else {
     w.user.unemployedSince = absDay(w);
   }
   if (opts.scenario) applyScenario(w, opts.scenario);
-  return w;
+  w.saveName = '';
 }
 
 function makeClub(w: World, r: Rng, s: ClubSeed): Club {

@@ -255,7 +255,8 @@ export function proposeBudget(w: World, c: Club): Budget {
   const marketing = Math.round(est * 0.025);
   const cashCushion = Math.max(0, c.finances.cash) * (0.15 + ambition * 0.2);
   const available = est + cashCushion - staff - ops - maint - academyB - medical - scouting - marketing;
-  const payrollB = Math.max(est * 0.3, available * (0.82 + ambition * 0.12));
+  // the board always funds existing commitments, plus a little room to complete the squad
+  const payrollB = Math.max(est * 0.3, available * (0.82 + ambition * 0.12), payroll(w, c) * 1.04);
   const transfer = Math.max(0, c.finances.cash * (0.1 + ambition * 0.25));
   return {
     payroll: Math.round(payrollB / 1000) * 1000,

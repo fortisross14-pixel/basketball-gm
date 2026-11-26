@@ -234,6 +234,7 @@ function resolveEvent(w: World, d: Decision, choice: string): string {
       return 'The coach is disappointed.';
     case 'press': {
       const sq = roster(w, c.id);
+      w.user.pressStance += choice === 'defend' ? 1 : choice === 'demand' ? -1 : choice === 'expect' ? -0.5 : 0;
       if (choice === 'calm') { c.board.trust.media = clamp(c.board.trust.media + 2, 0, 100); return 'Measured answers. No headlines.'; }
       if (choice === 'defend') { for (const x of sq) x.morale = clamp(x.morale + 4, 0, 100); c.board.trust.media = clamp(c.board.trust.media - 2, 0, 100); return 'The locker room appreciates it; some media call it denial.'; }
       if (choice === 'demand') { for (const x of sq) x.morale = clamp(x.morale + (x.personality.ego > 65 ? -6 : 2), 0, 100); c.fans.sentiment = clamp(c.fans.sentiment + 3, 0, 100); return 'Fans like the honesty; big egos do not.'; }

@@ -1,11 +1,11 @@
-import type { World, HoldEvent, WeekSummary } from './types';
+import type { World, HoldEvent } from './types';
 import { absDay } from './types';
 import { buildCalendar, weekday, dateNum, monthOf, fmtDate } from './calendar';
-import { fixturesOnDay, userClub, isUser, addNews, hold, club as getClub } from './world';
+import { fixturesOnDay, userClub, isUser, addNews, hold, club as getClub, rng } from './world';
 import { playFixture } from './matchday';
 import { createCup, createElitePlayoffs, createPromoPlayoffs, createEuroKnockouts } from './competitions';
 import { dailySquad, weeklySquad, weeklyScouting, youthIntake, aiStrategy } from './squad';
-import { weeklyCommercial, closeSeasonTickets } from './commercial';
+import { weeklyCommercial, closeSeasonTickets, generateTvOffers } from './commercial';
 import { weeklyBoard, fireUser } from './board';
 import { weeklyProjects, monthlyArenaUpkeep } from './arena';
 import { monthlyFinance, weeklyCashSnapshot, octoberGrant } from './finance';
@@ -105,6 +105,12 @@ function weekly(w: World) {
   weeklyScouting(w);
   weeklyEvents(w);
   if (w.user.clubId == null) jobMarket(w, true);
+  // media-rights offers lapse; new bidders appear while the club has no local deal
+  w.tvOffers = w.tvOffers.filter((o) => o.expiresDay >= absDay(w));
+  if (uc && !uc.tv && !w.tvOffers.length && rng(w).chance(0.12)) {
+    w.tvOffers = generateTvOffers(w, uc);
+    addNews(w, 'New broadcasters interested in your media rights', `${w.tvOffers.length} offers are on the table (Club → Sponsors & TV).`, { tags: ['media', 'finance'], clubIds: [uc.id] });
+  }
   // weekly summary for the digest
   if (uc) {
     w.lastWeekSummary = { fromDay: absDay(w), toDay: absDay(w) + 6, cashDelta: 0, results: [], trustDelta: 0, fanDelta: 0, highlights: [] };

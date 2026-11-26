@@ -3,6 +3,7 @@ import { absDay } from './types';
 import { addNews, book, hold, isUser, nextId } from './world';
 import { tier } from './economy';
 import { takeLoan } from './finance';
+import { boardApproves } from './board';
 
 export const FACILITY_INFO: Record<FacilityKey, { label: string; group: 'stadium' | 'stores' | 'restaurants' | 'performance' | 'community'; effect: string; tradeoff: string; baseCost: number; weeks: number; upkeep: number }> = {
   concessions: { label: 'Concession stands', group: 'restaurants', effect: 'Raises spend per attendee and venue experience.', tradeoff: 'Staffing costs and upfront capex.', baseCost: 60000, weeks: 4, upkeep: 6000 },
@@ -151,6 +152,10 @@ export function avgOccupancy(w: World, c: Club): number {
 
 export function startProject(w: World, c: Club, o: ProjectOption, financing: 'cash' | 'loan'): { ok: boolean; reason?: string } {
   if (o.blocked) return { ok: false, reason: o.blocked };
+  if (o.needsBoard && isUser(w, c.id)) {
+    const ok = boardApproves(w, c, o.cost);
+    if (!ok.ok) return { ok: false, reason: ok.message };
+  }
   if (financing === 'cash' && c.finances.cash < o.cost * 0.3) return { ok: false, reason: 'Not enough cash for the 30% down payment. Use a loan or wait.' };
   if (financing === 'loan') {
     const res = takeLoan(w, c, o.cost * 0.8, 5, `Construction loan: ${o.label}`);
