@@ -32,6 +32,8 @@ export interface SimTeamIn {
   medical: number;
   physio: number;
   cohesion: number;
+  /** Buy-in of the head coach and fit of the personnel for the chosen game plan (0..1). */
+  plan?: { coach: number; players: number };
 }
 
 export interface SimInjury {
@@ -392,9 +394,12 @@ function execution(t: SimTeamIn) {
   const tac = t.tactics;
   const coachFitOff = t.coach.offPref === tac.off ? 1 : 0;
   const coachFitDef = t.coach.defPref === tac.def ? 1 : 0;
+  // game-plan buy-in: a coach running his systems and a roster built for them execute better
+  const planOff = t.plan ? (t.plan.coach - 0.6) * 0.014 + (t.plan.players - 0.6) * 0.0175 : coachFitOff * 0.006 - (1 - coachFitOff) * 0.002;
+  const planDef = t.plan ? (t.plan.coach - 0.6) * 0.011 + (t.plan.players - 0.6) * 0.014 : coachFitDef * 0.006 - (1 - coachFitDef) * 0.002;
   return {
-    off: (t.coach.rating - 50) / 1200 + coachFitOff * 0.006 - (1 - coachFitOff) * 0.002 + (t.assistOff - 50) / 2500 + (t.cohesion - 50) / 2600 + (t.analytics - 50) / 5000,
-    def: (t.coach.rating - 50) / 1500 + coachFitDef * 0.006 - (1 - coachFitDef) * 0.002 + (t.assistDef - 50) / 2500 + (t.cohesion - 50) / 3200,
+    off: (t.coach.rating - 50) / 1200 + planOff + (t.assistOff - 50) / 2500 + (t.cohesion - 50) / 2600 + (t.analytics - 50) / 5000,
+    def: (t.coach.rating - 50) / 1500 + planDef + (t.assistDef - 50) / 2500 + (t.cohesion - 50) / 3200,
   };
 }
 

@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { club as getClub, idx, roster, staffOf, age, isUser, fmtMoney } from '../../../engine/world';
 import { estimateRevenue } from '../../../engine/economy';
@@ -6,13 +7,15 @@ import { sortStandings, rankIn } from '../../../engine/competitions';
 import { seasonLabel } from '../../../engine/calendar';
 import { STAFF_LABEL, OFF_LABEL, DEF_LABEL } from '../../../engine/staff';
 import { payroll } from '../../../engine/finance';
-import { Badge, Card, ClubLink, Crest, Empty, Money, Page, PlayerLink, Stat, Table } from '../../components/ui';
+import { Badge, Button, Card, ClubLink, Crest, Empty, Money, Page, PlayerLink, Stat, Table } from '../../components/ui';
 import { useWorld } from '../../store';
+import { ClubEditorModal } from '../../components/clubEditor';
 import { InjuryBadge, OvrCell, PotCell, seasonLine, perGame } from '../../helpers';
 
 export default function ClubProfile() {
   const w = useWorld();
   const { id } = useParams();
+  const [editing, setEditing] = useState(false);
   const c = idx(w).clubs.get(Number(id));
   if (!c) return <Empty>Club not found.</Empty>;
   const mine = isUser(w, c.id);
@@ -28,7 +31,9 @@ export default function ClubProfile() {
     <Page
       title={<span className="row"><Crest club={c} size="lg" /> <span>{c.name}{mine && <> <Badge tone="accent">Your club</Badge></>}</span></span>}
       subtitle={`“${c.nickname}” · ${c.city}, ${c.region} · ${c.leagueId ? w.rules.leagues[c.leagueId].name : 'Continental club'} · founded ${c.founded}`}
+      actions={<Button size="sm" onClick={() => setEditing(true)} title="Edit name, colours and logo (club editor)">✎ Edit club</Button>}
     >
+      {editing && <ClubEditorModal club={c} onClose={() => setEditing(false)} />}
       <div className="grid g6">
         <Stat label="Season record" value={st ? `${st.w}–${st.l}` : '—'} sub={rank ? `${rank}${ord(rank)} in league` : undefined} />
         <Stat label="Prestige" value={c.prestige} />

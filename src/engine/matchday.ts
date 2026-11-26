@@ -7,6 +7,7 @@ import { onFixtureComplete } from './competitions';
 import { gameDemand, opsCostPerGame, travelCost, EURO_TRAVEL } from './economy';
 import { INJURY_TYPES } from './data/names';
 import { clamp } from './rng';
+import { planExecution, styleReaction } from './gameplan';
 
 export function availablePlayers(w: World, c: Club): Player[] {
   const rules = c.leagueId ? w.rules.leagues[c.leagueId] : null;
@@ -50,6 +51,7 @@ export function simTeamInput(w: World, c: Club): SimTeamIn {
     medical: staffRating(w, c, 'medicalLead') + c.arena.levels.medical * 5,
     physio: staffRating(w, c, 'physio') + c.arena.levels.lockerRoom * 3,
     cohesion: c.cohesion,
+    plan: planExecution(w, c),
   };
 }
 
@@ -189,6 +191,7 @@ export function playFixture(w: World, f: Fixture, live?: LiveGame): GameLog | nu
     const ourScore = userSide === 0 ? hs : as;
     const theirScore = userSide === 0 ? as : hs;
     const won = ourScore > theirScore;
+    if (f.comp !== 'friendly') styleReaction(w, us, won);
     const mvp = getPlayer(w, log.mvpId);
     addNews(
       w,
@@ -252,13 +255,14 @@ function buildLog(w: World, f: Fixture, res: SimResult, clubs: [Club, Club], us:
   for (const t of inputs) for (const p of t.players) names.set(p.id, p.name);
   const ourStarters = res.teams[us].players.filter((b) => b.starter);
   const starterFoulMinutesLost = ourStarters.filter((b) => b.pf >= 4).reduce((a, b) => a + Math.max(0, 27 - b.min), 0);
-  const fit = (t: SimTeamIn) => (t.coach.offPref === t.tactics.off ? 1 : 0) + (t.coach.defPref === t.tactics.def ? 1 : 0);
+  const fit = (t: SimTeamIn) => (t.plan ? (t.plan.coach >= 0.75 ? 2 : t.plan.coach >= 0.5 ? 1 : 0) : (t.coach.offPref === t.tactics.off ? 1 : 0) + (t.coach.defPref === t.tactics.def ? 1 : 0));
   const rotAvg = (t: SimTeamIn, k: 'freshness' | 'morale') => { const top = [...t.players].sort((a, b) => b.ovr - a.ovr).slice(0, 8); return top.reduce((a, p) => a + p[k], 0) / Math.max(1, top.length); };
   const context = {
     coachFit: [fit(inputs[0]), fit(inputs[1])] as [number, number],
     freshness: [rotAvg(inputs[0], 'freshness'), rotAvg(inputs[1], 'freshness')] as [number, number],
     morale: [rotAvg(inputs[0], 'morale'), rotAvg(inputs[1], 'morale')] as [number, number],
     cohesion: [inputs[0].cohesion, inputs[1].cohesion] as [number, number],
+    squadFit: [inputs[0].plan?.players ?? 0.6, inputs[1].plan?.players ?? 0.6] as [number, number],
   };
   const factors = explainGame(res, { us, tactics: [inputs[0].tactics, inputs[1].tactics], names, injuredNames, starterFoulMinutesLost, context });
   const all = [...res.teams[0].players, ...res.teams[1].players];

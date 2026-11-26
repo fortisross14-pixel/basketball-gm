@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { Department, DelegationMode, ExecutiveStyle, HoldKind } from '../../engine/types';
 import { DEPARTMENTS } from '../../engine/types';
@@ -10,7 +10,9 @@ import { fmtAbs } from '../../engine/calendar';
 import { useAct, useGame, useNotify, useWorld } from '../store';
 import { StorageStatus } from '../components/storage';
 import { InstallButton } from '../components/install';
-import { Button, Card, Page, Pills, Tabs, Table, NumberField } from '../components/ui';
+import { Badge, Button, Card, ClubLink, Crest, Page, Pills, Tabs, Table, NumberField } from '../components/ui';
+import { ClubEditorModal } from '../components/clubEditor';
+import { applyPack, buildPack, downloadPack, getAutoApply, isEdited, loadStoredPack, mergeIntoStoredPack, packSize, parsePack, setAutoApply, storePack, type ClubPack } from '../clubPack';
 
 const HOLD_LABEL: Record<HoldKind, string> = {
   userGame: 'Before each of your games',
@@ -30,13 +32,14 @@ const MODES: DelegationMode[] = ['manual', 'recommend', 'policy', 'notify', 'ful
 
 export default function Settings() {
   const w = useWorld();
-  const [tab, setTab] = useState<'delegation' | 'log' | 'game' | 'saves'>('delegation');
+  const [tab, setTab] = useState<'delegation' | 'log' | 'game' | 'clubs' | 'saves'>('delegation');
   return (
     <Page title="Settings & saves">
-      <Tabs value={tab} onChange={setTab} tabs={[{ id: 'delegation', label: 'Delegation' }, { id: 'log', label: `Delegation log (${w.delegationLog.length})` }, { id: 'game', label: 'Game options' }, { id: 'saves', label: 'Save / load' }]} />
+      <Tabs value={tab} onChange={setTab} tabs={[{ id: 'delegation', label: 'Delegation' }, { id: 'log', label: `Delegation log (${w.delegationLog.length})` }, { id: 'game', label: 'Game options' }, { id: 'clubs', label: 'Club editor' }, { id: 'saves', label: 'Save / load' }]} />
       {tab === 'delegation' && <Delegation />}
       {tab === 'log' && <DelegationLog />}
       {tab === 'game' && <GameOptions />}
+      {tab === 'clubs' && <ClubEditor />}
       {tab === 'saves' && <Saves />}
     </Page>
   );
@@ -180,6 +183,83 @@ function GameOptions() {
           </div>
         </Card>
       </div>
+    </div>
+  );
+}
+
+function ClubEditor() {
+  const w = useWorld();
+  const act = useAct();
+  const save = useGame((s) => s.save);
+  const notify = useNotify();
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [q, setQ] = useState('');
+  const [onlyEdited, setOnlyEdited] = useState(false);
+  const [editId, setEditId] = useState<number | null>(null);
+  const [stored, setStored] = useState<ClubPack | null>(null);
+  const [auto, setAuto] = useState(true);
+  const reloadStored = () => { void loadStoredPack().then(setStored); };
+  useEffect(() => { reloadStored(); void getAutoApply().then(setAuto); }, [editId]);
+  const needle = q.trim().toLowerCase();
+  const rows = w.clubs.filter((c) => (!onlyEdited || isEdited(c)) && (!needle || [c.name, c.nickname, c.abbrev, c.city, c.seedName ?? ''].some((x) => x.toLowerCase().includes(needle))));
+  const editing = editId != null ? w.clubs.find((c) => c.id === editId) : undefined;
+  const league = (c: (typeof w.clubs)[number]) => (c.leagueId ? w.rules.leagues[c.leagueId].short : c.foreign ? 'Continental' : '—');
+  const edited = buildPack(w);
+  const importPack = async (f: File) => {
+    try {
+      const pack = parsePack(await f.text());
+      const n = act((ww) => applyPack(ww, pack));
+      await save(true);
+      await mergeIntoStoredPack(pack.clubs);
+      reloadStored();
+      notify(`Club pack applied to ${n} club${n === 1 ? '' : 's'} (${packSize(pack)} in the file).`, n ? 'good' : 'warn');
+    } catch (err) { notify(`Import failed: ${(err as Error).message}`, 'bad'); }
+  };
+  return (
+    <div className="col gap16">
+      <div className="grid g2">
+        <Card title="Club packs">
+          <div className="col">
+            <div className="row wrap">
+              <Button variant="primary" disabled={!packSize(edited)} onClick={() => downloadPack(edited, `club-pack-${packSize(edited)}-clubs.json`)}>Export pack ({packSize(edited)} edited)</Button>
+              <Button onClick={() => fileRef.current?.click()}>Import pack…</Button>
+              <input ref={fileRef} type="file" accept=".json,application/json" aria-label="Import club pack" style={{ display: 'none' }} onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) void importPack(f); }} />
+            </div>
+            <p className="small muted">A pack holds names, nicknames, abbreviations, colours, arena names and logos, keyed by each club's original name, so it works in any career. Importing overrides only the fields the pack contains.</p>
+          </div>
+        </Card>
+        <Card title="New games">
+          <div className="col">
+            <label className="row"><input type="checkbox" checked={auto} onChange={(e) => { setAuto(e.target.checked); void setAutoApply(e.target.checked); }} /> Apply my stored club pack to new careers automatically</label>
+            <div className="small muted">Stored pack (this browser): {packSize(stored) ? `${packSize(stored)} club${packSize(stored) === 1 ? '' : 's'}` : 'empty'}. It is updated every time you edit a club or import a pack.</div>
+            <div className="row wrap">
+              <Button size="sm" disabled={!packSize(stored)} onClick={() => stored && downloadPack(stored, 'club-pack-stored.json')}>Download stored pack</Button>
+              <Button size="sm" disabled={!packSize(stored)} onClick={async () => { if (stored && confirm(`Apply the stored pack (${packSize(stored)} clubs) to this career?`)) { const n = act((ww) => applyPack(ww, stored)); await save(true); notify(`Stored pack applied to ${n} clubs.`, 'good'); } }}>Apply stored pack here</Button>
+              <Button size="sm" variant="danger" disabled={!packSize(stored)} onClick={async () => { if (confirm('Clear the stored club pack? Clubs in existing careers keep their edits.')) { await storePack(null); reloadStored(); notify('Stored club pack cleared.'); } }}>Clear stored pack</Button>
+            </div>
+          </div>
+        </Card>
+      </div>
+      <Card title={`Clubs (${rows.length})`} actions={<div className="row"><label className="row gap4 small"><input type="checkbox" checked={onlyEdited} onChange={(e) => setOnlyEdited(e.target.checked)} /> Edited only</label><input placeholder="Search clubs…" aria-label="Search clubs" value={q} onChange={(e) => setQ(e.target.value)} /></div>}>
+        <Table
+          rows={rows}
+          rowKey={(c) => c.id}
+          initialSort="club"
+          initialDir="asc"
+          empty="No club matches."
+          columns={[
+            { key: 'crest', label: '', render: (c) => <Crest club={c} /> },
+            { key: 'club', label: 'Club', render: (c) => <span><b><ClubLink club={c} /></b> <span className="small muted">“{c.nickname}”</span>{c.seedName && c.seedName !== c.name && <div className="small faint">originally {c.seedName}</div>}</span>, sort: (c) => c.name },
+            { key: 'abbr', label: 'Abbr.', render: (c) => <span className="mono">{c.abbrev}</span>, sort: (c) => c.abbrev },
+            { key: 'lg', label: 'League', render: league, sort: league },
+            { key: 'city', label: 'City', render: (c) => c.city, sort: (c) => c.city },
+            { key: 'arena', label: 'Arena', render: (c) => <span className="small">{c.arena.name}</span> },
+            { key: 'st', label: '', render: (c) => (isEdited(c) ? <Badge tone="accent">{c.logoUrl ? 'Edited · logo' : 'Edited'}</Badge> : null) },
+            { key: 'edit', label: '', render: (c) => <Button size="sm" onClick={() => setEditId(c.id)}>Edit</Button>, align: 'r' },
+          ]}
+        />
+      </Card>
+      {editing && <ClubEditorModal club={editing} onClose={() => setEditId(null)} />}
     </div>
   );
 }

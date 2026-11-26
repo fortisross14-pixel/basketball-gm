@@ -9,7 +9,7 @@ interface Ctx {
   injuredNames: string[];
   starterFoulMinutesLost: number;
   /** Management inputs the player controls: [home, away]. */
-  context?: { coachFit: [number, number]; freshness: [number, number]; morale: [number, number]; cohesion: [number, number] };
+  context?: { coachFit: [number, number]; freshness: [number, number]; morale: [number, number]; cohesion: [number, number]; squadFit?: [number, number] };
 }
 
 /**
@@ -158,6 +158,8 @@ export function explainGame(res: SimResult, ctx: Ctx): ExplanationFactor[] {
     const me = ctx.us, them = 1 - ctx.us;
     if (k.coachFit[me] < 2) f.push({ title: k.coachFit[me] === 0 ? 'Your coach was running systems he doesn\'t believe in' : 'Only half of the game plan matched your coach', detail: 'Execution suffers when the offensive or defensive system differs from the head coach\'s preferred philosophy.', impact: -(2 - k.coachFit[me]) * 1.5, category: 'tactics', suggestion: 'Align tactics with the coach\'s preferences (Team → Tactics shows them), or hire a coach who fits your plan.' });
     else if (k.coachFit[them] < 2) f.push({ title: 'Your coach was in his element', detail: 'Both systems matched his philosophy; the opponent\'s staff did not have that edge.', impact: 1.5, category: 'tactics' });
+    if (k.squadFit && k.squadFit[me] < 0.45) f.push({ title: 'The roster does not suit the game plan', detail: 'Your systems ask your players for skills they do not have: forced shots and broken possessions.', impact: -Math.round((0.6 - k.squadFit[me]) * 12 * 10) / 10, category: 'tactics', suggestion: 'Team → Tactics: pick a plan the squad fits ("Fit the squad"), or sign players for your system.' });
+    else if (k.squadFit && k.squadFit[me] >= 0.85 && k.squadFit[them] < 0.7) f.push({ title: 'A game plan built for this roster', detail: 'Your systems played to your players\' strengths.', impact: 1.2, category: 'tactics' });
     const fd = k.freshness[me] - k.freshness[them];
     if (Math.abs(fd) >= 6) f.push({ title: fd < 0 ? 'Tired legs' : 'Fresher legs', detail: `Average freshness of your rotation ${Math.round(k.freshness[me])} vs ${Math.round(k.freshness[them])}.`, impact: fd * 0.25, category: 'fatigue', suggestion: fd < 0 ? 'Lighten training intensity, deepen the rotation, or improve the physio and locker-room facilities.' : undefined });
     const md = k.morale[me] - k.morale[them];

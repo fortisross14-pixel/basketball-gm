@@ -1,8 +1,8 @@
 import type { ArenaProject, Club, FacilityKey, OfficeKey, ProjectKind, SeatZone, StoreKind, World } from './types';
 import { completeFacilityProject, storeProjectRoi } from './facilities';
 import { absDay } from './types';
-import { addNews, book, hold, isUser, nextId } from './world';
-import { tier } from './economy';
+import { addNews, book, fmtMoney, hold, isUser, nextId } from './world';
+import { tier, spendPerHead, restaurantEvents } from './economy';
 import { takeLoan } from './finance';
 import { boardApproves } from './board';
 import { strategyProfile } from './squad';
@@ -25,7 +25,8 @@ export const FACILITY_INFO: Record<FacilityKey, { label: string; group: 'stadium
 export const FACILITY_KEYS = Object.keys(FACILITY_INFO) as FacilityKey[];
 export const MAX_LEVEL = 5;
 
-const TIER_COST: Record<number, number> = { 0: 3, 1: 2.4, 2: 1, 3: 0.7 };
+// lower divisions build smaller and cheaper (local contractors, modest specs)
+const TIER_COST: Record<number, number> = { 0: 3, 1: 2.4, 2: 0.8, 3: 0.4 };
 
 export interface ProjectOption {
   kind: ProjectKind;
@@ -82,7 +83,7 @@ export function projectOptions(w: World, c: Club): ProjectOption[] {
     opts.push({
       kind: 'facility', facility: f, label: `${info.label} → level ${lvl + 1}`, description: `${info.effect} Trade-off: ${info.tradeoff}`,
       cost: Math.round(info.baseCost * Math.pow(1.6, lvl) * m), weeks: info.weeks + lvl * 2, disruption: f === 'concessions' || f === 'accessibility' ? 0.04 : 0,
-      annualUpkeep: info.upkeep * (lvl + 1), needsBoard: false, blocked: lvl >= MAX_LEVEL ? 'Maximum level reached' : busy('facility', f) ? 'Already under construction' : undefined,
+      annualUpkeep: Math.round(info.upkeep * UPKEEP_SCALE[t]), needsBoard: false, blocked: lvl >= MAX_LEVEL ? 'Maximum level reached' : busy('facility', f) ? 'Already under construction' : undefined,
     });
   }
   opts.push({
@@ -122,8 +123,14 @@ export function projectRoi(w: World, c: Club, o: ProjectOption): { annual: numbe
   } else if (o.kind === 'facility' && o.facility) {
     const att = avgAttendance(w, c) * homeGames;
     switch (o.facility) {
-      case 'concessions': annual = att * 0.5; notes = 'About €0.50 more net spend per attendee.'; break;
-      case 'restaurant': annual = att * 0.4 + 15000; notes = 'Dining revenue plus non-game-day events.'; break;
+      case 'concessions': case 'restaurant': {
+        const next = { ...c, arena: { ...c.arena, levels: { ...c.arena.levels, [o.facility]: c.arena.levels[o.facility] + 1 } } } as Club;
+        const perHead = spendPerHead(w, next) - spendPerHead(w, c);
+        const events = o.facility === 'restaurant' ? restaurantEvents(w, c, c.arena.levels.restaurant + 1) - restaurantEvents(w, c) : 0;
+        annual = att * perHead + events;
+        notes = o.facility === 'restaurant' ? `About ${fmtMoney(perHead)} more net spend per attendee, plus ${fmtMoney(events)} a year from non-matchday events.` : `About ${fmtMoney(perHead)} more net spend per attendee.`;
+        break;
+      }
       case 'hospitality': annual = c.arena.seats.premium * homeGames * 6 + c.arena.suites * 3000; notes = 'Driven by premium seats and suites.'; break;
       case 'store': annual = att * 0.35; notes = 'Better merch conversion among attending fans.'; break;
       case 'onlineStore': annual = (c.fans.national + c.fans.international + c.fans.digital * 0.1) * 0.4; notes = 'Reaches fans beyond the city.'; break;

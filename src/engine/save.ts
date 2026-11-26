@@ -43,6 +43,7 @@ export function migrate(w: World): World {
   w.version = SAVE_VERSION;
   w.pendingMoves ??= [];
   w.pendingHolds ??= [];
+  for (const c of w.clubs) c.seedName ??= c.name;
   validate(w);
   invalidateIndex(w);
   return w;

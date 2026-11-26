@@ -1,7 +1,7 @@
 import type { Club, LedgerCat, Loan, World, Budget } from './types';
 import { INCOME_CATS, absDay } from './types';
 import { book, clubStaff, isUser, nextId, roster, academy, addNews, hold } from './world';
-import { centralTvAnnual, estimateRevenue, municipalGrant, tier } from './economy';
+import { centralTvAnnual, estimateRevenue, municipalGrant, restaurantEvents, tier } from './economy';
 import { maintenanceNeed } from './arena';
 import { clamp } from './rng';
 import { staffPayroll } from './staff';
@@ -89,6 +89,8 @@ export function monthlyFinance(w: World, c: Club) {
     book(w, c, 'tickets', Math.round(income * 0.2));
     return;
   }
+  // non-matchday restaurant & bar events
+  if (c.arena.levels.restaurant > 0) book(w, c, 'concessions', Math.round(restaurantEvents(w, c) / 12));
   // sponsors & TV
   book(w, c, 'sponsors', Math.round(c.sponsors.reduce((a, s) => a + s.annual, 0) / 12));
   book(w, c, 'tv', Math.round((centralTvAnnual(w, c, lastRank(c)) + (c.tv?.annual ?? 0)) / 12));

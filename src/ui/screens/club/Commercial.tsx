@@ -11,8 +11,10 @@ import { Badge, Button, Callout, Card, Money, Page, Stat, Table, Tabs } from '..
 import { StaffPanel } from '../../helpers';
 import { useAct, useNotify, useWorld } from '../../store';
 import '../hubs/hubs.css';
+import { RevenueDrive } from './RevenueDrive';
+import { phaseOf } from '../../../engine/calendar';
 
-type Tab = 'partners' | 'offers' | 'media' | 'department';
+type Tab = 'drive' | 'partners' | 'offers' | 'media' | 'department';
 
 export default function Commercial() {
   const w = useWorld();
@@ -20,7 +22,7 @@ export default function Commercial() {
   const notify = useNotify();
   const c = getClub(w, w.user.clubId!);
   const now = absDay(w);
-  const [tab, setTab] = useState<Tab>('partners');
+  const [tab, setTab] = useState<Tab>(() => (['offseason', 'preseason'].includes(phaseOf(w.season, w.day)) ? 'drive' : 'partners'));
   const [sel, setSel] = useState<SponsorSlot>(() => SPONSOR_SLOTS.find((s) => !c.sponsors.some((x) => x.slot === s)) ?? 'shirt');
   const sponsorTotal = c.sponsors.reduce((a, s) => a + s.annual, 0);
   const offers: SponsorOffer[] = (w.sponsorOffers[c.id] ?? []).filter((o) => o.expiresDay >= now);
@@ -47,6 +49,7 @@ export default function Commercial() {
         value={tab}
         onChange={setTab}
         tabs={[
+          { id: 'drive', label: 'Revenue drive' },
           { id: 'partners', label: 'Partners' },
           { id: 'offers', label: `Offers (${offers.length})` },
           { id: 'media', label: `Media rights${w.tvOffers.length ? ` (${w.tvOffers.length})` : ''}` },
@@ -55,6 +58,7 @@ export default function Commercial() {
       />
       <AnimatePresence mode="wait">
         <motion.div key={tab} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} transition={{ duration: 0.2 }}>
+          {tab === 'drive' && <RevenueDrive />}
           {tab === 'partners' && (
             <div className="col gap16">
               <ToleranceCard c={c} />

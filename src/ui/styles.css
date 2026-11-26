@@ -400,3 +400,15 @@ a.list-item:hover { background: rgba(46, 168, 255, 0.07); padding-left: 6px; }
 .title-word { font-family: var(--display); font-style: italic; font-weight: 900; text-transform: uppercase; line-height: 0.86; letter-spacing: 0.01em; font-size: clamp(3rem, 9vw, 7rem); background: linear-gradient(180deg, #fff 30%, #9ccfff 70%, #3b82f6); -webkit-background-clip: text; background-clip: text; color: transparent; filter: drop-shadow(0 6px 24px rgba(46, 168, 255, 0.45)); }
 .title-word.accent { background: linear-gradient(180deg, #ffe09a 10%, var(--accent) 60%, #b44a00); -webkit-background-clip: text; background-clip: text; filter: drop-shadow(0 6px 24px rgba(255, 138, 31, 0.5)); }
 @keyframes sweep { from { transform: rotate(-6deg); } to { transform: rotate(6deg); } }
+
+/* Game plan stakeholders */
+.stake { position: relative; padding: 12px; border: 1px solid var(--line); background: linear-gradient(160deg, rgba(255, 255, 255, 0.04), rgba(0, 0, 0, 0.18)); clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 0 100%); display: flex; flex-direction: column; gap: 4px; }
+.stake-love { border-color: color-mix(in srgb, var(--good) 55%, transparent); }
+.stake-unhappy { border-color: color-mix(in srgb, var(--bad) 55%, transparent); }
+.stake-icon { display: inline-grid; place-items: center; width: 32px; height: 32px; margin-right: 8px; border-radius: 50%; background: rgba(0, 0, 0, 0.35); color: var(--accent-2); }
+.stake-title { font-family: var(--display); font-style: italic; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em; }
+.stake-bar { height: 6px; margin: 6px 0; border-radius: 3px; background: rgba(0, 0, 0, 0.4); overflow: hidden; }
+.stake-bar b { display: block; height: 100%; background: linear-gradient(90deg, var(--bad), var(--warn) 45%, var(--good)); background-size: 300px 100%; }
+.stake-quote { font-style: italic; color: #cfe0ff; }
+.likes { display: inline-flex; gap: 4px; flex-wrap: wrap; }
+.likes span { font-size: 0.7rem; padding: 0 6px; border-radius: 3px; background: rgba(54, 209, 255, 0.14); color: var(--electric); text-transform: uppercase; letter-spacing: 0.04em; }

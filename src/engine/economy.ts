@@ -173,7 +173,8 @@ export function spendPerHead(w: World, c: Club): number {
   const l = c.arena.levels;
   const pricing = c.concessions.pricing === 'premium' ? 1.2 : c.concessions.pricing === 'value' ? 0.82 : 1;
   const margin = c.concessions.localSuppliers ? 0.4 : 0.48;
-  const gross = SPEND_PER_HEAD[t] * (0.55 + l.concessions * 0.12) * pricing + l.restaurant * 0.9;
+  // flat per-head extras keep stands and a bar worthwhile even where spend per head is low
+  const gross = SPEND_PER_HEAD[t] * (0.55 + l.concessions * 0.12) * pricing + l.concessions * 0.35 + l.restaurant * 0.9;
   return gross * margin * (0.85 + c.economy * 0.15);
 }
 
@@ -185,6 +186,12 @@ export function opsCostPerGame(w: World, c: Club): number {
 
 export function travelCost(w: World, c: Club): number {
   return TRAVEL_PER_AWAY[tier(w, c)];
+}
+
+/** Non-matchday income of the arena restaurant & bar (events, lunches, weddings), per year. */
+export const RESTAURANT_EVENTS: Record<number, number> = { 0: 90000, 1: 60000, 2: 22000, 3: 10000 };
+export function restaurantEvents(w: World, c: Club, level = c.arena.levels.restaurant): number {
+  return Math.round(level * RESTAURANT_EVENTS[tier(w, c)] * (0.7 + c.economy * 0.3) * (0.8 + Math.min(1.6, Math.sqrt(c.population / 150_000)) * 0.2));
 }
 
 // ---------------------------------------------------------------------------
@@ -357,12 +364,13 @@ export function estimateRevenue(w: World, c: Club): RevenueEstimate {
   const sponsors = c.sponsors.reduce((a, s) => a + s.annual, 0);
   const tv = centralTvAnnual(w, c) + (c.tv?.annual ?? 0);
   const grants = municipalGrant(w, c);
-  const total = d.ticketRevenue * homeGames + seasonTickets + suitesSold * c.ticketing.suitePrice + d.concessions * homeGames + merch + sponsors + tv + grants;
+  const events = c.foreign ? 0 : restaurantEvents(w, c);
+  const total = d.ticketRevenue * homeGames + seasonTickets + suitesSold * c.ticketing.suitePrice + d.concessions * homeGames + events + merch + sponsors + tv + grants;
   return {
     tickets: Math.round(d.ticketRevenue * homeGames),
     seasonTickets: Math.round(seasonTickets),
     suites: suitesSold * c.ticketing.suitePrice,
-    concessions: Math.round(d.concessions * homeGames),
+    concessions: Math.round(d.concessions * homeGames + events),
     merch: Math.round(merch),
     sponsors,
     tv,

@@ -242,6 +242,7 @@ function makeClub(w: World, r: Rng, s: ClubSeed): Club {
   const c: Club = {
     id: nextId(w),
     name: s.name,
+    seedName: s.name,
     nickname: s.nickname,
     abbrev: s.abbrev,
     city: s.city,

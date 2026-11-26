@@ -536,7 +536,9 @@ export interface Club {
   cohesion: number; // 0-100
   rivals: number[];
   sponsorLocks?: Partial<Record<SponsorSlot, number>>; // slot -> abs day until new offers
+  quickDeals?: Record<string, number>; // revenue drive actions -> season last used
   logoUrl?: string; // optional licensed logo (overrides the generated emblem)
+  seedName?: string; // original name from CLUB_SEEDS (stable key for club packs)
   facilities?: ClubFacilities;
   history: SeasonRecord[];
   trophies: { season: number; name: string }[];

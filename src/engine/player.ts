@@ -3,6 +3,7 @@ import { RATING_KEYS } from './types';
 import { Rng, clamp } from './rng';
 import { NAME_POOLS } from './data/names';
 import { age, nextId, rng, staffRating, club as getClub } from './world';
+import { buildCalendar, dayOfDate } from './calendar';
 
 // ---------------------------------------------------------------------------
 // Overall rating — position-aware weighted blend of skills.
@@ -210,12 +211,25 @@ export function salaryAsk(w: World, p: Player, forClub?: Club): number {
   s *= 0.85 + p.personality.greed / 333; // 0.88 – 1.13
   if (a >= 33) s *= 0.75;
   if (p.agent.style === 'cash' || p.agent.style === 'hardline') s *= 1.08;
+  // unsigned free agents get nervous as the season approaches and lower their demands
+  if (!p.contract && p.teamId == null) s *= freeAgentDiscount(w);
   if (forClub) {
     // stars ask a premium to drop down a level
     const tier = forClub.leagueId ? w.rules.leagues[forClub.leagueId].tier : 1;
     if (tier >= 2 && p.ovr >= 62) s *= 1.15;
   }
   return Math.round(s / 1000) * 1000;
+}
+
+/** 1.0 in early summer → 0.7 by the start of the league → 0.65 during the season. */
+export function freeAgentDiscount(w: World): number {
+  const cal = buildCalendar(w.season);
+  if (w.day >= cal.seasonEnd) return 1;
+  const from = dayOfDate(w.season, w.season, 7, 10); // 10 Aug (months are 0-based)
+  const to = cal.leagueRoundDays[0];
+  if (w.day <= from) return 1;
+  if (w.day >= to) return 0.65;
+  return 1 - 0.3 * ((w.day - from) / Math.max(1, to - from));
 }
 
 export function marketValue(w: World, p: Player): number {

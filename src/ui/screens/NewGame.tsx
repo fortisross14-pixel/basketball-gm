@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { Background, Club, ExecutiveStyle, LeagueId, Settings, UserRole, World } from '../../engine/types';
 import { BACKGROUND_INFO, COUNTRY_OPTIONS, careerStartOffers } from '../../engine/career';
@@ -9,6 +9,7 @@ import { capacity } from '../../engine/arena';
 import { clubStrength } from '../../engine/matchday';
 import { roster, fmtMoney } from '../../engine/world';
 import { useGame } from '../store';
+import { applyPack, getAutoApply, loadStoredPack } from '../clubPack';
 import { Badge, Button, Card, Crest, Pills, Table, Rating } from '../components/ui';
 
 type Mode = 'career' | 'founder' | 'existing' | 'scenario';
@@ -41,6 +42,17 @@ export default function NewGame() {
 
   // preview world (generated once, deterministic from seed)
   const preview = useMemo<World>(() => createWorld({ seed, userName: 'Preview', role: 'gm', clubId: null, style: 'gm', difficulty: 'standard', worldNoise: 'normal' }), [seed]);
+  // the user's stored club pack (real names/logos) is applied on top of the generated world
+  const [packClubs, setPackClubs] = useState(0);
+  useEffect(() => {
+    let live = true;
+    void (async () => {
+      if (!(await getAutoApply())) return;
+      const pack = await loadStoredPack();
+      if (live && pack) setPackClubs(applyPack(preview, pack));
+    })();
+    return () => { live = false; };
+  }, [preview]);
 
   const start = () => {
     setBusy(true);
@@ -73,6 +85,7 @@ export default function NewGame() {
           {['You', 'Starting point', 'Executive style'].map((s, i) => (
             <span key={s} className={`badge ${i === step ? 'accent' : ''}`}>{i + 1}. {s}</span>
           ))}
+          {packClubs > 0 && <span className="badge" title="Turn this off in Settings → Club editor">Club pack: {packClubs} clubs</span>}
         </div>
 
         {step === 0 && (

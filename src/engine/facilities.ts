@@ -74,7 +74,9 @@ export function canAddStaff(w: World, c: Club): { ok: boolean; reason?: string }
   return { ok: false, reason: `Your corporate offices have room for ${cap} staff and all ${used} desks are taken. Expand the offices (Infrastructure → Club facilities) or replace an existing member of staff.` };
 }
 
-const TIER_COST: Record<number, number> = { 0: 3, 1: 2.4, 2: 1, 3: 0.7 };
+const TIER_COST: Record<number, number> = { 0: 3, 1: 2.4, 2: 0.8, 3: 0.4 };
+/** Retail rent falls faster than build cost in small towns. */
+const rentScale = (m: number) => (m < 1 ? Math.pow(m, 1.5) : m);
 
 export function officeOptions(w: World, c: Club): ProjectOption[] {
   const f = ensureFacilities(w, c);
@@ -215,15 +217,15 @@ export function storeOptions(w: World, c: Club): ProjectOption[] {
     const info = STORE_INFO[kind];
     const has = f.stores.some((s) => s.kind === kind);
     out.push({
-      kind: 'store', storeKind: kind, label: `Open: ${info.label}`, description: `${info.desc} Rent ${fmtMoney(info.rentWeek * m)}/week.`,
-      cost: Math.round(info.baseCost * m), weeks: info.weeks, disruption: 0, annualUpkeep: Math.round(info.rentWeek * m * 52), needsBoard: false,
+      kind: 'store', storeKind: kind, label: `Open: ${info.label}`, description: `${info.desc} Rent ${fmtMoney(info.rentWeek * rentScale(m))}/week.`,
+      cost: Math.round(info.baseCost * m), weeks: info.weeks, disruption: 0, annualUpkeep: Math.round(info.rentWeek * rentScale(m) * 52), needsBoard: false,
       blocked: has ? 'Already open' : active.some((p) => p.kind === 'store' && p.storeKind === kind) ? 'Under construction' : undefined,
     } as ProjectOption);
   }
   for (const s of f.stores.filter((x) => STORE_INFO[x.kind].buildable)) {
     out.push({
       kind: 'storeUpgrade', storeId: s.id, label: `Refit ${s.name} → level ${s.level + 1}`, description: 'Bigger floor, better displays: more footfall and higher conversion.',
-      cost: Math.round(STORE_INFO[s.kind].baseCost * 0.7 * Math.pow(1.5, s.level) * m), weeks: 4, disruption: 0, annualUpkeep: Math.round(STORE_INFO[s.kind].rentWeek * m * 15), needsBoard: false,
+      cost: Math.round(STORE_INFO[s.kind].baseCost * 0.7 * Math.pow(1.5, s.level) * m), weeks: 4, disruption: 0, annualUpkeep: Math.round(STORE_INFO[s.kind].rentWeek * rentScale(m) * 15), needsBoard: false,
       blocked: s.level >= 3 ? 'Maximum level reached' : active.some((p) => p.kind === 'storeUpgrade' && p.storeId === s.id) ? 'Under construction' : undefined,
     } as ProjectOption);
   }
@@ -246,7 +248,7 @@ export function storeProjectRoi(w: World, c: Club, o: ProjectOption): { annual: 
   const price = c.merch.jerseyPrice * store.priceMult;
   const margin = price * 0.75 - merchUnitCost(c);
   const weeklyAt = (lvl: number) => storeWeeklyDemand(w, c, { ...store!, level: lvl }) * margin;
-  const gain = o.kind === 'store' ? weeklyAt(1) * 52 - STORE_INFO[store.kind].rentWeek * m * 52 : (weeklyAt(level) - weeklyAt(level - 1)) * 52 - o.annualUpkeep;
+  const gain = o.kind === 'store' ? weeklyAt(1) * 52 - STORE_INFO[store.kind].rentWeek * rentScale(m) * 52 : (weeklyAt(level) - weeklyAt(level - 1)) * 52 - o.annualUpkeep;
   return { annual: Math.round(gain), notes: o.kind === 'store' ? `About ${Math.round(storeWeeklyDemand(w, c, store))} items a week at ${fmtMoney(price)}, minus rent. Depends on your fanbase in its catchment and on hype.` : 'More floor space and better displays lift footfall and conversion.' };
 }
 
@@ -287,7 +289,7 @@ function weeklyStores(w: World, c: Club) {
     const cost = Math.round(units * merchUnitCost(c) * (s.stock === 'deep' ? 1.15 : 1));
     book(w, c, 'merch', revenue);
     book(w, c, 'merchCost', -cost);
-    book(w, c, 'rent', -Math.round(STORE_INFO[s.kind].rentWeek * m));
+    book(w, c, 'rent', -Math.round(STORE_INFO[s.kind].rentWeek * rentScale(m)));
     s.lastWeekSales = revenue;
     s.lastWeekUnits = Math.round(units);
     s.seasonSales += revenue;
@@ -433,7 +435,7 @@ export function weeklyFacilities(w: World) {
 export function facilitiesUpkeep(w: World, c: Club): { stores: number; offices: number } {
   const f = ensureFacilities(w, c);
   const m = TIER_COST[tierOf(w, c)] ?? 1;
-  const stores = f.stores.reduce((a, s) => a + STORE_INFO[s.kind].rentWeek * m * 52, 0);
+  const stores = f.stores.reduce((a, s) => a + STORE_INFO[s.kind].rentWeek * rentScale(m) * 52, 0);
   const extra = Math.max(0, f.offices.corporate - (f.officeBase?.corporate ?? f.offices.corporate)) + Math.max(0, f.offices.pr - (f.officeBase?.pr ?? f.offices.pr));
   const offices = Math.round(12000 * extra * m);
   return { stores: Math.round(stores), offices };

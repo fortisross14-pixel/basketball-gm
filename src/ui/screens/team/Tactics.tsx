@@ -6,6 +6,7 @@ import { club as getClub, roster, staffOf } from '../../../engine/world';
 import { fmtAbs as fmtAbsDay } from '../../../engine/calendar';
 import { OFF_LABEL, DEF_LABEL } from '../../../engine/staff';
 import { offFit, defFit, OFF_INFO, DEF_INFO, coachSetsTactics, MODE_LABEL } from '../../../engine/delegation';
+import { GamePlanPanel, useLikes } from './GamePlan';
 import type { Club, DefScheme, OffSystem, Pace, Player, RotationStyle, Tactics as T } from '../../../engine/types';
 
 const OFFS: OffSystem[] = ['paceSpace', 'motion', 'pnr', 'post', 'isolation'];
@@ -39,6 +40,7 @@ export default function Tactics() {
 
   const recent = w.games.filter((g) => g.home.clubId === c.id || g.away.clubId === c.id).slice(-3).reverse();
   const order = lineupOrder(c, squad);
+  const likes = useLikes();
 
   return (
     <Page
@@ -53,13 +55,14 @@ export default function Tactics() {
           </Callout>
         </div>
       )}
+      <GamePlanPanel />
       <div className="grid g2">
         <Card title="Offensive system">
           <div className="col">
             {OFFS.map((o) => {
               const fit = Math.round(offFit(healthy, o));
               return (
-                <SystemRow key={o} active={t.off === o} onPick={() => set({ off: o })} label={OFF_LABEL[o]} fit={fit} coachPrefers={coach?.offPref === o} info={OFF_INFO[o]} />
+                <SystemRow key={o} active={t.off === o} onPick={() => set({ off: o })} label={OFF_LABEL[o]} fit={fit} likes={likes.off(o)} info={OFF_INFO[o]} />
               );
             })}
           </div>
@@ -68,7 +71,7 @@ export default function Tactics() {
           <div className="col">
             {DEFS.map((d) => {
               const fit = Math.round(defFit(healthy, d));
-              return <SystemRow key={d} active={t.def === d} onPick={() => set({ def: d })} label={DEF_LABEL[d]} fit={fit} coachPrefers={coach?.defPref === d} info={DEF_INFO[d]} />;
+              return <SystemRow key={d} active={t.def === d} onPick={() => set({ def: d })} label={DEF_LABEL[d]} fit={fit} likes={likes.def(d)} info={DEF_INFO[d]} />;
             })}
           </div>
         </Card>
@@ -80,6 +83,7 @@ export default function Tactics() {
             <div>
               <div className="small muted mb8">Pace</div>
               <Pills<Pace> value={t.pace} onChange={(v) => set({ pace: v })} options={[{ id: 'slow', label: 'Slow', title: 'Fewer possessions: narrows the gap vs better teams' }, { id: 'normal', label: 'Normal' }, { id: 'fast', label: 'Fast', title: 'More possessions and transition; more fatigue and turnovers' }]} />
+              <div className="small faint mt8">{(['slow', 'normal', 'fast'] as const).map((p) => likes.pace(p).length ? <span key={p} style={{ marginRight: 10 }}>{p[0].toUpperCase() + p.slice(1)}: {likes.pace(p).join(', ')}</span> : null)}</div>
             </div>
             <div>
               <div className="small muted mb8">Rotation</div>
@@ -102,8 +106,7 @@ export default function Tactics() {
         <Card title="Coach & recent feedback">
           {coach ? (
             <div className="small mb8">
-              <b>{coach.firstName} {coach.lastName}</b> (rating {coach.rating}) prefers <b>{coach.offPref ? OFF_LABEL[coach.offPref] : '—'}</b> and <b>{coach.defPref ? DEF_LABEL[coach.defPref] : '—'}</b>.{' '}
-              {t.off === coach.offPref && t.def === coach.defPref ? <span className="good">He fully agrees with the plan: better execution.</span> : <span className="warn">Running systems he doesn't prefer costs some execution in games.</span>}
+              <b>{coach.firstName} {coach.lastName}</b> (rating {coach.rating}) prefers <b>{coach.offPref ? OFF_LABEL[coach.offPref] : '—'}</b> and <b>{coach.defPref ? DEF_LABEL[coach.defPref] : '—'}</b>. See the game plan above for how he, the squad, the fans and the owner feel about your plan.
             </div>
           ) : (
             <Callout tone="bad">No head coach: execution is poor. <Link className="link" to="/team/staff">Hire one</Link>.</Callout>
@@ -176,13 +179,13 @@ export default function Tactics() {
   );
 }
 
-function SystemRow({ active, onPick, label, fit, coachPrefers, info }: { active: boolean; onPick: () => void; label: string; fit: number; coachPrefers: boolean; info: { desc: string; upside: string; downside: string } }) {
+function SystemRow({ active, onPick, label, fit, likes, info }: { active: boolean; onPick: () => void; label: string; fit: number; likes: string[]; info: { desc: string; upside: string; downside: string } }) {
   return (
     <div className="list-item" style={{ cursor: 'pointer', borderLeft: active ? '3px solid var(--accent)' : '3px solid transparent', paddingLeft: 10 }} onClick={onPick}>
       <div className="row">
         <input type="radio" checked={active} onChange={onPick} />
         <b>{label}</b>
-        {coachPrefers && <Badge tone="info" title="The head coach's preferred system: executed better">Coach's choice</Badge>}
+        {likes.length > 0 && <span className="likes" title="Their first choice">{likes.map((l) => <span key={l}>{l}</span>)}</span>}
         <span className="spacer" />
         <div style={{ width: 150 }}><Meter value={fit} label="Personnel fit" /></div>
       </div>

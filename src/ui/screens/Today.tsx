@@ -192,11 +192,11 @@ function LatestNews() {
 const STEPS: { path: string; label: string; why: string }[] = [
   { path: '/club/board', label: 'Read the board\'s objectives and how you are evaluated', why: 'The owner and the fans grade you every week against these expectations.' },
   { path: '/team/players', label: 'Review your squad', why: 'Who is good, who is unhappy, whose contract is ending.' },
-  { path: '/team/tactics', label: 'Set your tactics', why: 'Pick systems your players and your coach fit — your main game-day lever.' },
+  { path: '/team/tactics', label: 'Propose your game plan', why: 'Coach and squad decide execution; fans and owner judge the style.' },
   { path: '/club/finance', label: 'Check the finances', why: 'Cash, payroll budget and the 90-day forecast decide what you can afford.' },
   { path: '/infrastructure/tickets', label: 'Set ticket prices', why: 'Gate revenue vs full arenas and happy supporters.' },
-  { path: '/club/commercial', label: 'Look at sponsors & TV', why: 'Empty sponsor slots are free money waiting for a partner.' },
-  { path: '/team/market', label: 'Browse free agents', why: 'Cheap improvements before the window closes.' },
+  { path: '/club/commercial', label: 'Run a revenue drive', why: 'Naming rights, a kit sponsor, local TV and a members drive can fund your first signing.' },
+  { path: '/team/market', label: 'Browse free agents', why: 'Their asks drop as the season approaches — bargains before the window closes.' },
 ];
 
 function FirstWeeks() {
