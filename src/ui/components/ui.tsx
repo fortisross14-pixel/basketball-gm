@@ -382,11 +382,40 @@ export function Meter({ value, label, max = 100 }: { value: number; label?: Reac
   );
 }
 
-export function NumberField({ value, onChange, step = 1, min, max, prefix, width = 110 }: { value: number; onChange: (v: number) => void; step?: number; min?: number; max?: number; prefix?: string; width?: number }) {
+function niceCeil(v: number): number {
+  if (v <= 0) return 10;
+  const mag = Math.pow(10, Math.floor(Math.log10(v)));
+  for (const m of [1, 2, 2.5, 5, 10]) if (m * mag >= v) return m * mag;
+  return 10 * mag;
+}
+
+/**
+ * Numeric control: a slider is the primary input, with a compact box for typing an exact value.
+ * When min/max are not given the range is derived once from the starting value (0 → ~3×).
+ */
+export function NumberField({ value, onChange, step = 1, min, max, prefix, suffix, width = 96, label }: { value: number; onChange: (v: number) => void; step?: number; min?: number; max?: number; prefix?: string; suffix?: string; width?: number; label?: string }) {
+  const [range] = useState(() => ({ lo: min ?? 0, hi: max ?? niceCeil(Math.max(Math.abs(value) * 3, step * 20)) }));
+  const lo = min ?? range.lo;
+  const hi = Math.max(max ?? range.hi, value);
+  const pct = hi > lo ? ((value - lo) / (hi - lo)) * 100 : 0;
+  const clampV = (v: number) => Math.min(max ?? Infinity, Math.max(min ?? -Infinity, v));
   return (
-    <span className="row gap4">
-      {prefix && <span className="muted">{prefix}</span>}
-      <input type="number" value={value} step={step} min={min} max={max} style={{ width }} onChange={(e) => onChange(Number(e.target.value))} />
+    <span className="slider-field">
+      <input
+        type="range"
+        aria-label={label ?? 'Value'}
+        min={lo}
+        max={hi}
+        step={step}
+        value={value}
+        style={{ ['--pct' as string]: `${pct}%` } as CSSProperties}
+        onChange={(e) => onChange(clampV(Number(e.target.value)))}
+      />
+      <span className="slider-box">
+        {prefix && <span className="muted">{prefix}</span>}
+        <input type="number" aria-label={`${label ?? 'Value'} (exact)`} value={value} step={step} min={min} max={max} style={{ width }} onChange={(e) => onChange(clampV(Number(e.target.value)))} />
+        {suffix && <span className="muted">{suffix}</span>}
+      </span>
     </span>
   );
 }

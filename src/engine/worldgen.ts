@@ -444,10 +444,9 @@ function generateClubStaff(w: World, r: Rng, c: Club) {
 function setupCommercial(w: World, r: Rng, c: Club) {
   if (c.foreign) return;
   const tier = w.rules.leagues[c.leagueId!].tier;
-  const slots: SponsorSlot[] = ['shirt', 'court', 'local1', 'local2'];
-  if (tier <= 2) slots.push('shirtSecondary', 'local3');
-  if (tier === 1) slots.push('digital');
-  if (c.arena.owned) slots.push('naming');
+  // Clubs start with a couple of partners; the rest of the inventory is sold during the game.
+  const slots: SponsorSlot[] = ['shirt', 'local1'];
+  if (tier === 1) slots.push('court');
   const used = new Set<string>();
   for (const slot of slots) {
     const b = r.pick(SPONSOR_BRANDS.filter((x) => !used.has(x.brand) && x.risk < 60));
@@ -471,7 +470,7 @@ function calibrateFinances(w: World, r: Rng, c: Club) {
   const costs = payroll(w, c) + staffPayroll(w, c) + operatingEstimate(w, c) + maintenanceNeed(w, c) + (c.leagueId === 'ELITE' ? 350000 : c.leagueId === 'ORO' ? 90000 : 30000);
   const gap = costs * r.float(0.97, 1.05) - est;
   if (gap > 0 && c.sponsors.length) {
-    const scale = Math.min(4, 1 + gap / Math.max(1, c.sponsors.reduce((a, s) => a + s.annual, 0)));
+    const scale = Math.min(2.2, 1 + gap / Math.max(1, c.sponsors.reduce((a, s) => a + s.annual, 0)));
     for (const s of c.sponsors) s.annual = Math.round(s.annual * scale / 1000) * 1000;
   }
   const rev2 = estimateRevenue(w, c).total;

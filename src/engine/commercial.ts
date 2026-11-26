@@ -54,6 +54,19 @@ function recommendSponsor(w: World, c: Club, o: SponsorOffer): string {
   return o.annual >= bench * (pol.sponsorFloor ?? 0.9) ? 'accept' : 'counter';
 }
 
+/**
+ * Supporters tolerate a handful of partners; beyond that every extra brand
+ * (and especially risky categories) erodes sentiment week by week.
+ */
+export function sponsorSaturation(c: Club): { count: number; comfortable: number; penalty: number; label: string } {
+  const comfortable = 4 + Math.round(c.fans.loyalty / 40); // 4-6
+  const count = c.sponsors.length;
+  const risky = c.sponsors.filter((s) => s.risk >= 50).length;
+  const penalty = Math.max(0, count - comfortable) * 3 + risky * 2;
+  const label = penalty === 0 ? (count >= comfortable ? 'At the limit fans accept' : 'Fans are comfortable') : penalty < 6 ? 'Fans grumble about commercialisation' : 'Fans feel the club has sold out';
+  return { count, comfortable, penalty, label };
+}
+
 export function signSponsor(w: World, c: Club, o: SponsorOffer) {
   c.sponsors = c.sponsors.filter((s) => s.slot !== o.slot);
   const { expiresDay: _e, ...deal } = o;
@@ -108,7 +121,8 @@ export function weeklySponsors(w: World, c: Club) {
   }
   const noise = w.settings.worldNoise === 'quiet' ? 0.6 : w.settings.worldNoise === 'handsOn' ? 1.4 : 1;
   const comm = staffRating(w, c, 'commercialDirector');
-  const p = (0.12 + comm / 600) * noise;
+  const emptyCount = SPONSOR_SLOTS.filter((s) => !c.sponsors.find((x) => x.slot === s)).length;
+  const p = (0.12 + comm / 600) * noise * (1 + emptyCount * 0.12);
   if (!r.chance(p)) return;
   const empty = SPONSOR_SLOTS.filter((s) => !c.sponsors.find((x) => x.slot === s) && (s !== 'naming' || c.arena.owned || tierOf(w, c) === 1));
   const expiring = c.sponsors.filter((s) => s.expires <= w.season).map((s) => s.slot);
@@ -339,6 +353,7 @@ export function closeSeasonTickets(w: World, c: Club) {
 function weeklyFans(w: World, c: Club) {
   const f = c.fans;
   const win = currentWinPct(w, c);
+  const saturation = sponsorSaturation(c);
   const tvReach = c.tv?.reach ?? 20;
   const tvDigital = c.tv?.digitalBoost ?? 10;
   // pricing fairness: high prices erode sentiment
@@ -347,7 +362,7 @@ function weeklyFans(w: World, c: Club) {
   const priceRatio = (ratios.reduce((a, x) => a + x, 0) / 3) * 0.5 + Math.max(...ratios) * 0.5;
   const concPenalty = c.concessions.pricing === 'premium' ? -0.15 : c.concessions.pricing === 'value' ? 0.1 : 0;
   const dyn = c.ticketing.dynamicPricing && !c.ticketing.protectSeasonHolders ? -0.25 : c.ticketing.dynamicPricing ? -0.08 : 0;
-  const sentTarget = clamp(35 + win * 45 + (f.hype - 50) / 4 - (priceRatio - 1) * 30 + concPenalty * 20 + (c.concessions.localSuppliers ? 3 : 0), 0, 100);
+  const sentTarget = clamp(35 + win * 45 + (f.hype - 50) / 4 - (priceRatio - 1) * 30 + concPenalty * 20 + (c.concessions.localSuppliers ? 3 : 0) - saturation.penalty, 0, 100);
   f.sentiment = clamp(f.sentiment + (sentTarget - f.sentiment) * 0.06 + dyn, 0, 100);
   f.hype = clamp(f.hype + (50 - f.hype) * 0.03, 0, 100);
   const growth = (win - 0.5) * 0.004 + (f.hype - 50) / 25000 + (f.sentiment - 55) / 30000;

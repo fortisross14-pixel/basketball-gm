@@ -165,6 +165,8 @@ export interface AdvanceResult {
   days: number;
   gamesPlayed: number[]; // fixture ids of user games played
   stoppedBy: string | null;
+  /** Set when the clock stopped because one of your games is ready to be watched live. */
+  liveFixtureId?: number;
 }
 
 export function nextUserFixtureDay(w: World): number | null {

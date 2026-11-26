@@ -16,6 +16,9 @@ interface GameStore {
   toast: Toast | null;
   lastAdvance: AdvanceResult | null;
   showResults: boolean;
+  /** A user game waiting to be watched live (minute by minute). */
+  liveFixtureId: number | null;
+  setLiveFixture: (id: number | null) => void;
   setWorld: (w: World | null) => void;
   refresh: () => void;
   /** Mutate the world through an engine call, then re-render. */
@@ -35,6 +38,8 @@ export const useGame = create<GameStore>((set, get) => ({
   toast: null,
   lastAdvance: null,
   showResults: false,
+  liveFixtureId: null,
+  setLiveFixture: (id) => set({ liveFixtureId: id }),
   setWorld: (w) => set({ world: w, tick: get().tick + 1, lastAdvance: null }),
   refresh: () => set({ tick: get().tick + 1 }),
   act: (fn) => {
@@ -51,7 +56,7 @@ export const useGame = create<GameStore>((set, get) => ({
     await new Promise((r) => setTimeout(r, 20));
     try {
       const res = advance(w, mode);
-      set({ lastAdvance: res, showResults: res.gamesPlayed.length > 0 || res.holds.length > 0, tick: get().tick + 1 });
+      set({ lastAdvance: res, showResults: res.liveFixtureId == null && (res.gamesPlayed.length > 0 || res.holds.length > 0), liveFixtureId: res.liveFixtureId ?? null, tick: get().tick + 1 });
       await get().save(true);
     } catch (e) {
       console.error(e);

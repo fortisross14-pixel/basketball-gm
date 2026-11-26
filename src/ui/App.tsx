@@ -31,16 +31,21 @@ import Medical from './screens/team/Medical';
 import Market from './screens/team/Market';
 import Academy from './screens/team/Academy';
 import PlayerProfile from './screens/team/PlayerProfile';
-import Stadium from './screens/infra/Stadium';
-import Tickets from './screens/infra/Tickets';
-import Stores from './screens/infra/Stores';
-import Restaurants from './screens/infra/Restaurants';
 import Standings from './screens/results/Standings';
 import Schedule from './screens/results/Schedule';
 import Competitions from './screens/results/Competitions';
 import Stats from './screens/results/Stats';
 import Rules from './screens/results/Rules';
 import ClubProfile from './screens/results/ClubProfile';
+import ClubHub from './screens/hubs/ClubHub';
+import TeamHub from './screens/hubs/TeamHub';
+import ResultsHub from './screens/hubs/ResultsHub';
+import InfraHub from './screens/infra/InfraHub';
+import Arena from './screens/infra/Arena';
+import SportsFacilities from './screens/infra/SportsFacilities';
+import CommercialFacilities from './screens/infra/CommercialFacilities';
+import ClubFacilities from './screens/infra/ClubFacilities';
+import LiveGame from './screens/live/LiveGame';
 
 export default function App() {
   return (
@@ -96,6 +101,11 @@ function GameShell() {
   const section = SECTIONS.find((s) => loc.pathname.startsWith(s.match));
   const pending = w.decisions.filter((d) => !d.resolved).length;
   const mainRef = useRef<HTMLElement>(null);
+  const liveId = useGame((st) => st.liveFixtureId);
+  const navTo = useNavigate();
+  useEffect(() => {
+    if (liveId != null && !loc.pathname.startsWith('/live/')) navTo(`/live/${liveId}`);
+  }, [liveId, loc.pathname, navTo]);
   useEffect(() => {
     setMenuOpen(false);
     mainRef.current?.scrollTo({ top: 0 });
@@ -161,10 +171,20 @@ function GameShell() {
               <Route path="/team/market" element={<Market />} />
               <Route path="/team/academy" element={<RequireClub><Academy /></RequireClub>} />
               <Route path="/player/:id" element={<PlayerProfile />} />
-              <Route path="/infrastructure/stadium" element={<RequireClub><Stadium /></RequireClub>} />
-              <Route path="/infrastructure/tickets" element={<RequireClub><Tickets /></RequireClub>} />
-              <Route path="/infrastructure/stores" element={<RequireClub><Stores /></RequireClub>} />
-              <Route path="/infrastructure/restaurants" element={<RequireClub><Restaurants /></RequireClub>} />
+              <Route path="/club" element={<RequireClub><ClubHub /></RequireClub>} />
+              <Route path="/team" element={<RequireClub><TeamHub /></RequireClub>} />
+              <Route path="/results" element={<ResultsHub />} />
+              <Route path="/infrastructure" element={<RequireClub><InfraHub /></RequireClub>} />
+              <Route path="/infrastructure/arena" element={<RequireClub><Arena /></RequireClub>} />
+              <Route path="/infrastructure/arena/:tab" element={<RequireClub><Arena /></RequireClub>} />
+              <Route path="/infrastructure/sports" element={<RequireClub><SportsFacilities /></RequireClub>} />
+              <Route path="/infrastructure/commercial" element={<RequireClub><CommercialFacilities /></RequireClub>} />
+              <Route path="/infrastructure/club-facilities" element={<RequireClub><ClubFacilities /></RequireClub>} />
+              <Route path="/infrastructure/stadium" element={<Navigate to="/infrastructure/arena" replace />} />
+              <Route path="/infrastructure/tickets" element={<Navigate to="/infrastructure/arena/tickets" replace />} />
+              <Route path="/infrastructure/stores" element={<Navigate to="/infrastructure/commercial" replace />} />
+              <Route path="/infrastructure/restaurants" element={<Navigate to="/infrastructure/commercial" replace />} />
+              <Route path="/live/:id" element={<RequireClub><LiveGame /></RequireClub>} />
               <Route path="/results/standings" element={<Standings />} />
               <Route path="/results/schedule" element={<Schedule />} />
               <Route path="/results/competitions" element={<Competitions />} />
