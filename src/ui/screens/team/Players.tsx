@@ -51,7 +51,7 @@ export default function Players() {
             rows={loanedOut}
             rowKey={(p) => p.id}
             columns={[
-              { key: 'n', label: 'Player', render: (p) => <PlayerLink player={p} /> },
+              { key: 'n', label: 'Player', render: (p) => <PlayerLink player={p} face /> },
               { key: 'c', label: 'At', render: (p) => (p.teamId != null ? getClub(w, p.teamId).name : '—') },
               { key: 'o', label: 'OVR', render: (p) => <OvrCell p={p} />, align: 'c' },
               { key: 'mpg', label: 'MPG', render: (p) => perGame(seasonLine(p, season), 'min'), align: 'r' },
@@ -83,7 +83,7 @@ export function PlayerTable({ players, season, teamId }: { players: Player[]; se
       initialSort="ovr"
       columns={[
         { key: 'j', label: '#', render: (p) => p.jersey, sort: (p) => p.jersey, align: 'r' },
-        { key: 'name', label: 'Name', render: (p) => <span className="row gap4"><PlayerLink player={p} />{p.transferListed && <Badge tone="warn">Listed</Badge>}{p.untouchable && <Badge tone="info">Untouchable</Badge>}</span>, sort: (p) => p.lastName },
+        { key: 'name', label: 'Name', render: (p) => <span className="row gap4"><PlayerLink player={p} face />{p.transferListed && <Badge tone="warn">Listed</Badge>}{p.untouchable && <Badge tone="info">Untouchable</Badge>}</span>, sort: (p) => p.lastName },
         { key: 'pos', label: 'Pos', render: (p) => p.pos, sort: (p) => ['PG', 'SG', 'SF', 'PF', 'C'].indexOf(p.pos) },
         { key: 'age', label: 'Age', render: (p) => age(w, p), sort: (p) => age(w, p), align: 'r' },
         { key: 'h', label: 'Ht', render: (p) => heightStr(p.heightCm), sort: (p) => p.heightCm, align: 'r' },

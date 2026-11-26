@@ -293,6 +293,76 @@ export interface ClubFacilities {
   officeBase?: Record<OfficeKey, number>; // levels the club started with (only expansions cost upkeep)
 }
 
+// ---------------------------------------------------------------------------
+// Playable shop & food (user club)
+// ---------------------------------------------------------------------------
+export type ProductId = 'jersey' | 'scarf' | 'cap' | 'keychain';
+export type SupplierId = 'budget' | 'standard' | 'premium';
+export type FoodConceptId = 'kiosk' | 'grill' | 'lounge';
+
+export interface StockBucket { units: number; avgCost: number; quality: number }
+
+export interface MerchOrder {
+  id: number;
+  product: ProductId;
+  supplier: SupplierId;
+  units: number;
+  unitCost: number;
+  total: number;
+  placedDay: number; // abs
+  arriveDay: number; // abs
+  status: 'ordered' | 'delivered';
+  allocation: Record<number, number>; // storeId -> units
+  by: 'you' | 'director';
+}
+
+export interface ShopWeek {
+  day: number; // abs day of the weekly tick
+  stores: Record<number, Partial<Record<ProductId, { expected: number; demand: number; sold: number; revenue: number; cogs: number }>>>;
+  reason: string;
+}
+
+export interface FoodOutlet {
+  id: number;
+  slot: 'stands' | 'restaurant' | 'lounge' | 'popup';
+  concept: FoodConceptId;
+  price: number; // average ticket per customer
+  points: number; // staffed service points / counters
+}
+
+export interface FoodLine { outletId: number; concept: FoodConceptId; customers: number; lost: number; avgSpend: number; revenue: number; food: number; labor: number; waste: number; profit: number; expectedProfit: number }
+
+export interface FoodReport {
+  day: number;
+  fixtureId: number;
+  opponent: string;
+  attendance: number;
+  lines: FoodLine[];
+  revenue: number;
+  profit: number;
+  expectedProfit: number;
+  reason: string;
+}
+
+export interface ShopPolicy {
+  mode: 'manual' | 'director';
+  cashCap: number; // max cash per order the director may commit without asking
+  minMargin: number; // 0..1 minimum gross margin
+  stockWeeks: number; // target weeks of cover
+}
+
+export interface ShopState {
+  prices: Record<ProductId, number>;
+  stock: Record<number, Partial<Record<ProductId, StockBucket>>>; // by store id
+  warehouse: Partial<Record<ProductId, StockBucket>>;
+  orders: MerchOrder[];
+  weeks: ShopWeek[]; // last 26
+  season: number;
+  totals: Record<ProductId, { units: number; revenue: number; cogs: number; spent: number }>;
+  food: { outlets: FoodOutlet[]; reports: FoodReport[]; offDaySeason: number };
+  policy: ShopPolicy;
+}
+
 export interface Merch {
   lines: MerchLine[];
   jerseyPrice: number;
@@ -400,7 +470,8 @@ export type LedgerCat =
   | 'leagueFees'
   | 'penalties'
   | 'loanIn'
-  | 'severance';
+  | 'severance'
+  | 'foodCost';
 
 export const INCOME_CATS: LedgerCat[] = [
   'tickets', 'seasonTickets', 'suites', 'concessions', 'merch', 'sponsors', 'tv', 'prize', 'transfersIn', 'grants', 'ownerInjection', 'loanIn', 'other',
@@ -537,6 +608,7 @@ export interface Club {
   rivals: number[];
   sponsorLocks?: Partial<Record<SponsorSlot, number>>; // slot -> abs day until new offers
   quickDeals?: Record<string, number>; // revenue drive actions -> season last used
+  shop?: ShopState; // playable merchandise & food business (user club)
   logoUrl?: string; // optional licensed logo (overrides the generated emblem)
   seedName?: string; // original name from CLUB_SEEDS (stable key for club packs)
   facilities?: ClubFacilities;
@@ -729,6 +801,7 @@ export type DecisionKind =
   | 'boardMessage'
   | 'returnToPlay'
   | 'staffPoach'
+  | 'shopApproval' // commercial director needs sign-off (big order, price exception, new outlet)
   | 'counterOffer'; // AI counter to our bid
 
 export interface DecisionOption {

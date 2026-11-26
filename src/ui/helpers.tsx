@@ -8,6 +8,7 @@ import { STAFF_EFFECT, STAFF_LABEL, staffAsk, severance, hireStaff, fireStaff, O
 import { book } from '../engine/world';
 import { canAddStaff } from '../engine/facilities';
 import { Badge, Button, Card, Modal, Rating, Table } from './components/ui';
+import { StaffFace } from './art/faces';
 import { useAct, useNotify, useWorld } from './store';
 
 // ---------------------------------------------------------------- stats
@@ -95,7 +96,7 @@ export function StaffPanel({ roles, title }: { roles: StaffRole[]; title: string
               <div className="row">
                 <div style={{ minWidth: 220 }}>
                   <div className="small muted">{STAFF_LABEL[role]}</div>
-                  {s ? <b>{s.firstName} {s.lastName}</b> : <b className="bad">Vacant</b>}
+                  {s ? <span className="plink-face"><StaffFace staff={s} size={30} round /><b>{s.firstName} {s.lastName}</b></span> : <b className="bad">Vacant</b>}
                 </div>
                 {s && <Rating v={s.rating} title="Overall competence" />}
                 {s && (
@@ -143,7 +144,7 @@ export function HireStaffModal({ club, role, onClose }: { club: Club; role: Staf
         rowKey={(s) => s.id}
         initialSort="rating"
         columns={[
-          { key: 'name', label: 'Name', render: (s) => `${s.firstName} ${s.lastName}` },
+          { key: 'name', label: 'Name', render: (s) => <span className="plink-face"><StaffFace staff={s} size={26} round />{s.firstName} {s.lastName}</span> },
           { key: 'age', label: 'Age', render: (s) => w.season - s.born, sort: (s) => s.born, align: 'r' },
           { key: 'rating', label: 'Rating', render: (s) => <Rating v={s.rating} />, sort: (s) => s.rating, align: 'c' },
           { key: 'dev', label: 'Dev', render: (s) => s.development, sort: (s) => s.development, align: 'r', title: 'Player development' },

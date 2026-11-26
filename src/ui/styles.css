@@ -336,7 +336,8 @@ a.list-item:hover { background: rgba(46, 168, 255, 0.07); padding-left: 6px; }
 .pcard .pc-ovr { position: absolute; top: 6px; left: 8px; font-family: var(--display); font-style: italic; font-weight: 900; font-size: 1.9rem; line-height: 1; text-shadow: 0 2px 8px rgba(0, 0, 0, 0.7); }
 .pcard .pc-pos { position: absolute; top: 34px; left: 9px; font-family: var(--display); font-weight: 800; font-style: italic; font-size: 0.95rem; color: rgba(255, 255, 255, 0.85); }
 .pcard .pc-logo { position: absolute; top: 6px; right: 6px; }
-.pcard .pc-art { flex: 1; padding: 14px 14px 0; min-height: 0; }
+.pcard .pc-art { flex: 1; padding: 14px 14px 0; min-height: 0; position: relative; }
+.pcard .pc-face { position: absolute; left: 10px; top: 10px; border-radius: 4px; box-shadow: 0 4px 12px rgba(0,0,0,.5); }
 .pcard .pc-body { position: absolute; right: 6px; bottom: 44px; font-size: 0.66rem; font-weight: 700; color: rgba(255, 255, 255, 0.85); background: rgba(0, 0, 0, 0.45); padding: 1px 5px; border-radius: 2px; letter-spacing: 0.02em; }
 .pcard .pc-name { background: linear-gradient(180deg, rgba(0, 0, 0, 0.2), rgba(0, 0, 0, 0.85)); text-align: center; padding: 4px 4px 6px; font-family: var(--display); font-style: italic; font-weight: 800; text-transform: uppercase; font-size: 0.98rem; line-height: 1.05; }
 .pcard .pc-name small { display: block; font-family: var(--font); font-style: normal; font-weight: 500; text-transform: none; font-size: 0.72rem; color: var(--muted); }
@@ -425,3 +426,21 @@ a.list-item:hover { background: rgba(46, 168, 255, 0.07); padding-left: 6px; }
 /* tactics control bar */
 .tac-control { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; padding: 10px 14px; margin-bottom: 12px; border: 1px solid var(--line); border-left: 3px solid var(--good); border-radius: var(--radius); background: rgba(12, 24, 54, 0.88); }
 .tac-control.coach { border-left-color: var(--warn); }
+
+/* ---- identity art */
+.plink-face { display: inline-flex; align-items: center; gap: 7px; vertical-align: middle; }
+.portrait { display: inline-block; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.12); }
+.arena-backdrop { position: absolute; overflow: hidden; pointer-events: none; }
+.arena-backdrop > img, .arena-backdrop > svg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.arena-backdrop .ab-mask { position: absolute; inset: 0; mix-blend-mode: color; opacity: 0.7; }
+.today-wrap { position: relative; }
+.today-wrap > div:not(.arena-backdrop) { position: relative; z-index: 1; }
+.today-bd { left: -28px; right: -28px; top: -24px; height: 330px; z-index: 0; opacity: 0.55; -webkit-mask-image: linear-gradient(#000 35%, transparent); mask-image: linear-gradient(#000 35%, transparent); }
+.live { position: relative; }
+.live > *:not(.arena-backdrop) { position: relative; z-index: 1; }
+.live-bd { left: -28px; right: -28px; top: -24px; height: 420px; z-index: 0; opacity: 0.6; -webkit-mask-image: linear-gradient(#000 45%, transparent); mask-image: linear-gradient(#000 45%, transparent); }
+.pg-hero { position: relative; display: flex; align-items: center; gap: 24px; flex-wrap: wrap; min-height: 120px; padding: 16px 20px; margin-bottom: 16px; overflow: hidden; border: 1px solid var(--line-strong); border-radius: var(--radius); }
+.pg-hero > *:not(.arena-backdrop) { position: relative; z-index: 1; }
+.pg-bd { inset: 0; opacity: 0.45; }
+.pg-score { display: flex; align-items: center; gap: 12px; font-family: var(--display); font-style: italic; font-weight: 900; font-size: 2.6rem; }
+.pg-mvp { display: flex; align-items: center; gap: 12px; padding: 8px 12px; border-radius: 6px; background: rgba(0, 0, 0, 0.45); border: 1px solid rgba(255, 210, 63, 0.4); color: #fff; }

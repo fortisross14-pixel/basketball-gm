@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { createContext, useContext } from 'react';
 import { motion, animate, useReducedMotion } from 'framer-motion';
 import { ClubLogo } from '../art/crest';
+import { PlayerFace } from '../art/faces';
 import { Link } from 'react-router-dom';
 import type { Club, Player } from '../../engine/types';
 import { fmtMoney } from '../../engine/world';
@@ -310,9 +311,11 @@ export function ClubLink({ club }: { club: Pick<Club, 'id' | 'name' | 'abbrev' |
   );
 }
 
-export function PlayerLink({ player, short }: { player: Pick<Player, 'id' | 'firstName' | 'lastName'>; short?: boolean }) {
+export function PlayerLink({ player, short, face }: { player: Pick<Player, 'id' | 'firstName' | 'lastName'>; short?: boolean; face?: boolean }) {
+  const full = face && 'ratings' in player ? (player as Player) : null;
   return (
-    <Link to={`/player/${player.id}`} className="link">
+    <Link to={`/player/${player.id}`} className={`link ${full ? 'plink-face' : ''}`}>
+      {full && <PlayerFace player={full} size={26} round />}
       {short ? `${player.firstName[0]}. ${player.lastName}` : `${player.firstName} ${player.lastName}`}
     </Link>
   );

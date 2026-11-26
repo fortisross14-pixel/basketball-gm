@@ -50,7 +50,7 @@ function usePlayerColumns(onNegotiate: (p: Player) => void, onBid: (p: Player) =
   const uc = userClub(w);
   const short = new Set(w.user.shortlist.map((s) => s.playerId));
   return [
-    { key: 'n', label: 'Name', render: (p) => <PlayerLink player={p} />, sort: (p) => p.lastName },
+    { key: 'n', label: 'Name', render: (p) => <PlayerLink player={p} face />, sort: (p) => p.lastName },
     { key: 'pos', label: 'Pos', render: (p) => p.pos },
     { key: 'age', label: 'Age', render: (p) => age(w, p), sort: (p) => age(w, p), align: 'r' },
     { key: 'reg', label: 'Reg.', render: (p) => <span className="row gap4">{p.region === 'NONEU' ? <Badge tone="warn">Non-EU</Badge> : <Badge>{p.region}</Badge>}{p.homegrown && <Badge tone="good">HG</Badge>}</span> },
@@ -208,7 +208,7 @@ function History() {
         limit={200}
         columns={[
           { key: 'd', label: 'Date', render: (t) => fmtAbs(t.day), sort: (t) => t.day },
-          { key: 'p', label: 'Player', render: (t) => { const p = w.players.find((x) => x.id === t.playerId); return p ? <PlayerLink player={p} /> : t.playerName; } },
+          { key: 'p', label: 'Player', render: (t) => { const p = w.players.find((x) => x.id === t.playerId); return p ? <PlayerLink player={p} face /> : t.playerName; } },
           { key: 'k', label: 'Type', render: (t) => <Badge tone={t.kind === 'transfer' ? 'info' : t.kind === 'release' ? 'bad' : undefined}>{t.kind}</Badge> },
           { key: 'f', label: 'From', render: (t) => name(t.fromId) },
           { key: 't', label: 'To', render: (t) => name(t.toId) },

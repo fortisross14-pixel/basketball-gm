@@ -170,7 +170,7 @@ export const CAT_LABEL: Record<LedgerCat, string> = {
   other: 'Other income', playerSalaries: 'Player salaries', staffSalaries: 'Staff salaries', transfersOut: 'Transfer fees', agentFees: 'Agent fees & bonuses',
   travel: 'Travel', operations: 'Game operations', maintenance: 'Maintenance', rent: 'Arena rent', marketing: 'Marketing', merchCost: 'Merchandise stock',
   construction: 'Construction', interest: 'Interest', loanPrincipal: 'Loan repayments', academyCost: 'Academy', scouting: 'Scouting', medicalCost: 'Medical',
-  leagueFees: 'League fees', penalties: 'Penalties', loanIn: 'Loan proceeds', severance: 'Severance & releases',
+  leagueFees: 'League fees', penalties: 'Penalties', loanIn: 'Loan proceeds', severance: 'Severance & releases', foodCost: 'Food, drink & staff',
 };
 
 export interface Forecast {

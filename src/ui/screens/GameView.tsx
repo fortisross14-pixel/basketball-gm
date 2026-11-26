@@ -5,6 +5,8 @@ import { club as getClub, fixture as getFixture } from '../../engine/world';
 import { fmtAbs } from '../../engine/calendar';
 import { useWorld } from '../store';
 import { Badge, Card, Crest, Page, Table, Money, Empty } from '../components/ui';
+import { PlayerFace } from '../art/faces';
+import { ArenaBackdrop } from '../art/ArenaBackdrop';
 import { pctStr } from '../helpers';
 
 export default function GameView() {
@@ -19,6 +21,7 @@ export default function GameView() {
   const won = usHome ? g.home.score > g.away.score : g.away.score > g.home.score;
   return (
     <Page title={`${home.name} ${g.home.score} – ${g.away.score} ${away.name}`} subtitle={`${f?.label ?? ''} · ${fmtAbs(g.day, true)}${g.ot ? ` · ${g.ot} overtime` : ''} · Attendance ${g.attendance.toLocaleString('en')}`}>
+      <PostgameHero g={g} home={home} away={away} />
       <div className="grid g2">
         <Card title="Score by quarter">
           <QuarterTable g={g} />
@@ -105,6 +108,7 @@ function Comparison({ a, b, an, bn }: { a: TeamBox; b: TeamBox; an: string; bn: 
 }
 
 function BoxCard({ box, title }: { box: TeamBox; title: ReactNode }) {
+  const w = useWorld();
   const rows = box.players.filter((p) => p.gp || p.min > 0);
   return (
     <Card title={title} className="flush">
@@ -113,7 +117,7 @@ function BoxCard({ box, title }: { box: TeamBox; title: ReactNode }) {
           rows={rows}
           rowKey={(p) => p.playerId}
           columns={[
-            { key: 'name', label: 'Player', render: (p) => <span>{p.starter ? <b>{p.name}</b> : p.name} <span className="faint small">{p.pos}</span></span> },
+            { key: 'name', label: 'Player', render: (p) => { const pl = w.players.find((x) => x.id === p.playerId); return <span className="plink-face">{pl && <PlayerFace player={pl} size={24} round />}{p.starter ? <b>{p.name}</b> : p.name} <span className="faint small">{p.pos}</span></span>; } },
             { key: 'min', label: 'MIN', render: (p) => Math.round(p.min), sort: (p) => p.min, align: 'r' },
             { key: 'pts', label: 'PTS', render: (p) => <b>{p.pts}</b>, sort: (p) => p.pts, align: 'r' },
             { key: 'fg', label: 'FG', render: (p) => `${p.fgm}-${p.fga}`, align: 'r' },
@@ -158,5 +162,23 @@ function FlowChart({ flow, home, away }: { flow: { m: number; h: number; a: numb
       <text x={padL + 4} y={padT + 12} fontSize="11" fill="#fff">{home.abbrev} ahead</text>
       <text x={padL + 4} y={H - padB - 6} fontSize="11" fill="#fff">{away.abbrev} ahead</text>
     </svg>
+  );
+}
+
+function PostgameHero({ g, home, away }: { g: GameLog; home: Club; away: Club }) {
+  const w = useWorld();
+  const mvp = w.players.find((p) => p.id === g.mvpId);
+  const line = [...g.home.players, ...g.away.players].find((b) => b.playerId === g.mvpId);
+  return (
+    <div className="pg-hero">
+      <ArenaBackdrop club={home} view="interior" className="pg-bd" />
+      <div className="pg-score"><Crest club={home} size={44} /> <b>{g.home.score}</b> <span className="muted">–</span> <b>{g.away.score}</b> <Crest club={away} size={44} /></div>
+      {mvp && line && (
+        <Link to={`/player/${mvp.id}`} className="pg-mvp">
+          <PlayerFace player={mvp} size={64} />
+          <div><div className="small" style={{ color: 'var(--gold)', fontWeight: 700, letterSpacing: '.1em' }}>PLAYER OF THE GAME</div><b>{mvp.firstName} {mvp.lastName}</b><div className="small muted">{line.pts} pts · {line.orb + line.drb} reb · {line.ast} ast</div></div>
+        </Link>
+      )}
+    </div>
   );
 }

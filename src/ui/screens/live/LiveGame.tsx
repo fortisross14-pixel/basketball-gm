@@ -10,6 +10,8 @@ import { fmtDate } from '../../../engine/calendar';
 import { useAct, useGame, useWorld } from '../../store';
 import { Badge, Button, Card, Crest, Pills, NumberField } from '../../components/ui';
 import { Icon } from '../../art/icons';
+import { PlayerFace } from '../../art/faces';
+import { ArenaBackdrop } from '../../art/ArenaBackdrop';
 import './live.css';
 
 // One engine per fixture, kept across navigation so a game can be resumed.
@@ -125,6 +127,7 @@ function LiveGameInner({ fixtureId }: { fixtureId: number }) {
 
   return (
     <div className="live">
+      <ArenaBackdrop club={home} view="interior" className="live-bd" />
       <Scoreboard home={home} away={away} h={sh} a={sa} status={status} period={tick ? periodLabel(curPeriod) : 'Q1'} clock={atBreak || gameOver ? '00:00' : clock} label={f.label} live={playing} day={fmtDate(w.season, f.day)} />
 
       <div className="live-controls row wrap">
@@ -220,6 +223,7 @@ function PreGame({ w, engine, home, away, usSide }: { w: World; engine: Engine; 
               const pl = getPlayer(w, p.id);
               return (
                 <motion.div key={p.id} className="star-row" initial={{ opacity: 0, x: side ? 20 : -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.1 + i * 0.08 }}>
+                  {pl && <PlayerFace player={pl} size={40} />}
                   <span className="star-ovr">{p.ovr}</span>
                   <div style={{ flex: 1 }}><b>{pl ? `${pl.firstName} ${pl.lastName}` : p.name}</b><div className="small muted">{p.pos} · {pl ? `${w.season - pl.born} yrs` : ''}</div></div>
                   <Icon name="bolt" size={16} style={{ color: 'var(--gold)' }} />

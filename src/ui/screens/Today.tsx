@@ -18,6 +18,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { InstallButton } from '../components/install';
 import { useState } from 'react';
 import '../screens/hubs/hubs.css';
+import { ArenaBackdrop, TIER_LABEL, arenaTier } from '../art/ArenaBackdrop';
 import { payroll } from '../../engine/finance';
 import type { CSSProperties } from 'react';
 
@@ -30,8 +31,10 @@ export default function Today() {
   const advance = useGame((s) => s.advance);
   const name = w.user.name.split(' ')[0];
   return (
+    <div className="today-wrap">
+    {c && <ArenaBackdrop club={c} view="exterior" className="today-bd" />}
     <Page
-      kicker={c ? `${c.name} · executive desk` : 'Executive desk'}
+      kicker={c ? `${c.name} · ${TIER_LABEL[arenaTier(c)]}` : 'Executive desk'}
       title={`Good morning, ${name}`}
       subtitle={`${fmtDate(w.season, w.day)} · Season ${seasonLabel(w.season)} · ${PHASE_LABEL[phaseOf(w.season, w.day)]}`}
       actions={<><InstallButton compact />{!c && <Button variant="primary" onClick={() => advance('week')}>Advance a week (wait for offers)</Button>}</>}
@@ -76,6 +79,7 @@ export default function Today() {
         </div>
       </div>
     </Page>
+    </div>
   );
 }
 

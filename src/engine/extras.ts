@@ -140,6 +140,18 @@ const TONE_WEIGHTS: Record<string, number[]> = {
   SEN: [0, 0, 1, 2, 4, 5], NGA: [0, 0, 1, 2, 4, 5], FRA: [4, 3, 2, 2, 2, 1], ESP: [5, 4, 2, 1, 1, 0], ITA: [5, 4, 2, 1, 0, 0],
 };
 
+/** Stable skin tone for a person (players and staff share the logic). */
+export function skinIndex(id: number, nationality: string, salt = 1): number {
+  const weights = TONE_WEIGHTS[nationality] ?? [4, 3, 2, 2, 1, 1];
+  const total = weights.reduce((a, b) => a + b, 0);
+  let roll = h(id * 7.7 + salt) * total;
+  for (let i = 0; i < weights.length; i++) {
+    roll -= weights[i];
+    if (roll <= 0) return i;
+  }
+  return 0;
+}
+
 export interface Body {
   frame: Frame;
   heightCm: number;
@@ -155,15 +167,7 @@ export function bodyOf(w: World, p: Player): Body {
   const width = { slender: 0.84, lean: 0.92, athletic: 1.0, strong: 1.1, heavy: 1.2 }[frame];
   const bmi = { slender: 21, lean: 22.5, athletic: 24, strong: 25.8, heavy: 28 }[frame];
   const weightKg = Math.round(bmi * Math.pow(p.heightCm / 100, 2));
-  const weights = TONE_WEIGHTS[p.nationality] ?? [4, 3, 2, 2, 1, 1];
-  const total = weights.reduce((a, b) => a + b, 0);
-  let roll = h(p.id * 7.7 + 1) * total;
-  let idx = 0;
-  for (let i = 0; i < weights.length; i++) {
-    roll -= weights[i];
-    if (roll <= 0) { idx = i; break; }
-  }
-  return { frame, heightCm: p.heightCm, weightKg, skin: SKIN_TONES[idx], width };
+  return { frame, heightCm: p.heightCm, weightKg, skin: SKIN_TONES[skinIndex(p.id, p.nationality)], width };
 }
 
 export function bodyLabel(b: Body): string {
