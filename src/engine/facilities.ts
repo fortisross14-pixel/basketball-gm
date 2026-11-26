@@ -230,6 +230,30 @@ export function storeOptions(w: World, c: Club): ProjectOption[] {
   return out;
 }
 
+/** Forecast net annual contribution of a store project (sales margin minus rent). */
+export function storeProjectRoi(w: World, c: Club, o: ProjectOption): { annual: number; notes: string } {
+  const f = ensureFacilities(w, c);
+  const m = TIER_COST[tierOf(w, c)] ?? 1;
+  let store: ClubStore | undefined;
+  let level = 1;
+  if (o.kind === 'store' && o.storeKind) {
+    store = { ...makeStoreShape(o.storeKind), level: 1 };
+  } else if (o.kind === 'storeUpgrade') {
+    const s = f.stores.find((x) => x.id === o.storeId);
+    if (s) { store = s; level = s.level + 1; }
+  }
+  if (!store) return { annual: 0, notes: '' };
+  const price = c.merch.jerseyPrice * store.priceMult;
+  const margin = price * 0.75 - merchUnitCost(c);
+  const weeklyAt = (lvl: number) => storeWeeklyDemand(w, c, { ...store!, level: lvl }) * margin;
+  const gain = o.kind === 'store' ? weeklyAt(1) * 52 - STORE_INFO[store.kind].rentWeek * m * 52 : (weeklyAt(level) - weeklyAt(level - 1)) * 52 - o.annualUpkeep;
+  return { annual: Math.round(gain), notes: o.kind === 'store' ? `About ${Math.round(storeWeeklyDemand(w, c, store))} items a week at ${fmtMoney(price)}, minus rent. Depends on your fanbase in its catchment and on hype.` : 'More floor space and better displays lift footfall and conversion.' };
+}
+
+function makeStoreShape(kind: StoreKind): ClubStore {
+  return { id: -1, kind, name: '', level: 1, lines: ['home', 'away', 'kids'], priceMult: kind === 'outlet' ? 0.8 : kind === 'airport' ? 1.15 : 1, stock: 'normal', managerId: null, openedDay: 0, lastWeekSales: 0, lastWeekUnits: 0, seasonSales: 0 };
+}
+
 export function managerFactor(w: World, s: ClubStore): number {
   if (s.managerId == null) return 0.85;
   const m = staffById(w, s.managerId);
@@ -241,7 +265,8 @@ export function managerFactor(w: World, s: ClubStore): number {
 /** Expected weekly units for an extra (non-arena) store at current settings. */
 export function storeWeeklyDemand(w: World, c: Club, s: ClubStore): number {
   const f = c.fans;
-  const base = s.kind === 'city' ? f.local * 0.05 + f.regional * 0.02 : s.kind === 'outlet' ? f.regional * 0.03 + f.local * 0.01 : s.kind === 'airport' ? f.national * 0.04 + f.international * 0.08 + f.regional * 0.005 : 0;
+  // annual units each store type can reach in its catchment
+  const base = s.kind === 'city' ? f.local * 0.4 + f.regional * 0.1 : s.kind === 'outlet' ? f.regional * 0.15 + f.local * 0.06 : s.kind === 'airport' ? f.national * 0.25 + f.international * 0.5 + f.regional * 0.02 : 0;
   const lineFactor = Math.sqrt(s.lines.reduce((a, l) => a + MERCH_LINES[l].appeal, 0));
   const ref = (REF_JERSEY[tierOf(w, c)] ?? 55) * c.economy;
   const price = c.merch.jerseyPrice * s.priceMult;

@@ -1,5 +1,5 @@
 import type { ArenaProject, Club, FacilityKey, OfficeKey, ProjectKind, SeatZone, StoreKind, World } from './types';
-import { completeFacilityProject } from './facilities';
+import { completeFacilityProject, storeProjectRoi } from './facilities';
 import { absDay } from './types';
 import { addNews, book, hold, isUser, nextId } from './world';
 import { tier } from './economy';
@@ -136,6 +136,11 @@ export function projectRoi(w: World, c: Club, o: ProjectOption): { annual: numbe
     annual = avgAttendance(w, c) * homeGames * 0.4;
     notes = 'Condition affects attendance interest.';
   }
+  if (o.kind === 'store' || o.kind === 'storeUpgrade') {
+    const s = storeProjectRoi(w, c, o);
+    return { annual: s.annual, paybackYears: s.annual > 0 ? Math.round((o.cost / s.annual) * 10) / 10 : null, notes: s.notes };
+  }
+  if (o.kind === 'office') notes = o.office === 'corporate' ? 'Adds room for two more staff posts — more people to delegate to.' : 'Press conferences land better and media trust grows faster.';
   annual = Math.round(annual - o.annualUpkeep);
   const paybackYears = annual > 0 ? Math.round((o.cost / annual) * 10) / 10 : null;
   void t;

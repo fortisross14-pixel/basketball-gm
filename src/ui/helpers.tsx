@@ -23,7 +23,7 @@ export function addLine(a: StatLine, b: StatLine): StatLine {
 
 /** Season totals for a player (optionally one comp / one team). */
 export function seasonLine(p: Player, season: number, comp?: CompType, teamId?: number): StatLine {
-  return p.stats.filter((s: SeasonStats) => s.season === season && (!comp || s.comp === comp) && (teamId == null || s.teamId === teamId)).reduce((a, s) => addLine(a, s), emptyLine());
+  return p.stats.filter((s: SeasonStats) => s.season === season && (comp ? s.comp === comp : s.comp !== 'friendly') && (teamId == null || s.teamId === teamId)).reduce((a, s) => addLine(a, s), emptyLine());
 }
 
 export function perGame(l: StatLine, k: keyof StatLine): string {

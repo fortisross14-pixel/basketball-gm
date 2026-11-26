@@ -49,7 +49,7 @@ export interface Injury {
   playThroughRisk?: boolean; // medical cleared a risky early return
 }
 
-export type CompType = 'league' | 'playoffs' | 'cup' | 'euro' | 'promo';
+export type CompType = 'league' | 'playoffs' | 'cup' | 'euro' | 'promo' | 'friendly';
 
 export interface StatLine {
   gp: number; gs: number; min: number; pts: number;
@@ -102,6 +102,8 @@ export interface Player {
   originClubId: number | null; // academy of origin
   value: number; // cached market value EUR
   transferListed: boolean;
+  /** absolute day the player was put up for an immediate sale (sold the next day at a minimum fee) */
+  quickSaleDay?: number;
   untouchable: boolean;
   minutesExpectation: number; // computed per season (minutes per game desired)
   seasonMinutes: number; // minutes this season (all comps)

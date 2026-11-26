@@ -154,13 +154,18 @@ export function playFixture(w: World, f: Fixture, live?: LiveGame): GameLog | nu
         const gameScore = b.pts + 0.4 * b.fgm - 0.7 * b.fga - 0.4 * (b.fta - b.ftm) + 0.7 * b.orb + 0.3 * b.drb + b.stl + 0.7 * b.ast + 0.7 * b.blk - 0.4 * b.pf - b.tov;
         const exp = p.ovr / 6;
         p.form = clamp(p.form * 0.7 + (gameScore - exp) * 0.25, -10, 10);
-        checkRecords(w, p, c, b.pts, b.orb + b.drb, b.ast);
+        if (f.comp !== 'friendly') checkRecords(w, p, c, b.pts, b.orb + b.drb, b.ast);
       }
       p.morale = clamp(p.morale + (won ? 0.6 : -0.6), 0, 100);
       if (injuredIds.has(p.id)) {
         applyInjury(w, p, c);
         injuredNames.push(shortName(p));
       }
+    }
+    // friendlies build chemistry; they don't move fans or morale much
+    if (f.comp === 'friendly') {
+      c.cohesion = Math.min(100, c.cohesion + 1.5);
+      continue;
     }
     // fan reaction
     if (!c.foreign) {

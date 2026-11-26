@@ -302,5 +302,5 @@ function bracketOrder(winners: number[]): number[] {
 }
 
 export function compTypeLabel(t: CompType): string {
-  return { league: 'League', playoffs: 'Playoffs', cup: 'Copa', euro: 'Continental Cup', promo: 'Promotion playoff' }[t];
+  return { league: 'League', playoffs: 'Playoffs', cup: 'Copa', euro: 'Continental Cup', promo: 'Promotion playoff', friendly: 'Friendly' }[t];
 }

@@ -16,6 +16,7 @@ import { seasonEnd, rollover } from './season';
 import { jobMarket, weeklyEvaluation } from './career';
 import { weeklyFacilities } from './facilities';
 import { estimateRevenue } from './economy';
+import { processQuickSales } from './extras';
 import { generateRecruits } from './worldgen';
 
 /** Simulate the current day fully, then move to the next. */
@@ -39,6 +40,8 @@ export function processDay(w: World) {
       }
     }
   }
+
+  processQuickSales(w);
 
   // ---- competition triggers
   if (d === cal.leagueRoundDays[14] + 1) createCup(w);

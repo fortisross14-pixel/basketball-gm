@@ -124,7 +124,7 @@ export function isPromoNight(w: World, c: Club, roundIndex: number): boolean {
 export function gameDemand(w: World, home: Club, away: Club | null, compType: CompType, roundIndex = 1, noise = 1): GameDemand {
   const interest = interestIndex(w, home);
   const oppFactor = away ? 0.85 + away.prestige / 260 + (isRival(home, away) ? 0.18 : 0) : 1;
-  const compFactor = compType === 'playoffs' ? 1.35 : compType === 'promo' ? 1.3 : compType === 'euro' ? 1.18 : compType === 'cup' ? 1.2 : 1;
+  const compFactor = compType === 'friendly' ? 0.55 : compType === 'playoffs' ? 1.35 : compType === 'promo' ? 1.3 : compType === 'euro' ? 1.18 : compType === 'cup' ? 1.2 : 1;
   const base = (home.fans.local * 0.62 + home.fans.regional * 0.06) * interest * oppFactor * compFactor * noise * (0.85 + home.economy * 0.15);
   const big = away ? isBigGame(w, home, away) : false;
   const promo = compType === 'league' && isPromoNight(w, home, roundIndex);

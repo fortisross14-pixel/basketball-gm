@@ -6,7 +6,9 @@ import { MoraleBadge, InjuryBadge, potRange, pctStr } from '../../helpers';
 import { absDay, type CompType, type Player, type RatingKey } from '../../../engine/types';
 import { age, club as getClub, idx, userClub, isUser } from '../../../engine/world';
 import { PlayerCard, grade } from '../../art/PlayerCard';
-import { heightStr, potentialLabel, RATING_EFFECT, RATING_LABEL, ROLE_LABEL, salaryAsk, roleFor, scoutedRange } from '../../../engine/player';
+import { fmtMoney } from '../../../engine/world';
+import { bodyOf, bodyLabel, cancelQuickSale, listForQuickSale, quickSalePrice, QUICK_SALE_SHARE } from '../../../engine/extras';
+import { potentialLabel, RATING_EFFECT, RATING_LABEL, ROLE_LABEL, salaryAsk, roleFor, scoutedRange } from '../../../engine/player';
 import { knowledge } from '../../../engine/squad';
 import { playerInterest, projectedRank, releaseCost, releasePlayer, loanOut } from '../../../engine/market';
 import { compTypeLabel } from '../../../engine/competitions';
@@ -68,7 +70,7 @@ export default function PlayerProfile() {
   return (
     <Page
       title={<span className="row">{club && <Crest club={club} />}{p.firstName} {p.lastName} {p.retired && <Badge>Retired</Badge>}{p.hallOfFame && <Badge tone="accent">Hall of Fame</Badge>}</span>}
-      subtitle={<span>#{p.jersey} · {p.pos} · {a} years · {heightStr(p.heightCm)} · {p.nationality} · {club ? <ClubLink club={club} /> : 'Free agent'}{p.loan && <> · on loan from <ClubLink club={getClub(w, p.loan.fromTeamId)} /></>}</span>}
+      subtitle={<span>#{p.jersey} · {p.pos} · {a} years · {bodyLabel(bodyOf(w, p))} · {p.nationality} · {club ? <ClubLink club={club} /> : 'Free agent'}{p.loan && <> · on loan from <ClubLink club={getClub(w, p.loan.fromTeamId)} /></>}</span>}
       actions={
         <>
           <Button variant="ghost" onClick={() => act((ww) => {
@@ -91,6 +93,15 @@ export default function PlayerProfile() {
                 act((ww) => releasePlayer(ww, getClub(ww, uc.id), p));
                 notify(`${p.firstName} ${p.lastName} released.`);
               }}>Release</Button>
+              {p.quickSaleDay != null ? (
+                <Button onClick={() => { act(() => cancelQuickSale(p)); notify('Quick sale cancelled.'); }} title="He is offered to every club; a buyer pays tomorrow">Cancel quick sale (~{fmtMoney(quickSalePrice(w, p))})</Button>
+              ) : (
+                <Button variant="danger" onClick={() => {
+                  if (!confirm(`Quick-sell ${p.firstName} ${p.lastName}? A club will pay about ${fmtMoney(quickSalePrice(w, p))} (${Math.round(QUICK_SALE_SHARE * 100)}% of his ${fmtMoney(p.value)} value) tomorrow. Fans may not like it.`)) return;
+                  const res = act((ww) => listForQuickSale(ww, getClub(ww, uc.id), p));
+                  notify(res.message, res.ok ? 'good' : 'bad');
+                }}>Quick sale</Button>
+              )}
             </>
           )}
           {uc && !p.retired && !own && !loanedFromUs && p.teamId == null && <Button variant="primary" onClick={() => setModal('sign')}>Negotiate</Button>}

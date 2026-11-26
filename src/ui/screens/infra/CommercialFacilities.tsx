@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import type { ClubStore, MerchLine } from '../../../engine/types';
 import { MERCH_LINES, REF_JERSEY, SPEND_PER_HEAD, merchDemandUnits, spendPerHead, tier } from '../../../engine/economy';
 import { avgAttendance, projectOptions, type ProjectOption } from '../../../engine/arena';
-import { STORE_INFO, ensureFacilities, managerFactor, storeOptions, storeWeeklyDemand } from '../../../engine/facilities';
+import { STORE_INFO, ensureFacilities, managerFactor, storeOptions, storeProjectRoi, storeWeeklyDemand } from '../../../engine/facilities';
 import { club as getClub, fmtMoney, seasonTotal, staffById } from '../../../engine/world';
 import { Button, Card, Modal, NumberField, Page, Pills, Stat, Tabs } from '../../components/ui';
 import { InfraArt } from '../../art/InfraArt';
@@ -69,7 +69,7 @@ function Stores() {
         ))}
         {newStores.filter((o) => !o.blocked).map((o) => {
           const kind = o.storeKind!;
-          const est = storeWeeklyDemand(w, c, { id: -1, kind, name: '', level: 1, lines: ['home', 'away', 'kids'], priceMult: kind === 'outlet' ? 0.8 : kind === 'airport' ? 1.15 : 1, stock: 'normal', managerId: null, openedDay: 0, lastWeekSales: 0, lastWeekUnits: 0, seasonSales: 0 }) * c.merch.jerseyPrice * (kind === 'outlet' ? 0.8 : kind === 'airport' ? 1.15 : 1) * 0.75;
+          const roi = storeProjectRoi(w, c, o);
           return (
             <Card key={kind} className="store-card new">
               <div className="sc-top">
@@ -77,7 +77,7 @@ function Stores() {
                 <div style={{ flex: 1 }}><h3 style={{ color: '#fff' }}>{STORE_INFO[kind].label}</h3><div className="small muted">Not built yet</div></div>
               </div>
               <p className="small muted mt8">{STORE_INFO[kind].desc}</p>
-              <div className="small">Forecast: <b>{fmtMoney(est)}/week</b> in sales</div>
+              <div className="small">Forecast: <b className={roi.annual >= 0 ? 'good' : 'bad'}>{roi.annual >= 0 ? '+' : ''}{fmtMoney(roi.annual)}/yr</b> after stock and rent</div>
               <OptionRow o={o} onPlan={setPick} />
             </Card>
           );
