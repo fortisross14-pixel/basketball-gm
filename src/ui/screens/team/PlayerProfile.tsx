@@ -5,6 +5,7 @@ import { Badge, Button, Callout, Card, ClubLink, Crest, Empty, Money, Page, Rati
 import { MoraleBadge, InjuryBadge, potRange, pctStr } from '../../helpers';
 import { absDay, type CompType, type Player, type RatingKey } from '../../../engine/types';
 import { age, club as getClub, idx, userClub, isUser } from '../../../engine/world';
+import { PlayerCard, grade } from '../../art/PlayerCard';
 import { heightStr, potentialLabel, RATING_EFFECT, RATING_LABEL, ROLE_LABEL, salaryAsk, roleFor, scoutedRange } from '../../../engine/player';
 import { knowledge } from '../../../engine/squad';
 import { playerInterest, projectedRank, releaseCost, releasePlayer, loanOut } from '../../../engine/market';
@@ -59,7 +60,7 @@ export default function PlayerProfile() {
   const a = age(w, p);
 
   const ratingView = (key: RatingKey) => {
-    if (known) return <Rating v={p.ratings[key]} title={RATING_EFFECT[key]} />;
+    if (known) return <span className="row gap4"><span className="grade" style={{ color: gradeColor(p.ratings[key]) }}>{grade(p.ratings[key])}</span><Rating v={p.ratings[key]} title={RATING_EFFECT[key]} /></span>;
     const r = scoutedRange(p.ratings[key], k, p.id * 31 + key.length * 13 + key.charCodeAt(0));
     return <Rating v={p.ratings[key]} range={r} title={`${RATING_EFFECT[key]} (scouted range)`} />;
   };
@@ -97,11 +98,14 @@ export default function PlayerProfile() {
         </>
       }
     >
-      <div className="grid g4 mb8" style={{ marginBottom: 14 }}>
+      <div className="row mb8" style={{ alignItems: 'stretch', gap: 16, marginBottom: 14 }}>
+        <PlayerCard p={p} club={p.teamId != null ? getClub(w, p.teamId) : null} ovrLabel={known ? undefined : `${scoutedRange(p.ovr, k, p.id)[0]}+`} sub={p.teamId != null ? getClub(w, p.teamId).name : 'Free agent'} />
+      <div className="grid g2" style={{ flex: 1, marginBottom: 0 }}>
         <div className="stat"><div className="label">Overall</div><div className="value">{known ? <Rating v={p.ovr} /> : <Rating v={p.ovr} range={scoutedRange(p.ovr, k, p.id)} />}</div><div className="sub">Scouting knowledge {Math.round(k)}%</div></div>
         <div className="stat"><div className="label">Potential</div><div className="value"><Rating v={p.pot} range={pr[0] === pr[1] ? null : pr} /></div><div className="sub">{potentialLabel(Math.round((pr[0] + pr[1]) / 2))}</div></div>
         <div className="stat"><div className="label">Market value</div><div className="value"><Money v={p.value} /></div><div className="sub">{p.contract ? `${p.contract.buyout != null ? `Clause €${Math.round(p.contract.buyout / 1000)}k` : 'No release clause'}` : 'Free agent'}</div></div>
         <div className="stat"><div className="label">Status</div><div className="value row gap4" style={{ fontSize: 14 }}><MoraleBadge p={p} /><InjuryBadge p={p} />{p.region === 'NONEU' ? <Badge tone="warn">Non-EU</Badge> : <Badge>{p.region}</Badge>}{p.homegrown && <Badge tone="good">Homegrown</Badge>}</div><div className="sub">Freshness {Math.round(p.freshness)} · form {p.form > 0 ? '+' : ''}{p.form.toFixed(1)}</div></div>
+      </div>
       </div>
 
       <div className="grid g3">
@@ -230,4 +234,8 @@ function StatsTables({ p }: { p: Player }) {
       </Card>
     </div>
   );
+}
+
+function gradeColor(v: number) {
+  return v >= 78 ? '#5eead4' : v >= 66 ? '#86efac' : v >= 54 ? '#fde68a' : v >= 42 ? '#fdba74' : '#fca5a5';
 }

@@ -1,6 +1,8 @@
 import { Link } from 'react-router-dom';
 import { useWorld } from '../../store';
-import { Badge, Card, Page, PlayerLink, Table, Bar, Money } from '../../components/ui';
+import { Badge, Card, Page, PlayerLink, Table, Bar, Money, Pills } from '../../components/ui';
+import { PlayerCard } from '../../art/PlayerCard';
+import { useState } from 'react';
 import { OvrCell, PotCell, seasonLine, perGame, MoraleBadge, InjuryBadge } from '../../helpers';
 import { age, club as getClub, roster } from '../../../engine/world';
 import { heightStr, ROLE_LABEL } from '../../../engine/player';
@@ -8,6 +10,7 @@ import type { Player } from '../../../engine/types';
 import { payroll } from '../../../engine/finance';
 
 export default function Players() {
+  const [view, setView] = useState<'cards' | 'table'>('cards');
   const w = useWorld();
   const c = getClub(w, w.user.clubId!);
   const squad = roster(w, c.id);
@@ -31,6 +34,14 @@ export default function Players() {
           <RegStat label="Matchday squad" value={Math.min(rules.matchdaySquad, squad.filter((p) => !p.injury).length)} limit={`of ${rules.matchdaySquad}`} ok={squad.filter((p) => !p.injury).length >= 8} hint="Healthy players available for the next game." />
         </div>
       )}
+      <div className="row mb8"><span className="spacer" /><Pills value={view} onChange={setView} options={[{ id: 'cards', label: 'Cards' }, { id: 'table', label: 'Table' }]} /></div>
+      {view === 'cards' ? (
+        <div className="row wrap" style={{ gap: 14, perspective: 900, marginBottom: 16 }}>
+          {[...squad].sort((a, b) => b.ovr - a.ovr).map((p, i) => (
+            <PlayerCard key={p.id} p={p} club={c} index={i} sub={`${w.season - p.born} yrs · ${p.contract ? `€${Math.round(p.contract.salary / 1000)}k` : ''}${p.homegrown ? ' · HG' : ''}`} />
+          ))}
+        </div>
+      ) : null}
       <Card className="flush">
         <PlayerTable players={squad} season={season} teamId={c.id} />
       </Card>

@@ -13,6 +13,10 @@ import { useAct, useNotify, useWorld, useGame } from '../store';
 import { JobOfferCard } from '../components/career';
 import { jobSecurity } from '../../engine/career';
 import { Badge, Button, Card, Crest, Meter, Page, Stat, Empty } from '../components/ui';
+import { Icon, type IconName } from '../art/icons';
+import { motion } from 'framer-motion';
+import { payroll } from '../../engine/finance';
+import type { CSSProperties } from 'react';
 
 export default function Today() {
   const w = useWorld();
@@ -24,11 +28,19 @@ export default function Today() {
   const name = w.user.name.split(' ')[0];
   return (
     <Page
+      kicker={c ? `${c.name} · executive desk` : 'Executive desk'}
       title={`Good morning, ${name}`}
       subtitle={`${fmtDate(w.season, w.day)} · Season ${seasonLabel(w.season)} · ${PHASE_LABEL[phaseOf(w.season, w.day)]}`}
       actions={!c && <Button variant="primary" onClick={() => advance('week')}>Advance a week (wait for offers)</Button>}
     >
       {w.gameOver && <div className="callout bad mb8"><b>Career over.</b> {w.gameOver.reason}</div>}
+      {c && (
+        <div className="grid mb8" style={{ gridTemplateColumns: 'minmax(0, 2fr) minmax(0, 1fr)', marginBottom: 16 }}>
+          <HeroNext />
+          <HubTiles />
+        </div>
+      )}
+      {c && <RecentStrip />}
       <div className="grid" style={{ gridTemplateColumns: 'minmax(0, 1.5fr) minmax(0, 1fr)' }}>
         <div className="col gap16">
           {offers.length > 0 && (
@@ -65,10 +77,8 @@ export default function Today() {
           <LatestNews />
         </div>
         <div className="col gap16">
-          {c && <NextGame />}
           {c && <ClubSnapshot />}
           {c && <MiniTable />}
-          {c && <LastResults />}
         </div>
       </div>
     </Page>
@@ -117,43 +127,6 @@ function DecisionRow({ d }: { d: Decision }) {
         </ul>
       )}
     </div>
-  );
-}
-
-function NextGame() {
-  const w = useWorld();
-  const c = userClub(w)!;
-  const nav = useNavigate();
-  const day = nextUserFixtureDay(w);
-  const f = day != null ? w.fixtures.find((x) => x.day === day && !x.played && !x.cancelled && (x.homeId === c.id || x.awayId === c.id)) : null;
-  if (!f) return <Card title="Next game"><Empty>No scheduled games.</Empty></Card>;
-  const home = f.homeId === c.id;
-  const opp = getClub(w, home ? f.awayId : f.homeId);
-  const us = clubStrength(w, c);
-  const them = clubStrength(w, opp);
-  const edge = (us - them) * 1.1 + (f.neutral ? 0 : home ? 3 : -3);
-  const pct = Math.round(100 / (1 + Math.exp(-edge / 6.5)));
-  const injured = roster(w, c.id).filter((p) => p.injury && !p.injury.playThroughRisk);
-  return (
-    <Card title="Next game" actions={<Badge>{f.label}</Badge>}>
-      <div className="row" style={{ justifyContent: 'center', gap: 22, padding: '6px 0' }}>
-        <div className="center"><Crest club={home ? c : opp} size="lg" /><div className="small mt8">{(home ? c : opp).abbrev}</div></div>
-        <div className="center">
-          <div className="muted small">{fmtDate(w.season, f.day)}</div>
-          <div style={{ fontSize: 22, fontWeight: 800 }}>{f.neutral ? 'vs' : '@'}</div>
-          <div className="small muted">{f.neutral ? 'Neutral venue' : home ? 'Home' : 'Away'}</div>
-        </div>
-        <div className="center"><Crest club={home ? opp : c} size="lg" /><div className="small mt8">{(home ? opp : c).abbrev}</div></div>
-      </div>
-      <Meter value={pct} label="Pre-game win chance (squad strength, venue)" />
-      <div className="kv small mt8">
-        <span>Strength</span><span>{us.toFixed(1)} vs {them.toFixed(1)}</span>
-        <span>Your plan</span><span>{OFF_LABEL[c.tactics.off]} · {DEF_LABEL[c.tactics.def]} · {c.tactics.pace} pace</span>
-        <span>Their plan</span><span>{OFF_LABEL[opp.tactics.off]} · {DEF_LABEL[opp.tactics.def]}</span>
-        <span>Unavailable</span><span>{injured.length ? injured.map((p) => p.lastName).join(', ') : 'None'}</span>
-      </div>
-      <div className="row mt8"><Button size="sm" onClick={() => nav('/team/tactics')}>Adjust tactics</Button><Button size="sm" onClick={() => nav(`/clubs/${opp.id}`)}>Scout opponent</Button></div>
-    </Card>
   );
 }
 
@@ -207,34 +180,6 @@ function MiniTable() {
   );
 }
 
-function LastResults() {
-  const w = useWorld();
-  const games = [...w.games].filter((g) => g.season === w.season).slice(-5).reverse();
-  const c = userClub(w)!;
-  if (!games.length) return null;
-  return (
-    <Card title="Recent results">
-      <div className="list">
-        {games.map((g) => {
-          const us = g.home.clubId === c.id;
-          const ours = us ? g.home.score : g.away.score;
-          const theirs = us ? g.away.score : g.home.score;
-          const opp = getClub(w, us ? g.away.clubId : g.home.clubId);
-          return (
-            <Link key={g.id} to={`/game/${g.id}`} className="list-item row">
-              <Badge tone={ours > theirs ? 'good' : 'bad'}>{ours > theirs ? 'W' : 'L'}</Badge>
-              <b className="num">{ours}–{theirs}</b>
-              <span>{us ? 'vs' : '@'} {opp.name}</span>
-              <span className="spacer" />
-              <span className="small muted">{g.factors[0]?.title}</span>
-            </Link>
-          );
-        })}
-      </div>
-    </Card>
-  );
-}
-
 function LatestNews() {
   const w = useWorld();
   const news = w.news.filter((n) => n.importance >= 1 && (w.user.clubId == null || n.clubIds.includes(w.user.clubId) || n.importance >= 2)).slice(0, 10);
@@ -283,6 +228,123 @@ function FirstWeeks() {
               <Badge tone={ok ? 'good' : undefined}>{ok ? '✓ done' : 'to do'}</Badge>
               <div><b className={ok ? 'muted' : ''}>{s.label}</b><div className="small muted">{s.why}</div></div>
             </Link>
+          );
+        })}
+      </div>
+    </Card>
+  );
+}
+
+// ---------------------------------------------------------------- hub (visual pass)
+function HeroNext() {
+  const w = useWorld();
+  const c = userClub(w)!;
+  const nav = useNavigate();
+  const advance = useGame((s) => s.advance);
+  const day = nextUserFixtureDay(w);
+  const f = day != null ? w.fixtures.find((x) => x.day === day && !x.played && !x.cancelled && (x.homeId === c.id || x.awayId === c.id)) : null;
+  if (!f) {
+    return (
+      <div className="hero" style={{ ['--home-c' as string]: c.colors[0], ['--away-c' as string]: c.colors[1] } as CSSProperties}>
+        <div className="kicker">Season over</div>
+        <div className="row mt16"><Crest club={c} size={110} /><div><div className="team-name">{c.name}</div><p className="muted mt8">No games scheduled. Use the off-season to rebuild: contracts, signings, arena projects.</p></div></div>
+      </div>
+    );
+  }
+  const home = f.homeId === c.id ? c : getClub(w, f.homeId);
+  const away = f.homeId === c.id ? getClub(w, f.awayId) : c;
+  const us = clubStrength(w, c);
+  const opp = getClub(w, f.homeId === c.id ? f.awayId : f.homeId);
+  const them = clubStrength(w, opp);
+  const edge = (us - them) * 1.1 + (f.neutral ? 0 : f.homeId === c.id ? 3 : -3);
+  const pct = Math.round(100 / (1 + Math.exp(-edge / 6.5)));
+  const injured = roster(w, c.id).filter((p) => p.injury && !p.injury.playThroughRisk);
+  return (
+    <div className="hero" style={{ ['--home-c' as string]: home.colors[0], ['--away-c' as string]: away.colors[0] } as CSSProperties}>
+      <div className="row">
+        <span className="kicker">Next game · {f.label}</span>
+        <span className="spacer" />
+        <Badge tone="info">{fmtDate(w.season, f.day)}</Badge>
+      </div>
+      <div className="row" style={{ justifyContent: 'center', gap: 34, margin: '14px 0 8px' }}>
+        <motion.div className="center" initial={{ x: -60, opacity: 0 }} animate={{ x: 0, opacity: 1 }} transition={{ type: 'spring', stiffness: 220, damping: 20 }}>
+          <Crest club={home} size={104} />
+          <div className="team-name mt8">{home.name}</div>
+          <div className="small muted">{f.neutral ? 'Neutral' : 'Home'} · strength {clubStrength(w, home).toFixed(1)}</div>
+        </motion.div>
+        <motion.div className="vs" initial={{ scale: 0.4, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ delay: 0.15, type: 'spring', stiffness: 400, damping: 14 }}>VS</motion.div>
+        <motion.div className="center" initial={{ x: 60, opacity: 0 }} animate={{ x: 0, opacity: 1 }} transition={{ type: 'spring', stiffness: 220, damping: 20 }}>
+          <Crest club={away} size={104} />
+          <div className="team-name mt8">{away.name}</div>
+          <div className="small muted">Away · strength {clubStrength(w, away).toFixed(1)}</div>
+        </motion.div>
+      </div>
+      <div style={{ maxWidth: 520, margin: '0 auto' }}>
+        <Meter value={pct} label="Pre-game win chance" />
+        <div className="row small mt8" style={{ justifyContent: 'center', flexWrap: 'wrap' }}>
+          <span className="chip">Your plan: {OFF_LABEL[c.tactics.off]} · {DEF_LABEL[c.tactics.def]}</span>
+          <span className="chip">Theirs: {OFF_LABEL[opp.tactics.off]} · {DEF_LABEL[opp.tactics.def]}</span>
+          <span className="chip">Out: {injured.length ? injured.map((p) => p.lastName).join(', ') : 'nobody'}</span>
+        </div>
+        <div className="row mt16" style={{ justifyContent: 'center' }}>
+          <Button onClick={() => nav('/team/tactics')}>Game plan</Button>
+          <Button onClick={() => nav(`/clubs/${opp.id}`)}>Scout {opp.abbrev}</Button>
+          <button type="button" className="btn primary cta" onClick={() => advance('nextGame')}><span className="row gap4"><Icon name="play" size={18} /> Play</span></button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function HubTiles() {
+  const w = useWorld();
+  const c = userClub(w)!;
+  const sq = roster(w, c.id);
+  const unhappy = sq.filter((p) => p.morale < 45).length;
+  const room = c.finances.budget.payroll - payroll(w, c);
+  const tiles: { to: string; icon: IconName; title: string; sub: string; badge?: string }[] = [
+    { to: '/team/players', icon: 'players', title: 'Squad', sub: `${sq.length} players · ${sq.filter((p) => p.injury).length} injured`, badge: unhappy ? `${unhappy} unhappy` : undefined },
+    { to: '/team/tactics', icon: 'tactics', title: 'Tactics', sub: `${OFF_LABEL[c.tactics.off]}` },
+    { to: '/team/market', icon: 'market', title: 'Market', sub: `Payroll room ${fmtMoney(room)}` },
+    { to: '/club/finance', icon: 'coin', title: 'Finance', sub: `Cash ${fmtMoney(c.finances.cash)}` },
+    { to: '/infrastructure/stadium', icon: 'arena', title: 'Arena', sub: `${(c.arena.seats.general + c.arena.seats.lower + c.arena.seats.premium).toLocaleString('en')} seats` },
+    { to: '/club/board', icon: 'board', title: 'Board', sub: `Job security ${w.user.role === 'owner' ? '—' : jobSecurity(w)}` },
+  ];
+  return (
+    <div className="grid g2" style={{ gap: 10 }}>
+      {tiles.map((t, i) => (
+        <Link key={t.to} to={t.to} className="tile" style={{ animationDelay: `${0.05 * i}s` }}>
+          {t.badge && <span className="tile-badge"><Badge tone="warn">{t.badge}</Badge></span>}
+          <Icon name={t.icon} size={30} className="tile-icon" />
+          <div><div className="tile-title">{t.title}</div><div className="tile-sub">{t.sub}</div></div>
+        </Link>
+      ))}
+    </div>
+  );
+}
+
+function RecentStrip() {
+  const w = useWorld();
+  const c = userClub(w)!;
+  const games = [...w.games].filter((g) => g.season === w.season).slice(-6).reverse();
+  if (!games.length) return null;
+  return (
+    <Card title="Recent results" className="mb8" style={{ marginBottom: 16 }}>
+      <div className="row" style={{ gap: 10, overflowX: 'auto', paddingBottom: 4 }}>
+        {games.map((g, i) => {
+          const home = getClub(w, g.home.clubId);
+          const away = getClub(w, g.away.clubId);
+          const usHome = g.home.clubId === c.id;
+          const win = usHome ? g.home.score > g.away.score : g.away.score > g.home.score;
+          return (
+            <motion.div key={g.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
+              <Link to={`/game/${g.id}`} className="matchup-tile" style={{ background: `linear-gradient(115deg, ${home.colors[0]} 0 49.5%, #fff 49.5% 50.5%, ${away.colors[0]} 50.5% 100%)` }} title={`${home.name} ${g.home.score}–${g.away.score} ${away.name}`}>
+                <span className="wl"><Badge tone={win ? 'good' : 'bad'}>{win ? 'W' : 'L'}</Badge></span>
+                <Crest club={home} size={52} />
+                <Crest club={away} size={52} />
+                <span className="score">{g.home.score} – {g.away.score}</span>
+              </Link>
+            </motion.div>
           );
         })}
       </div>

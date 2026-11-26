@@ -495,6 +495,7 @@ export interface Club {
   cohesion: number; // 0-100
   rivals: number[];
   sponsorLocks?: Partial<Record<SponsorSlot, number>>; // slot -> abs day until new offers
+  logoUrl?: string; // optional licensed logo (overrides the generated emblem)
   history: SeasonRecord[];
   trophies: { season: number; name: string }[];
   retiredNumbers: { jersey: number; playerId: number; name: string }[];

@@ -1,15 +1,20 @@
 import { useEffect, useId, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
+import { createContext, useContext } from 'react';
+import { motion, animate, useReducedMotion } from 'framer-motion';
+import { ClubLogo } from '../art/crest';
 import { Link } from 'react-router-dom';
 import type { Club, Player } from '../../engine/types';
 import { fmtMoney } from '../../engine/world';
 
 // ---------------------------------------------------------------- layout
-export function Page({ title, subtitle, actions, children }: { title: ReactNode; subtitle?: ReactNode; actions?: ReactNode; children: ReactNode }) {
+export function Page({ title, subtitle, actions, children, kicker }: { title: ReactNode; subtitle?: ReactNode; actions?: ReactNode; children: ReactNode; kicker?: ReactNode }) {
   return (
     <div>
       <div className="page-head">
         <div>
-          <h1>{title}</h1>
+          {kicker && <div className="kicker">{kicker}</div>}
+          <motion.h1 initial={{ opacity: 0, x: -24, skewX: -8 }} animate={{ opacity: 1, x: 0, skewX: 0 }} transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}>{title}</motion.h1>
           {subtitle && <div className="sub">{subtitle}</div>}
         </div>
         <div className="spacer" />
@@ -58,6 +63,7 @@ export function Button({ children, onClick, variant, size, disabled, title, type
 }
 
 export function Tabs<T extends string>({ tabs, value, onChange }: { tabs: { id: T; label: ReactNode }[]; value: T; onChange: (v: T) => void }) {
+  const group = useId();
   return (
     <div className="tabs" role="tablist" onKeyDown={(e) => {
       const i = tabs.findIndex((t) => t.id === value);
@@ -67,6 +73,7 @@ export function Tabs<T extends string>({ tabs, value, onChange }: { tabs: { id: 
       {tabs.map((t) => (
         <button type="button" role="tab" aria-selected={t.id === value} tabIndex={t.id === value ? 0 : -1} key={t.id} className={`tab ${t.id === value ? 'active' : ''}`} onClick={() => onChange(t.id)}>
           {t.label}
+          {t.id === value && <motion.span layoutId={`tabline-${group}`} className="tab-line" transition={{ type: 'spring', stiffness: 520, damping: 38 }} />}
         </button>
       ))}
     </div>
@@ -85,19 +92,31 @@ export function Pills<T extends string>({ options, value, onChange }: { options:
   );
 }
 
+/** Lets content inside a Modal close it with the exit animation. */
+export const ModalCloseContext = createContext<() => void>(() => undefined);
+export function useModalClose() {
+  return useContext(ModalCloseContext);
+}
+
 const FOCUSABLE = 'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
-/** Accessible dialog: focuses its primary control, traps Tab, closes on Esc, restores focus. */
+/** Accessible animated dialog (portal): focuses its primary control, traps Tab, Esc/backdrop close with an exit animation, restores focus. */
 export function Modal({ title, onClose, children, wide, actions }: { title: ReactNode; onClose: () => void; children: ReactNode; wide?: boolean; actions?: ReactNode }) {
   const ref = useRef<HTMLDivElement>(null);
   const titleId = useId();
-  const closeRef = useRef(onClose);
-  closeRef.current = onClose;
+  const [closing, setClosing] = useState(false);
+  const reduce = useReducedMotion();
+  const closeRef = useRef<() => void>(() => undefined);
+  closeRef.current = () => {
+    if (closing) return;
+    setClosing(true);
+    setTimeout(onClose, reduce ? 0 : 170);
+  };
   useEffect(() => {
     const prev = document.activeElement as HTMLElement | null;
     const el = ref.current!;
     const first = (el.querySelector('[data-autofocus], input, .btn.primary') ?? el.querySelector(FOCUSABLE)) as HTMLElement | null;
-    first?.focus();
+    first?.focus({ preventScroll: true });
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') { e.stopPropagation(); closeRef.current(); }
       if (e.key !== 'Tab') return;
@@ -108,20 +127,30 @@ export function Modal({ title, onClose, children, wide, actions }: { title: Reac
       else if (!e.shiftKey && document.activeElement === z) { e.preventDefault(); a.focus(); }
     };
     el.addEventListener('keydown', onKey);
-    return () => { el.removeEventListener('keydown', onKey); prev?.focus?.(); };
+    return () => { el.removeEventListener('keydown', onKey); prev?.focus?.({ preventScroll: true }); };
   }, []);
-  return (
-    <div className="modal-back" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
-      <div ref={ref} className={`modal ${wide ? 'wide' : ''}`} role="dialog" aria-modal="true" aria-labelledby={titleId}>
+  return createPortal(
+    <motion.div className="modal-back" initial={{ opacity: 0 }} animate={{ opacity: closing ? 0 : 1 }} transition={{ duration: 0.17 }} onMouseDown={(e) => e.target === e.currentTarget && closeRef.current()}>
+      <motion.div
+        ref={ref}
+        className={`modal ${wide ? 'wide' : ''}`}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        initial={{ opacity: 0, scale: 0.9, y: 24, rotateX: 8 }}
+        animate={closing ? { opacity: 0, scale: 0.95, y: 12 } : { opacity: 1, scale: 1, y: 0, rotateX: 0 }}
+        transition={closing ? { duration: 0.16, ease: [0.4, 0, 1, 1] } : { type: 'spring', stiffness: 420, damping: 30 }}
+      >
         <div className="modal-head">
           <h2 id={titleId}>{title}</h2>
           <div className="spacer" />
           {actions}
-          <button type="button" className="btn ghost sm" aria-label="Close dialog" onClick={onClose}>✕</button>
+          <button type="button" className="btn ghost sm" aria-label="Close dialog" onClick={() => closeRef.current()}>✕</button>
         </div>
-        {children}
-      </div>
-    </div>
+        <ModalCloseContext.Provider value={() => closeRef.current()}>{children}</ModalCloseContext.Provider>
+      </motion.div>
+    </motion.div>,
+    document.body,
   );
 }
 
@@ -248,12 +277,29 @@ export function Rating({ v, range, title }: { v: number; range?: [number, number
   );
 }
 
-export function Crest({ club, size }: { club: Pick<Club, 'abbrev' | 'colors'>; size?: 'lg' }) {
+export function Crest({ club, size }: { club: Pick<Club, 'abbrev' | 'colors'> & Partial<Pick<Club, 'id' | 'name' | 'nickname'>> & { logoUrl?: string }; size?: 'lg' | 'xl' | number }) {
+  const px = typeof size === 'number' ? size : size === 'xl' ? 96 : size === 'lg' ? 60 : 32;
   return (
-    <span className={`crest ${size ?? ''}`} style={{ background: club.colors[0], color: club.colors[1], borderColor: club.colors[1] }}>
-      {club.abbrev}
+    <span className="crest" title={club.name}>
+      <ClubLogo club={{ id: club.id ?? 0, name: club.name ?? club.abbrev, nickname: club.nickname ?? '', abbrev: club.abbrev, colors: club.colors, logoUrl: club.logoUrl }} size={px} />
     </span>
   );
+}
+
+/** Animated number (counts up on change). */
+export function CountUp({ value, duration = 0.9, format }: { value: number; duration?: number; format?: (v: number) => string }) {
+  const ref = useRef<HTMLSpanElement>(null);
+  const prev = useRef(0);
+  const reduce = useReducedMotion();
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    if (reduce) { el.textContent = format ? format(value) : String(Math.round(value)); return; }
+    const ctl = animate(prev.current, value, { duration, ease: [0.16, 1, 0.3, 1], onUpdate: (v) => { el.textContent = format ? format(v) : String(Math.round(v)); } });
+    prev.current = value;
+    return () => ctl.stop();
+  }, [value, duration, format, reduce]);
+  return <span ref={ref} className="num">{format ? format(0) : 0}</span>;
 }
 
 export function ClubLink({ club }: { club: Pick<Club, 'id' | 'name' | 'abbrev' | 'colors'> }) {
@@ -280,10 +326,18 @@ export function Sparkline({ data, width = 220, height = 50, color = 'var(--accen
   const span = max - min || 1;
   const pts = data.map((v, i) => `${(i / (data.length - 1)) * width},${height - ((v - min) / span) * (height - 4) - 2}`).join(' ');
   const zeroY = height - ((0 - min) / span) * (height - 4) - 2;
+  const gid = `sp${Math.abs(Math.round(data.reduce((a, v, i) => a + v * (i + 1), 0))) % 100000}${width}`;
   return (
-    <svg width={width} height={height} style={{ display: 'block' }}>
+    <svg width={width} height={height} style={{ display: 'block', overflow: 'visible' }}>
+      <defs>
+        <linearGradient id={gid} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stopColor={color} stopOpacity="0.35" />
+          <stop offset="1" stopColor={color} stopOpacity="0" />
+        </linearGradient>
+      </defs>
       {zero && min < 0 && <line x1={0} x2={width} y1={zeroY} y2={zeroY} stroke="var(--bad)" strokeDasharray="3 3" strokeWidth={1} />}
-      <polyline points={pts} fill="none" stroke={color} strokeWidth={2} />
+      <polygon points={`0,${height} ${pts} ${width},${height}`} fill={`url(#${gid})`} className="spark-area" />
+      <polyline points={pts} fill="none" stroke={color} strokeWidth={2.2} pathLength={1} className="spark-line" style={{ filter: `drop-shadow(0 0 4px ${color})` }} />
     </svg>
   );
 }
@@ -299,7 +353,7 @@ export function BarChart({ items, height = 160, format }: { items: { label: stri
         return (
           <div key={it.label} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', minWidth: 0 }} title={`${it.label}: ${format ? format(it.value) : it.value}`}>
             <div style={{ position: 'relative', height, width: '100%' }}>
-              <div style={{ position: 'absolute', left: '15%', right: '15%', borderRadius: 4, background: it.color ?? (it.value < 0 ? 'var(--bad)' : 'var(--accent2)'), top: it.value >= 0 ? mid - h : mid, height: Math.max(1, h) }} />
+              <div className={`bc-bar ${it.value < 0 ? 'neg' : ''}`} style={{ position: 'absolute', left: '15%', right: '15%', borderRadius: '3px 3px 0 0', background: it.color ?? (it.value < 0 ? 'linear-gradient(0deg, #f87171, #7f1d1d)' : 'linear-gradient(180deg, var(--electric), var(--accent2) 60%, #1d4ed8)'), boxShadow: it.value < 0 ? undefined : '0 0 14px rgba(54, 209, 255, 0.35)', top: it.value >= 0 ? mid - h : mid, height: Math.max(1, h) }} />
               {hasNeg && <div style={{ position: 'absolute', left: 0, right: 0, top: mid, borderTop: '1px solid var(--line)' }} />}
             </div>
             <div className="small muted" style={{ marginTop: 4, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '100%' }}>{it.label}</div>

@@ -2,7 +2,7 @@
 
 A single-player basketball **club-management** game in the spirit of PC Fútbol: take a modest club in the lower divisions, make the turnstiles work, make payroll, find undervalued players and coaches, improve the arena, and climb to the top tier and continental competition — or get fired trying.
 
-This is the **full pass** (v0.1). Every system is in and playable end to end; the **visual pass** (NBA 2K-style presentation) and the **balance pass** come next.
+Every system is in and playable end to end, with a broadcast-style **visual pass** (dark arena theme, condensed italic display type, generated club emblems, MyTeam-style player cards, animated transitions and result reveals). The **balance pass** comes next.
 
 ## Running
 
@@ -39,6 +39,14 @@ Saves live in the browser (IndexedDB) and autosave after every advance. You can 
 | **Results** | Standings, fixtures & results, competitions/brackets, statistics, the versioned ruleset |
 | **Legacy** | Your career, trophies, club history, awards, records, Hall of Fame |
 | **Settings** | Delegation per department (Manual → Fully delegate, with policies), delegation log, calendar holds, world noise, difficulty, saves |
+
+## Visual pass
+
+- **Theme** (`src/ui/styles.css`): arena-light gradients, glass panels with cut corners, Barlow Condensed italic display type and Inter body text (bundled locally via Fontsource, so the game works offline), orange/electric-blue accents, angled buttons and tabs, glowing call-to-action.
+- **Navigation:** icon rail for the main sections, angled sub-tabs per section, HUD top bar (club, date, cash, owner and fan ratings, next opponent, *Play next game*).
+- **Art** (`src/ui/art/`): a custom icon set; a procedural SVG emblem for every fictional club (shape, colour pattern and a mascot icon from its nickname); MyTeam-style player cards with rating-tier frames (bronze → diamond) and jersey silhouettes (no faces yet).
+- **Logos:** all clubs are fictional, so emblems are generated. Set `logoUrl` on a club (for example from a licensed logo pack) and that image replaces the generated emblem everywhere.
+- **Motion** (framer-motion): page transitions, spring modals with exit animations, sliding tab underline, animated menus, staggered cards and table rows, chart draw-in, and a results reveal (crests slide in, score counts up, WIN/LOSS stamp, confetti). Respects the OS reduced-motion setting.
 
 ## Code layout
 

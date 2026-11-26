@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { listSaves, loadWorld, loadBackup, deleteSave, importWorld, type SaveMeta } from '../../engine/save';
 import { useGame } from '../store';
 import { Button, Card, Badge } from '../components/ui';
+import { BrandMark } from '../art/icons';
+import { motion } from 'framer-motion';
 
 export default function MainMenu() {
   const [saves, setSaves] = useState<SaveMeta[]>([]);
@@ -52,13 +54,16 @@ export default function MainMenu() {
   };
 
   return (
-    <div className="menu-hero court-bg">
-      <div style={{ width: 'min(880px, 94vw)' }}>
-        <div className="row" style={{ marginBottom: 24 }}>
-          <div className="logo" style={{ width: 64, height: 64, borderRadius: 16, background: 'linear-gradient(135deg, var(--accent), #c2410c)', display: 'grid', placeItems: 'center', fontSize: 34 }}>🏀</div>
+    <div className="title-screen">
+      <div style={{ width: 'min(960px, 94vw)', position: 'relative' }}>
+        <div className="row" style={{ gap: 26, marginBottom: 28, alignItems: 'center' }}>
+          <motion.div initial={{ scale: 0.3, rotate: -30, opacity: 0 }} animate={{ scale: 1, rotate: 0, opacity: 1 }} transition={{ type: 'spring', stiffness: 220, damping: 14 }}>
+            <BrandMark size={150} />
+          </motion.div>
           <div>
-            <h1 style={{ fontSize: 34 }}>Basketball Dynasty</h1>
-            <div className="muted">Build a club from the lower divisions into a European powerhouse.</div>
+            <motion.div className="title-word" initial={{ x: -60, opacity: 0, skewX: -12 }} animate={{ x: 0, opacity: 1, skewX: 0 }} transition={{ delay: 0.15, duration: 0.5, ease: [0.16, 1, 0.3, 1] }}>Basketball</motion.div>
+            <motion.div className="title-word accent" initial={{ x: 60, opacity: 0, skewX: -12 }} animate={{ x: 0, opacity: 1, skewX: 0 }} transition={{ delay: 0.28, duration: 0.5, ease: [0.16, 1, 0.3, 1] }}>Dynasty</motion.div>
+            <motion.div className="muted mt8" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.6 }}>From a lower-division club or a struggling college program to a basketball powerhouse.</motion.div>
           </div>
         </div>
         <div className="grid g2">
