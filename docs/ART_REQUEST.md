@@ -47,8 +47,9 @@ also crops these to 16:9 and to 9:16 for phones, centred, so nothing essential n
 
 ## Pack 2 — Player & coach portraits (modular, recognisable, club-coloured kits)
 
-One person = one combination of parts, generated once and stored in the save, so the same
-face appears in the squad list, transfer shortlist, staff market and postgame.
+One person = one combination of parts, derived from their permanent id (so it never changes
+between saves, tabs or screens): the same face appears in the squad list, transfer shortlist,
+staff market, live game and postgame.
 
 **Canvas:** every part is a **512 × 640 px (4:5) transparent PNG on the same canvas, aligned to
 the same anchor** (chin at x = 256, y = 400; shoulders span roughly y = 470–640). Head-and-

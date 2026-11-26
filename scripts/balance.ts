@@ -57,19 +57,15 @@ function signFreeAgents(w: World, n: number) {
 function activeWeek(w: World) {
   const c = getClub(w, w.user.clubId!);
   const cal = buildCalendar(w.season);
-  Object.assign(c.tactics, presetPlan(w, c, 'results'));
+  Object.assign(c.tactics, presetPlan(w, c, 'balanced'));
   if (w.day < cal.leagueRoundDays[0]) {
-    for (const d of quickDeals(w, c)) if (d.available) takeQuickDeal(w, c, d.kind, d.options.find((o) => o.id === 'upfront' || o.id === 'season' || o.id === 'run')?.id ?? d.options[0].id);
+    // a skilled manager raises money without crowding the kit: naming rights, media and members only
+    for (const d of quickDeals(w, c)) if (d.available && ['naming', 'mediaRights', 'membership'].includes(d.kind)) takeQuickDeal(w, c, d.kind, d.options.find((o) => o.id === 'upfront' || o.id === 'season' || o.id === 'run')?.id ?? d.options[0].id);
   }
   if ((w.day > 40 && w.day < cal.summerWindowClose) || (w.day >= cal.winterWindowOpen && w.day <= cal.winterWindowClose)) signFreeAgents(w, 2);
   if (payrollBridgeOffer(w, c)) takePayrollBridge(w, c);
-  const plan = licencePlan(w, c);
-  if (plan && !plan.items[0].ok && w.day > cal.leagueRoundDays[8] && licenceStandOption(w, c)) {
-    const lc = w.competitions.find((x) => x.id === `${c.leagueId}-${w.season}`);
-    const st = lc ? [...lc.standings].sort((a, b) => b.w - a.w) : [];
-    const rank = st.findIndex((x) => x.clubId === c.id) + 1;
-    if (rank > 0 && rank <= 5) startLicenceStand(w, c, 'loan');
-  }
+  // licence: the staff's ground-share proposal (a Today decision) is accepted like any recommendation
+  void licencePlan; void licenceStandOption; void startLicenceStand;
 }
 
 for (const seed of seeds) {
@@ -89,13 +85,13 @@ for (const seed of seeds) {
     advance(w, 'week');
     days += 7;
     for (const d of w.decisions.filter((x) => !x.resolved)) resolveDecision(w, d, d.kind === 'jobOffer' ? 'decline' : (d.recommended ?? d.defaultOption));
-    if (w.user.clubId == null) { fired = true; out.push({ season: s0, fired: true, day: w.day, why: w.news.find((n) => /dismiss/.test(n.headline))?.body }); break; }
+    if (w.user.clubId == null) { fired = true; out.push({ season: s0, fired: true, day: w.day, why: w.news.find((n) => /dismiss/.test(n.headline))?.body, fans: Math.round(w.user.approval.fans), notes: w.user.approval.notes.slice(0, 4).map((n) => `${n.who}:${n.text}(${n.delta})`) }); break; }
     if (mode === 'active') activeWeek(w);
     if (w.season !== s0) {
       const c = getClub(w, clubId);
       const h = c.history[c.history.length - 1];
       const euro = w.competitions.find((x) => x.id === `EURO-${s0}`);
-      out.push({ season: s0, league: league0, rank: h?.rank, w: h?.wins, l: h?.losses, playoff: h?.playoff, euro: euro?.clubIds.includes(clubId) ? (euro.champion === clubId ? 'Champion' : h?.euro) : null, promoted: h?.promoted, relegated: h?.relegated, next: c.leagueId, cash: Math.round(c.finances.cash / 1000), board: c.board.overall });
+      out.push({ season: s0, league: league0, rank: h?.rank, w: h?.wins, l: h?.losses, playoff: h?.playoff, euro: euro?.clubIds.includes(clubId) ? (euro.champion === clubId ? 'Champion' : h?.euro) : null, promoted: h?.promoted, relegated: h?.relegated, next: c.leagueId, cash: Math.round(c.finances.cash / 1000), board: c.board.overall, fans: Math.round(w.user.approval.fans), sentiment: Math.round(c.fans.sentiment), notes: w.user.approval.notes.slice(0, 3).map((n) => `${n.who}:${n.text}(${n.delta})`) });
     }
   }
   console.log(JSON.stringify({ mode, which, difficulty, seed, fired, seasons: out }));

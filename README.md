@@ -36,15 +36,30 @@ The game is an installable app (PWA): use **Install app** on the title screen or
 
 | Section | What's there |
 |---|---|
-| **Today** | Executive digest ranked by urgency/impact, decisions with staff recommendations, next game, club snapshot, news |
+| **Today** | Week board in the first viewport: next match, up to three decisions by deadline, the top club warning with a direct action (renew, check the licence, sign players…). Business shortcuts (Merchandise, Food & Drink, Ticket prices, Revenue drive). Digest and newsroom below. Extra job offers move to **Career Offers** (`/career`) once you are employed |
 | **Calendar** | Month view of your fixtures and results, transfer windows, deadlines, Copa, playoffs, youth intake |
 | **Club Management** | Finance (P&L, 90-day and 5-year forecasts, loans), Marketing & fans (5 fan segments, campaigns), Sponsors & TV (8 sponsor slots, broadcaster bids), Contracts (payroll sheet, renewals, releases), Board (trust, objectives, promises, requests), News & Media |
 | **Navigation** | Every section opens on a hub with a summary and big tiles; subsections have a breadcrumb back to the hub and a sibling switcher |
-| **Team** | Players, Tactics (5 offensive systems × 5 defensive schemes with personnel-fit and coach agreement, rotation, sliders, starters, minute limits), Training, Coaching staff, Medical & support, Transfers & scouting, Academy |
+| **Team** | Players, Tactics with three tabs — **Game plan** (coach, squad, fans and owner each want a style), **Lineup & minutes**, **Coach feedback** — and a control bar showing who sets tactics and when the coach overwrites your edits. Training, Coaching staff (with records and a fit score), staff profiles with full coaching history (`/staff/:id`), Medical & support, Transfers & scouting, Academy |
 | **Infrastructure** | Hub with facility health and works; **Arena** (interactive arena model with hotspots for seating, videoboard, suites, concourse food, access and parking + ticket prices), **Sports facilities** (training ground, academy residence, locker room, medical centre — capacity, usage and a responsible staff owner), **Commercial facilities** (arena, city, outlet, airport and online stores with product lines, prices, stock and a manager; food & drink), **Club facilities** (corporate offices = staff capacity; PR office = press conferences and press relationship) |
 | **Results** | Standings, fixtures & results, competitions/brackets, statistics, the versioned ruleset |
 | **Legacy** | Your career, trophies, club history, awards, records, Hall of Fame |
 | **Settings** | Delegation per department (Manual → Fully delegate, with policies), delegation log, calendar holds, world noise, difficulty, saves |
+
+## Business
+
+- **Merchandise** (`/business/merchandise`): jerseys, scarves, caps and keychains. Order from three suppliers (cost, lead time, minimum order, appeal), pay up front, allocate units per store, receive on the delivery date. Stores sell down finite stock every week; set a price or a target margin (quantities and purchase costs never change with price); move stock, reorder for a derby, or clear leftovers to a wholesaler. Forecasts and actual sales use the same demand model, and every week states why sales differed (stockouts, busy/quiet week, home game).
+- **Food & Drink** (`/business/food`): concourse stands, arena restaurant and VIP lounge, each running a concept (family kiosk, local grill, premium lounge) with a price and staffed service points. Every home game reports customers, average spend, food and labour cost, waste and profit against the forecast; the restaurant's concept and price also shape off-day trade.
+- **Commercial director:** optional routine management within a cash cap, a minimum margin and a stock target; large orders, big price rises and new outlets come to Today for approval.
+- **Promotion licence** (`/club/licence`): seats, entry guarantee and financial standard of the league above, with routes: financed licence stands, a one-season ground-share, and (Relaxed/Standard) a payroll bridge for newly promoted clubs.
+
+## Balance harness
+
+`npx vite-node scripts/balance.ts <delegated|active> <weak|average|strong> <difficulty> <seasons> <seeds…>` runs seeded multi-season careers headless and prints one JSON line per run (league, rank, record, promotion, relegation, continental results, cash, board, dismissals).
+
+## Art
+
+`docs/ART_REQUEST.md` lists the optional art packs (arena backdrops, modular portraits, shop and food art) with exact sizes, masks and file names. Files dropped into `public/art/` are picked up automatically; every slot has a procedural fallback.
 
 ## Visual pass
 

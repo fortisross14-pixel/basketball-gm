@@ -96,6 +96,7 @@ export function objectiveProgress(w: World, c: Club, o: Objective): number {
     case 'euroQualify':
       return rank <= o.target ? 1 : clamp(1 - (rank - o.target) / 6, 0, 0.99);
     case 'promotion':
+      if ((w.pendingMoves ?? []).some((m) => m.clubId === c.id && m.reason !== 'Relegated')) return 1; // promoted via the playoffs counts
       return rank === 1 ? 1 : clamp(1 - (rank - 1) / 6, 0, 0.95);
     case 'profit': {
       const s = statement(c, w.season);

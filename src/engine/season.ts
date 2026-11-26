@@ -261,7 +261,8 @@ export function seasonEnd(w: World) {
     const firstSeason = stint && stint.clubId === uc.id && absDay(w) - stint.from < 400;
     const grace = firstSeason ? (w.settings.difficulty === 'relaxed' ? 0.14 : 0.08) : uc.promotedSeason === w.season && w.settings.difficulty === 'relaxed' ? 0.08 : 0;
     const bar = { relaxed: 0.26, standard: 0.34, demanding: 0.42, brutal: 0.48 }[w.settings.difficulty] - grace;
-    if (w.user.role === 'gm' && verdict < bar) fireUser(w, uc, `The owner decided not to continue: ${Math.round(review.score * 100)}% of objectives met, board confidence ${uc.board.overall}/100, fan approval ${Math.round(w.user.approval.fans)}/100.`);
+    const triumph = rec.promoted || rec.playoff === 'Champion' || rec.cup === 'Champion' || rec.euro === 'Champion';
+    if (w.user.role === 'gm' && !triumph && verdict < bar) fireUser(w, uc, `The owner decided not to continue: ${Math.round(review.score * 100)}% of objectives met, board confidence ${uc.board.overall}/100, fan approval ${Math.round(w.user.approval.fans)}/100.`);
   }
   for (const m of moves) {
     const c = getClub(w, m.clubId);
