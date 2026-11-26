@@ -53,6 +53,9 @@ function recommendSponsor(w: World, c: Club, o: SponsorOffer): string {
   const current = c.sponsors.find((s) => s.slot === o.slot);
   if (pol.excludedCategories?.includes(o.category)) return 'reject';
   if (current && current.annual >= o.annual) return 'reject';
+  // don't crowd the kit: a new brand beyond what fans tolerate needs to be really worth it
+  const sat = sponsorSaturation(c);
+  if (!current && sat.count >= sat.comfortable && o.annual < bench * 1.6) return 'reject';
   return o.annual >= bench * (pol.sponsorFloor ?? 0.9) ? 'accept' : 'counter';
 }
 

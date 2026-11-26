@@ -9,7 +9,7 @@ import { book } from '../engine/world';
 import { canAddStaff } from '../engine/facilities';
 import { Badge, Button, Card, Modal, Rating, Table } from './components/ui';
 import { StaffFace } from './art/faces';
-import { recordLine } from '../engine/coaching';
+import { recordLine, candidateScore } from '../engine/coaching';
 import { useAct, useNotify, useWorld } from './store';
 
 // ---------------------------------------------------------------- stats
@@ -153,6 +153,7 @@ export function HireStaffModal({ club, role, onClose }: { club: Club; role: Staf
           { key: 'mot', label: 'Motiv.', render: (s) => s.motivation, sort: (s) => s.motivation, align: 'r' },
           { key: 'sys', label: 'Philosophy', render: (s) => [s.offPref && OFF_LABEL[s.offPref], s.defPref && DEF_LABEL[s.defPref]].filter(Boolean).join(' / ') || '—' },
           { key: 'rep', label: 'Rep.', render: (s) => s.reputation, sort: (s) => s.reputation, align: 'r' },
+          ...(role === 'headCoach' ? [{ key: 'score', label: 'Fit score', render: (s: Staff) => Math.round(candidateScore(w, s, club)), sort: (s: Staff) => candidateScore(w, s, club), align: 'r' as const, title: 'Results vs expectations, league level, continental record, development and tactical fit with your squad' }] : []),
           { key: 'ask', label: 'Asks', render: (s) => fmtMoney(staffAsk(w, s, tier)) + '/yr', sort: (s) => staffAsk(w, s, tier), align: 'r' },
           {
             key: 'act', label: '', render: (s) => !room.ok ? <Badge title={room.reason}>No desk free</Badge> : interested(s) ? (

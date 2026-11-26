@@ -8,7 +8,7 @@ import { clubStrength } from './matchday';
 import { clamp } from './rng';
 import { inEuro } from './economy';
 import { strategyProfile } from './squad';
-import { staffAsk, hireStaff } from './staff';
+import { staffAsk, hireStaff, severance } from './staff';
 import { candidateScore, recordLine } from './coaching';
 import { canAddStaff } from './facilities';
 import { fanReaction } from './career';
@@ -637,6 +637,7 @@ export function upgradeSquad(w: World, c: Club, maxSalary?: number): Player | nu
   const cand = freeAgents(w).filter((p) => p.ovr >= bar && (user || age(w, p) <= (prof?.ageMax ?? 34)) && (c.foreign || registrationCheck(w, c, p, squad.length >= rules.rosterMax ? squad[squad.length - 1] : null).ok))
     .sort((a, b) => b.ovr - a.ovr)
     .find((p) => { const s = salaryAsk(w, p, c) * pf; return s <= room && (maxSalary == null || maxSalary <= 0 || s <= maxSalary) && (user ? playerInterest(w, p, c, { salary: Math.round(s), years: 2, role: roleFor(projectedRank(w, c, p)), buyout: null, signingBonus: 0 }).score >= 0 : acceptsAi(w, p, c)); });
+  if (!cand && user) return buyUpgrade(w, c, squad, room, bar + 2, maxSalary);
   if (!cand) return null;
   if (squad.length >= rules.rosterMax - (user ? 1 : 0)) {
     const worst = squad[squad.length - 1];
@@ -663,6 +664,18 @@ export function delegatedStaffHiring(w: World) {
   if (!c) return;
   const pol = w.user.delegation.transfers;
   if (pol.mode === 'manual' || pol.mode === 'recommend') return;
+  // in the off-season, replace a clearly weak head coach when a much better one is affordable
+  const cur = c.staff.headCoach != null ? w.staff.find((s) => s.id === c.staff.headCoach) : undefined;
+  if (cur && w.day < 70 && cur.rating < 50) {
+    const budget = Math.max(c.finances.budget.staff * 0.35, staffAsk(w, cur, tierOf(w, c) || 1) * 1.5);
+    const better = w.staff.filter((s) => s.teamId == null && !s.nba && s.role === 'headCoach' && staffAsk(w, s, tierOf(w, c) || 1) <= budget && candidateScore(w, s, c) >= candidateScore(w, cur, c) + 12).sort((a, b) => candidateScore(w, b, c) - candidateScore(w, a, c))[0];
+    if (better) {
+      book(w, c, 'severance', -severance(w, cur));
+      hireStaff(w, c, better, staffAsk(w, better, tierOf(w, c) || 1), 2);
+      logDelegation(w, 'transfers', 'Sporting director', `Replaced head coach ${cur.lastName} with ${better.firstName} ${better.lastName}`, `Rating ${cur.rating} → ${better.rating}; ${recordLine(better)}`, 'Severance paid.');
+      addNews(w, `${c.name} change head coach`, `${better.firstName} ${better.lastName} replaces ${cur.firstName} ${cur.lastName}. ${recordLine(better)}`, { tags: ['staff', 'delegation'], clubIds: [c.id], importance: 2 });
+    }
+  }
   for (const role of ['headCoach', 'assistantOff', 'assistantDef', 'medicalLead', 'physio', 'commercialDirector'] as const) {
     if (c.staff[role] != null) continue;
     if (!canAddStaff(w, c).ok) return;
@@ -675,4 +688,34 @@ export function delegatedStaffHiring(w: World) {
     logDelegation(w, 'transfers', 'Sporting director', `Hired ${pick.firstName} ${pick.lastName} as ${role}`, 'The post was vacant.', `${fmtMoney(salary)}/yr for 2 seasons.`);
     addNews(w, `${c.name} appoint ${pick.firstName} ${pick.lastName}`, `New ${role === 'headCoach' ? 'head coach' : 'member of staff'} hired by the sporting director. ${role === 'headCoach' ? recordLine(pick) : ''}`, { tags: ['staff', 'delegation'], clubIds: [c.id] });
   }
+}
+
+/** Delegated: when no free agent is good enough, buy one from a smaller club within the transfer budget. */
+function buyUpgrade(w: World, c: Club, squad: Player[], room: number, bar: number, maxSalary?: number): Player | null {
+  if (!transferWindowOpen(w.season, w.day)) return null;
+  const rules = w.rules.leagues[c.leagueId!];
+  const budget = Math.max(c.finances.budget.transfer, Math.max(0, c.finances.cash) * 0.3);
+  if (budget <= 0) return null;
+  const pick = w.players
+    .filter((p) => p.teamId != null && p.teamId !== c.id && !p.academy && !p.loan && p.ovr >= bar && !getClub(w, p.teamId).foreign && getClub(w, p.teamId).leagueId !== 'COLLEGE' && getClub(w, p.teamId).prestige < c.prestige + 8)
+    .sort((a, b) => b.ovr - a.ovr)
+    .find((p) => {
+      const fee = p.contract?.buyout ?? sellerMinimum(w, getClub(w, p.teamId!), p);
+      const sal = salaryAsk(w, p, c);
+      return fee <= budget && sal <= room && (maxSalary == null || maxSalary <= 0 || sal <= maxSalary) && registrationCheck(w, c, p, squad.length >= rules.rosterMax - 1 ? squad[squad.length - 1] : null).ok && playerInterest(w, p, c, { salary: sal, years: 3, role: roleFor(projectedRank(w, c, p)), buyout: null, signingBonus: 0 }).score >= 0;
+    });
+  if (!pick) return null;
+  if (squad.length >= rules.rosterMax - 1) {
+    const worst = squad[squad.length - 1];
+    if (worst.ovr >= pick.ovr - 3) return null;
+    releasePlayer(w, c, worst);
+  }
+  const seller = getClub(w, pick.teamId!);
+  const fee = pick.contract?.buyout ?? sellerMinimum(w, seller, pick);
+  book(w, c, 'transfersOut', -fee);
+  book(w, seller, 'transfersIn', fee);
+  c.finances.budget.transfer = Math.max(0, c.finances.budget.transfer - fee);
+  moveTo(w, pick, c, { salary: salaryAsk(w, pick, c), years: 3, role: roleFor(projectedRank(w, c, pick)), buyout: null, signingBonus: 0 }, fee, 'transfer');
+  addNews(w, `${c.name} sign ${playerName(pick)} from ${seller.name}`, `Transfer fee ${fmtMoney(fee)} (sporting director).`, { tags: ['transfer', 'delegation'], clubIds: [c.id, seller.id], playerIds: [pick.id] });
+  return pick;
 }

@@ -3,6 +3,7 @@ import { SEAT_ZONES } from './types';
 import { addNews, isUser, logDelegation, roster, staffOf, staffRating, fmtMoney, rng } from './world';
 import { DEF_LABEL, OFF_LABEL } from './staff';
 import { gameDemand, avgLeaguePrestige } from './economy';
+import { presetPlan } from './gameplan';
 import { clamp } from './rng';
 
 export const MODE_LABEL: Record<DelegationMode, string> = {
@@ -105,9 +106,12 @@ export function coachSetsTactics(w: World, c: Club, log = false) {
   // the current plan gets a familiarity bonus so one injury doesn't flip the system
   const bestOff = offs.map((o) => ({ o, s: offFit(players, o) * adapt + (coach?.offPref === o ? 22 : 0) + (c.tactics.off === o ? 6 : 0) })).sort((a, b) => b.s - a.s)[0].o;
   const bestDef = defs.map((d) => ({ d, s: defFit(players, d) * adapt + (coach?.defPref === d ? 22 : 0) + (c.tactics.def === d ? 6 : 0) })).sort((a, b) => b.s - a.s)[0].d;
-  const changed = c.tactics.off !== bestOff || c.tactics.def !== bestDef;
-  c.tactics.off = bestOff;
-  c.tactics.def = bestDef;
+  let off = bestOff, def = bestDef;
+  // for your club the coach also listens to the stands and the boardroom (balanced game plan)
+  if (isUser(w, c.id)) { const p = presetPlan(w, c, 'balanced'); off = p.off; def = p.def; c.tactics.pace = p.pace; }
+  const changed = c.tactics.off !== off || c.tactics.def !== def;
+  c.tactics.off = off;
+  c.tactics.def = def;
   c.tactics.starters = [];
   c.tactics.rotationOrder = [];
   const youthObjective = isUser(w, c.id) && c.board.objectives.some((o) => o.kind === 'youthMinutes') && players.filter((p) => w.season - p.born <= 22).length >= 2;
@@ -116,8 +120,8 @@ export function coachSetsTactics(w: World, c: Club, log = false) {
   else if (c.ai.strategy === 'contend') c.tactics.rotation = 'veteran';
   else c.tactics.rotation = 'balanced';
   if (log && changed) {
-    logDelegation(w, 'tactics', coach ? `Coach ${coach.lastName}` : 'Interim coach', `Set ${OFF_LABEL[bestOff]} / ${DEF_LABEL[bestDef]}`, `Best blend of the coach's preferences and the healthy roster's fit (offence fit ${Math.round(offFit(players, bestOff))}, defence fit ${Math.round(defFit(players, bestDef))}).`, 'Rotation chosen automatically each game.');
-    if (w.user.delegation.tactics.mode === 'notify') addNews(w, 'Coach adjusts the game plan', `${OFF_LABEL[bestOff]} on offence, ${DEF_LABEL[bestDef]} on defence.`, { tags: ['delegation'], clubIds: [c.id] });
+    logDelegation(w, 'tactics', coach ? `Coach ${coach.lastName}` : 'Interim coach', `Set ${OFF_LABEL[off]} / ${DEF_LABEL[def]}`, `Best blend of the coach's preferences and the healthy roster's fit (offence fit ${Math.round(offFit(players, off))}, defence fit ${Math.round(defFit(players, def))}).`, 'Rotation chosen automatically each game.');
+    if (w.user.delegation.tactics.mode === 'notify') addNews(w, 'Coach adjusts the game plan', `${OFF_LABEL[off]} on offence, ${DEF_LABEL[def]} on defence.`, { tags: ['delegation'], clubIds: [c.id] });
   }
 }
 

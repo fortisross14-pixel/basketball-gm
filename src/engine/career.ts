@@ -192,15 +192,24 @@ export interface EvaluationBreakdown {
   factors: { label: string; value: number }[];
 }
 
+/** What supporters expect: half club stature, half the squad they can see on the court. */
+export function fanExpectedWinPct(w: World, c: Club): number {
+  const peers = w.clubs.filter((x) => x.leagueId === c.leagueId);
+  const byStr = [...peers].sort((a, b) => clubStrength(w, b) - clubStrength(w, a));
+  const rank = Math.max(0, byStr.findIndex((x) => x.id === c.id));
+  const squadExp = 0.75 - (0.5 * rank) / Math.max(1, peers.length - 1);
+  return (expectedWinPct(w, c) + squadExp) / 2;
+}
+
 export function fanEvaluation(w: World, c: Club): EvaluationBreakdown {
   const raw = currentWinPct(w, c);
-  const expected = expectedWinPct(w, c);
+  const expected = fanExpectedWinPct(w, c);
   // a handful of games says little: shrink toward expectations until the sample grows
   const st = c.leagueId ? w.competitions.find((x) => x.id === `${c.leagueId}-${w.season}`)?.standings.find((x) => x.clubId === c.id) : undefined;
   const games = st ? st.w + st.l : 0;
   const winPct = games ? (raw * games + expected * 6) / (games + 6) : raw;
   const factors = [
-    { label: `Results vs expectations (${Math.round(raw * 100)}% wins vs ${Math.round(expected * 100)}% expected)`, value: clamp((winPct - expected) * 110, -38, 38) },
+    { label: `Results vs expectations (${Math.round(raw * 100)}% wins vs ${Math.round(expected * 100)}% expected)`, value: clamp((winPct - expected) * 95, -34, 34) },
     { label: 'Supporters\' mood (prices, atmosphere, hype)', value: (c.fans.sentiment - 55) * 0.5 },
     { label: 'Your recent decisions (signings, sales, promises)', value: w.user.approval.fanBonus },
   ];
@@ -220,7 +229,7 @@ export function weeklyEvaluation(w: World) {
     return;
   }
   const ev = fanEvaluation(w, c);
-  ap.fans = Math.round(clamp(ap.fans + (ev.fanTarget - ap.fans) * 0.18, 0, 100) * 10) / 10;
+  ap.fans = Math.round(clamp(ap.fans + (ev.fanTarget - ap.fans) * 0.13, 0, 100) * 10) / 10;
   ap.board = c.board.overall;
   ap.fanBonus *= 0.9;
   ap.history.push({ day: absDay(w), board: ap.board, fans: Math.round(ap.fans) });
@@ -238,7 +247,9 @@ export function weeklyEvaluation(w: World) {
     }
     if (ap.lowFanWeeks >= 3) c.board.trust.relationship = clamp(c.board.trust.relationship - 3, 0, 100);
     const patience = w.settings.difficulty === 'relaxed' ? { weeks: 14, board: 40 } : w.settings.difficulty === 'standard' ? { weeks: 9, board: 48 } : { weeks: 7, board: 52 };
-    if (w.user.role === 'gm' && ap.lowFanWeeks >= patience.weeks && c.board.overall < patience.board) {
+    const stint = w.user.career[w.user.career.length - 1];
+    const firstSeason = stint && stint.clubId === c.id && absDay(w) - stint.from < 330;
+    if (w.user.role === 'gm' && ap.lowFanWeeks >= patience.weeks && c.board.overall < patience.board - (firstSeason ? 13 : 0)) {
       fireUserFromCareer(w, c, 'The board bowed to sustained supporter pressure.');
       return;
     }
@@ -251,6 +262,7 @@ export function weeklyEvaluation(w: World) {
 import { fireUser } from './board';
 import { ensureShop, releaseShop } from './shop';
 import { applyStartSupport } from './worldgen';
+import { clubStrength } from './matchday';
 import { buildCalendar } from './calendar';
 function fireUserFromCareer(w: World, c: Club, reason: string) {
   fireUser(w, c, reason);

@@ -35,7 +35,8 @@ export function upperLeague(c: Club): LeagueId | null {
 
 export function plannedSeats(w: World, c: Club): number {
   const projects = w.projects[c.id] ?? [];
-  const gs = c.groundShare && c.groundShare.season >= w.season ? c.groundShare.seats : 0;
+  // the licence is checked on promotion day for the NEXT season (same rule as season.licenceCheck)
+  const gs = c.groundShare && c.groundShare.season >= w.season + (w.day >= buildCalendar(w.season).leagueRoundDays[0] ? 1 : 0) ? c.groundShare.seats : 0;
   return Math.max(gs, capacity(c) + projects.reduce((a, p) => a + Object.values(p.seatsDelta ?? {}).reduce((x, y) => x + (y ?? 0), 0) + (p.newArenaSeats ? Object.values(p.newArenaSeats).reduce((x, y) => x + y, 0) - capacity(c) : 0), 0));
 }
 
