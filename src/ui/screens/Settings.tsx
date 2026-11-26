@@ -8,6 +8,8 @@ import { serialize, importWorld, deleteSave } from '../../engine/save';
 import { fmtMoney } from '../../engine/world';
 import { fmtAbs } from '../../engine/calendar';
 import { useAct, useGame, useNotify, useWorld } from '../store';
+import { StorageStatus } from '../components/storage';
+import { InstallButton } from '../components/install';
 import { Button, Card, Page, Pills, Tabs, Table, NumberField } from '../components/ui';
 
 const HOLD_LABEL: Record<HoldKind, string> = {
@@ -153,6 +155,10 @@ function GameOptions() {
         </div>
       </Card>
       <div className="col gap16">
+        <Card title="Your games">
+          <label className="row"><input type="checkbox" checked={w.settings.liveGames !== false} onChange={(e) => act((ww) => { ww.settings.liveGames = e.target.checked; })} /> Watch my games live, minute by minute (stops at every quarter)</label>
+          <p className="small muted mt8">Off: your games simulate instantly like everyone else's. Month and holiday advances always simulate instantly.</p>
+        </Card>
         <Card title="Text size">
           <Pills value={String(w.settings.textScale ?? 1)} onChange={(v) => act((ww) => { ww.settings.textScale = Number(v); })} options={[{ id: '1', label: '100%' }, { id: '1.15', label: '115%' }, { id: '1.3', label: '130%' }, { id: '1.5', label: '150%' }, { id: '2', label: '200%' }]} />
         </Card>
@@ -211,6 +217,8 @@ function Saves() {
             }} />
           </div>
           <p className="small muted">The game autosaves after every advance and keeps one rolling backup.</p>
+          <StorageStatus />
+          <InstallButton />
         </div>
       </Card>
       <Card title="Leave">

@@ -1,0 +1,16 @@
+{
+  "name": "Basketball Dynasty",
+  "short_name": "Dynasty",
+  "description": "Basketball club management: build a club from the lower divisions into a powerhouse.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#050b1d",
+  "theme_color": "#0a1530",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

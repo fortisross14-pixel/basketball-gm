@@ -14,7 +14,10 @@ import { JobOfferCard } from '../components/career';
 import { jobSecurity } from '../../engine/career';
 import { Badge, Button, Card, Crest, Meter, Page, Stat, Empty } from '../components/ui';
 import { Icon, type IconName } from '../art/icons';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
+import { InstallButton } from '../components/install';
+import { useState } from 'react';
+import '../screens/hubs/hubs.css';
 import { payroll } from '../../engine/finance';
 import type { CSSProperties } from 'react';
 
@@ -31,32 +34,18 @@ export default function Today() {
       kicker={c ? `${c.name} · executive desk` : 'Executive desk'}
       title={`Good morning, ${name}`}
       subtitle={`${fmtDate(w.season, w.day)} · Season ${seasonLabel(w.season)} · ${PHASE_LABEL[phaseOf(w.season, w.day)]}`}
-      actions={!c && <Button variant="primary" onClick={() => advance('week')}>Advance a week (wait for offers)</Button>}
+      actions={<><InstallButton compact />{!c && <Button variant="primary" onClick={() => advance('week')}>Advance a week (wait for offers)</Button>}</>}
     >
       {w.gameOver && <div className="callout bad mb8"><b>Career over.</b> {w.gameOver.reason}</div>}
-      {c && (
-        <div className="grid mb8" style={{ gridTemplateColumns: 'minmax(0, 2fr) minmax(0, 1fr)', marginBottom: 16 }}>
-          <HeroNext />
-          <HubTiles />
-        </div>
-      )}
+      <LiveBanner />
+      <ActionPanel offers={offers} decisions={decisions} />
+      {c && <MatchStrip />}
+      {c && <HubTiles />}
       {c && <RecentStrip />}
       <div className="grid" style={{ gridTemplateColumns: 'minmax(0, 1.5fr) minmax(0, 1fr)' }}>
         <div className="col gap16">
-          {offers.length > 0 && (
-            <Card title={c ? `Job offers (${offers.length})` : `Your offers (${offers.length}) — choose where your career starts`}>
-              <div className="col">{offers.map((d) => <JobOfferCard key={d.id} d={d} />)}</div>
-            </Card>
-          )}
           {!c && offers.length === 0 && <Card title="Waiting for offers"><p className="muted">No offers right now. Advance time: clubs approach you at a rate that grows with your reputation ({Math.round(w.user.reputation)}/100).</p></Card>}
           {c && <FirstWeeks />}
-          {decisions.length > 0 && (
-            <Card title={`Decisions waiting (${decisions.length})`}>
-              <div className="list">
-                {decisions.map((d) => <DecisionRow key={d.id} d={d} />)}
-              </div>
-            </Card>
-          )}
           <Card title="Executive digest">
             {digest.filter((x) => !x.decisionId).length === 0 ? <Empty>All quiet. Nothing needs your attention.</Empty> : (
               <div className="list">
@@ -236,62 +225,90 @@ function FirstWeeks() {
 }
 
 // ---------------------------------------------------------------- hub (visual pass)
-function HeroNext() {
+function LiveBanner() {
+  const w = useWorld();
+  const id = useGame((st) => st.liveFixtureId);
+  const nav = useNavigate();
+  if (id == null) return null;
+  const f = w.fixtures.find((x) => x.id === id);
+  const c = userClub(w);
+  if (!f || !c) return null;
+  const opp = getClub(w, f.homeId === c.id ? f.awayId : f.homeId);
+  return (
+    <motion.div className="live-banner" initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>
+      <span className="live-dot" aria-hidden="true" />
+      <Crest club={opp} size={40} />
+      <div style={{ flex: 1 }}>
+        <h2>Game day: {f.homeId === c.id ? 'vs' : '@'} {opp.name}</h2>
+        <div className="small muted">{f.label} · tip-off is waiting for you</div>
+      </div>
+      <button type="button" className="btn primary cta" onClick={() => nav(`/live/${id}`)}><span className="row gap4"><Icon name="play" size={16} /> Watch game</span></button>
+    </motion.div>
+  );
+}
+
+function ActionPanel({ offers, decisions }: { offers: Decision[]; decisions: Decision[] }) {
+  const w = useWorld();
+  const c = userClub(w);
+  const last = useGame((st) => st.lastAdvance);
+  const [hidden, setHidden] = useState<unknown>(null);
+  const stops = last && hidden !== last ? last.holds : [];
+  if (!offers.length && !decisions.length && !stops.length) return null;
+  const title = offers.length && !c ? 'Choose where your career starts' : decisions.length || offers.length ? 'Action required' : 'The clock stopped';
+  return (
+    <motion.section className="action-panel" initial={{ opacity: 0, y: -12, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ type: 'spring', stiffness: 300, damping: 26 }} aria-live="polite">
+      <div className="ap-head">
+        <span className="ap-badge"><Icon name="alert" size={24} /></span>
+        <div style={{ flex: 1 }}>
+          <h2>{title}</h2>
+          <div className="small muted">{[decisions.length && `${decisions.length} decision${decisions.length > 1 ? 's' : ''}`, offers.length && `${offers.length} job offer${offers.length > 1 ? 's' : ''}`, stops.length && `${stops.length} event${stops.length > 1 ? 's' : ''} stopped the clock`].filter(Boolean).join(' · ')}</div>
+        </div>
+        {stops.length > 0 && !decisions.length && !offers.length && <Button size="sm" variant="ghost" onClick={() => setHidden(last)}>Dismiss</Button>}
+      </div>
+      {stops.length > 0 && (
+        <div className="action-stops">
+          <AnimatePresence>
+            {stops.slice(0, 6).map((h, i) => (
+              <motion.div key={`${h.kind}-${i}`} className="action-stop" initial={{ opacity: 0, x: -14 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.05 * i }}>
+                <Icon name={h.kind === 'injury' ? 'medical' : h.kind === 'jobOffer' ? 'owner' : h.kind === 'transferBid' ? 'market' : h.kind === 'boardUltimatum' ? 'board' : h.kind === 'budgetBreach' ? 'coin' : 'clock'} size={20} style={{ color: 'var(--warn)' }} />
+                <span>{h.message}</span>
+              </motion.div>
+            ))}
+          </AnimatePresence>
+        </div>
+      )}
+      {offers.length > 0 && <div className="col">{offers.map((d) => <JobOfferCard key={d.id} d={d} />)}</div>}
+      {decisions.map((d) => <div key={d.id} className="decision-card"><DecisionRow d={d} /></div>)}
+    </motion.section>
+  );
+}
+
+function MatchStrip() {
   const w = useWorld();
   const c = userClub(w)!;
   const nav = useNavigate();
   const advance = useGame((s) => s.advance);
   const day = nextUserFixtureDay(w);
   const f = day != null ? w.fixtures.find((x) => x.day === day && !x.played && !x.cancelled && (x.homeId === c.id || x.awayId === c.id)) : null;
-  if (!f) {
-    return (
-      <div className="hero" style={{ ['--home-c' as string]: c.colors[0], ['--away-c' as string]: c.colors[1] } as CSSProperties}>
-        <div className="kicker">Season over</div>
-        <div className="row mt16"><Crest club={c} size={110} /><div><div className="team-name">{c.name}</div><p className="muted mt8">No games scheduled. Use the off-season to rebuild: contracts, signings, arena projects.</p></div></div>
-      </div>
-    );
-  }
+  if (!f) return <div className="match-strip"><span className="ms-teams"><Crest club={c} size={34} /> No games scheduled</span><span className="ms-meta">Use the off-season to rebuild: contracts, signings, infrastructure.</span></div>;
   const home = f.homeId === c.id ? c : getClub(w, f.homeId);
   const away = f.homeId === c.id ? getClub(w, f.awayId) : c;
-  const us = clubStrength(w, c);
   const opp = getClub(w, f.homeId === c.id ? f.awayId : f.homeId);
-  const them = clubStrength(w, opp);
-  const edge = (us - them) * 1.1 + (f.neutral ? 0 : f.homeId === c.id ? 3 : -3);
+  const edge = (clubStrength(w, c) - clubStrength(w, opp)) * 1.1 + (f.neutral ? 0 : f.homeId === c.id ? 3 : -3);
   const pct = Math.round(100 / (1 + Math.exp(-edge / 6.5)));
   const injured = roster(w, c.id).filter((p) => p.injury && !p.injury.playThroughRisk);
   return (
-    <div className="hero" style={{ ['--home-c' as string]: home.colors[0], ['--away-c' as string]: away.colors[0] } as CSSProperties}>
-      <div className="row">
-        <span className="kicker">Next game · {f.label}</span>
-        <span className="spacer" />
-        <Badge tone="info">{fmtDate(w.season, f.day)}</Badge>
+    <div className="match-strip" style={{ ['--home-c' as string]: home.colors[0], ['--away-c' as string]: away.colors[0] } as CSSProperties}>
+      <div>
+        <div className="small" style={{ color: 'var(--accent-2)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Next game · {fmtDate(w.season, f.day)}</div>
+        <div className="ms-teams"><Crest club={home} size={34} /> {home.abbrev} <span className="ms-vs">VS</span> {away.abbrev} <Crest club={away} size={34} /></div>
+        <div className="ms-meta">{f.label} · {f.neutral ? 'neutral venue' : f.homeId === c.id ? 'home' : 'away'} · {OFF_LABEL[c.tactics.off]} / {DEF_LABEL[c.tactics.def]}{injured.length ? ` · out: ${injured.map((p) => p.lastName).join(', ')}` : ''}</div>
       </div>
-      <div className="row" style={{ justifyContent: 'center', gap: 34, margin: '14px 0 8px' }}>
-        <motion.div className="center" initial={{ x: -60, opacity: 0 }} animate={{ x: 0, opacity: 1 }} transition={{ type: 'spring', stiffness: 220, damping: 20 }}>
-          <Crest club={home} size={104} />
-          <div className="team-name mt8">{home.name}</div>
-          <div className="small muted">{f.neutral ? 'Neutral' : 'Home'} · strength {clubStrength(w, home).toFixed(1)}</div>
-        </motion.div>
-        <motion.div className="vs" initial={{ scale: 0.4, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ delay: 0.15, type: 'spring', stiffness: 400, damping: 14 }}>VS</motion.div>
-        <motion.div className="center" initial={{ x: 60, opacity: 0 }} animate={{ x: 0, opacity: 1 }} transition={{ type: 'spring', stiffness: 220, damping: 20 }}>
-          <Crest club={away} size={104} />
-          <div className="team-name mt8">{away.name}</div>
-          <div className="small muted">Away · strength {clubStrength(w, away).toFixed(1)}</div>
-        </motion.div>
-      </div>
-      <div style={{ maxWidth: 520, margin: '0 auto' }}>
-        <Meter value={pct} label="Pre-game win chance" />
-        <div className="row small mt8" style={{ justifyContent: 'center', flexWrap: 'wrap' }}>
-          <span className="chip">Your plan: {OFF_LABEL[c.tactics.off]} · {DEF_LABEL[c.tactics.def]}</span>
-          <span className="chip">Theirs: {OFF_LABEL[opp.tactics.off]} · {DEF_LABEL[opp.tactics.def]}</span>
-          <span className="chip">Out: {injured.length ? injured.map((p) => p.lastName).join(', ') : 'nobody'}</span>
-        </div>
-        <div className="row mt16" style={{ justifyContent: 'center' }}>
-          <Button onClick={() => nav('/team/tactics')}>Game plan</Button>
-          <Button onClick={() => nav(`/clubs/${opp.id}`)}>Scout {opp.abbrev}</Button>
-          <button type="button" className="btn primary cta" onClick={() => advance('nextGame')}><span className="row gap4"><Icon name="play" size={18} /> Play</span></button>
-        </div>
-      </div>
+      <span className="spacer" />
+      <div className="ms-meter"><Meter value={pct} label="Win chance" /></div>
+      <Button size="sm" onClick={() => nav('/team/tactics')}>Game plan</Button>
+      <Button size="sm" onClick={() => nav(`/clubs/${opp.id}`)}>Scout {opp.abbrev}</Button>
+      <button type="button" className="btn primary sm" onClick={() => advance('nextGame')}><span className="row gap4"><Icon name="play" size={15} /> Play</span></button>
     </div>
   );
 }
@@ -311,7 +328,7 @@ function HubTiles() {
     { to: '/club/board', icon: 'board', title: 'Board', sub: `Job security ${w.user.role === 'owner' ? '—' : jobSecurity(w)}` },
   ];
   return (
-    <div className="grid g2" style={{ gap: 10 }}>
+    <div className="grid g6" style={{ gap: 10, marginBottom: 16 }}>
       {tiles.map((t, i) => (
         <Link key={t.to} to={t.to} className="tile" style={{ animationDelay: `${0.05 * i}s` }}>
           {t.badge && <span className="tile-badge"><Badge tone="warn">{t.badge}</Badge></span>}

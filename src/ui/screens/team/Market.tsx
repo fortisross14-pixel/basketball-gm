@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useAct, useNotify, useWorld } from '../../store';
-import { Badge, Button, Callout, Card, ClubLink, Money, Page, PlayerLink, Table, Tabs, type Column } from '../../components/ui';
+import { Badge, Button, Callout, Card, ClubLink, Money, NumberField, Page, PlayerLink, Table, Tabs, type Column } from '../../components/ui';
 import { OvrCell, PotCell, teamName } from '../../helpers';
 import { absDay, type Player, type Position, type Region } from '../../../engine/types';
 import { age, club as getClub, freeAgents, userClub } from '../../../engine/world';
@@ -108,8 +108,8 @@ function PlayerSearch({ pool, onNegotiate, onBid }: { pool: 'fa' | 'all'; onNego
       <div className="row wrap" style={{ padding: '12px 16px' }}>
         <input placeholder="Search name…" value={q} onChange={(e) => setQ(e.target.value)} />
         <select value={pos} onChange={(e) => setPos(e.target.value as Position | 'any')}>{POS.map((x) => <option key={x} value={x}>{x === 'any' ? 'Any position' : x}</option>)}</select>
-        <label className="row small muted">Max age <input type="number" style={{ width: 60 }} value={maxAge} onChange={(e) => setMaxAge(Number(e.target.value))} /></label>
-        <label className="row small muted">Max ask €k <input type="number" style={{ width: 80 }} value={maxAsk} onChange={(e) => setMaxAsk(Number(e.target.value))} title="0 = no limit" /></label>
+        <label className="row small muted" style={{ minWidth: 260 }}>Max age <NumberField label="Max age" value={maxAge} min={16} max={40} onChange={setMaxAge} width={50} /></label>
+        <label className="row small muted" style={{ minWidth: 300 }} title="0 = no limit">Max ask €k <NumberField label="Max asking salary (thousands, 0 = no limit)" value={maxAsk} min={0} max={3000} step={5} onChange={setMaxAsk} width={60} /></label>
         <select value={region} onChange={(e) => setRegion(e.target.value as Region | 'any')}><option value="any">Any origin</option><option value="ESP">Spanish</option><option value="EU">EU</option><option value="NONEU">Non-EU</option></select>
         {pool === 'all' && (
           <select value={league} onChange={(e) => setLeague(e.target.value)}>
@@ -164,7 +164,7 @@ function Scouting() {
                 <option value="YOUTH">Young talent (≤21)</option>
               </select>
               <select value={pos} onChange={(e) => setPos(e.target.value as Position | 'any')}>{POS.map((x) => <option key={x} value={x}>{x === 'any' ? 'Any position' : x}</option>)}</select>
-              <label className="row small muted">Max age <input type="number" style={{ width: 60 }} value={maxAge} onChange={(e) => setMaxAge(Number(e.target.value))} /></label>
+              <label className="row small muted" style={{ minWidth: 260 }}>Max age <NumberField label="Max age" value={maxAge} min={16} max={40} onChange={setMaxAge} width={50} /></label>
               <Button variant="primary" disabled={w.user.scoutAssignments.length >= 3} onClick={() => {
                 act((ww) => addScoutAssignment(ww, { region, focusPos: pos, maxAge }));
                 notify('Scouts dispatched. Weekly travel costs apply.', 'good');

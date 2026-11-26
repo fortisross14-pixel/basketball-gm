@@ -4,6 +4,8 @@ import { listSaves, loadWorld, loadBackup, deleteSave, importWorld, type SaveMet
 import { useGame } from '../store';
 import { Button, Card, Badge } from '../components/ui';
 import { BrandMark } from '../art/icons';
+import { InstallButton } from '../components/install';
+import { StorageStatus } from '../components/storage';
 import { motion } from 'framer-motion';
 
 export default function MainMenu() {
@@ -70,6 +72,7 @@ export default function MainMenu() {
           <Card title="Start">
             <div className="col">
               <Button variant="primary" size="lg" onClick={() => nav('/new')}>New career</Button>
+              <InstallButton />
               <Button onClick={() => fileRef.current?.click()}>Import save file…</Button>
               <input ref={fileRef} type="file" accept=".json,application/json" style={{ display: 'none' }} onChange={(e) => e.target.files?.[0] && importFile(e.target.files[0])} />
               <p className="small muted mt8">
@@ -77,7 +80,7 @@ export default function MainMenu() {
               </p>
             </div>
           </Card>
-          <Card title="Saved careers">
+          <Card title="Saved careers" actions={<StorageStatus />}>
             {loading ? <div className="muted">Loading…</div> : saves.length === 0 ? <div className="muted">No saved careers yet.</div> : (
               <div className="list">
                 {saves.map((s) => (

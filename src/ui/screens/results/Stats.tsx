@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import type { LeagueId, Player, StatLine } from '../../../engine/types';
 import { club as getClub, comp as getComp, isUser } from '../../../engine/world';
-import { Card, ClubLink, Crest, Empty, Page, PlayerLink, Table, Tabs } from '../../components/ui';
+import { Card, ClubLink, Crest, Empty, NumberField, Page, PlayerLink, Table, Tabs } from '../../components/ui';
 import { useWorld } from '../../store';
 import { addLine, emptyLine, pctStr } from '../../helpers';
 import { SeasonSelect } from './common';
@@ -58,7 +58,7 @@ export default function Stats() {
     <Page
       title="Statistics"
       actions={<>
-        <label className="row small">Min games <input type="number" min={0} value={minGp} style={{ width: 60 }} onChange={(e) => setMinGp(Number(e.target.value))} /></label>
+        <label className="row small" style={{ minWidth: 260 }}>Min games <NumberField label="Minimum games" value={minGp} min={0} max={40} onChange={setMinGp} width={50} /></label>
         <SeasonSelect w={w} value={season} onChange={setSeason} />
       </>}
     >

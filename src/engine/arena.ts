@@ -1,4 +1,5 @@
-import type { ArenaProject, Club, FacilityKey, ProjectKind, SeatZone, World } from './types';
+import type { ArenaProject, Club, FacilityKey, OfficeKey, ProjectKind, SeatZone, StoreKind, World } from './types';
+import { completeFacilityProject } from './facilities';
 import { absDay } from './types';
 import { addNews, book, hold, isUser, nextId } from './world';
 import { tier } from './economy';
@@ -29,6 +30,9 @@ const TIER_COST: Record<number, number> = { 0: 3, 1: 2.4, 2: 1, 3: 0.7 };
 export interface ProjectOption {
   kind: ProjectKind;
   facility?: FacilityKey;
+  office?: OfficeKey;
+  storeKind?: StoreKind;
+  storeId?: number;
   label: string;
   description: string;
   cost: number;
@@ -167,6 +171,9 @@ export function startProject(w: World, c: Club, o: ProjectOption, financing: 'ca
     id: nextId(w),
     kind: o.kind,
     facility: o.facility,
+    office: o.office,
+    storeKind: o.storeKind,
+    storeId: o.storeId,
     label: o.label,
     cost: o.cost,
     paid: 0,
@@ -213,6 +220,7 @@ function completeProject(w: World, c: Club, p: ArenaProject) {
   if (p.seatsDelta) for (const [z, n] of Object.entries(p.seatsDelta)) c.arena.seats[z as SeatZone] += n!;
   if (p.suitesDelta) c.arena.suites += p.suitesDelta;
   if (p.kind === 'facility' && p.facility) c.arena.levels[p.facility] = Math.min(MAX_LEVEL, c.arena.levels[p.facility] + 1);
+  if (p.kind === 'office' || p.kind === 'store' || p.kind === 'storeUpgrade') completeFacilityProject(w, c, p);
   if (p.kind === 'renovation') {
     c.arena.condition = 100;
     c.fans.hype = Math.min(100, c.fans.hype + 5);

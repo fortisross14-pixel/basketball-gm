@@ -22,6 +22,7 @@ describe('full seasons', () => {
     const t0 = Date.now();
     const oro = 0;
     const w = createWorld({ seed: 1234, userName: 'Test', role: 'gm', clubId: null, style: 'gm', difficulty: 'standard', worldNoise: 'normal' });
+    w.settings.liveGames = false;
     const userId = w.clubs.find((c) => c.leagueId === 'ORO')!.id;
     w.user.clubId = userId;
     void oro;

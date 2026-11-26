@@ -38,6 +38,8 @@ import Stats from './screens/results/Stats';
 import Rules from './screens/results/Rules';
 import ClubProfile from './screens/results/ClubProfile';
 import ClubHub from './screens/hubs/ClubHub';
+import { SECTIONS, sectionOf, depthOf, subsectionOf } from './screens/hubs/nav';
+import { SectionHeader } from './screens/hubs/SectionHeader';
 import TeamHub from './screens/hubs/TeamHub';
 import ResultsHub from './screens/hubs/ResultsHub';
 import InfraHub from './screens/infra/InfraHub';
@@ -80,32 +82,49 @@ function Root() {
   );
 }
 
-interface Section { id: string; label: string; icon: IconName; to: string; match: string; items?: [string, string, IconName][] }
+type NavDir = 'in' | 'out' | 'next' | 'prev' | 'none';
 
-const SECTIONS: Section[] = [
-  { id: 'today', label: 'Today', icon: 'today', to: '/today', match: '/today' },
-  { id: 'calendar', label: 'Calendar', icon: 'calendar', to: '/calendar', match: '/calendar' },
-  { id: 'club', label: 'Club', icon: 'club', to: '/club/finance', match: '/club/', items: [['/club/finance', 'Finance', 'money'], ['/club/marketing', 'Marketing & Fans', 'megaphone'], ['/club/commercial', 'Sponsors & TV', 'coin'], ['/club/contracts', 'Contracts', 'contract'], ['/club/board', 'Board', 'board'], ['/club/media', 'News & Media', 'news']] },
-  { id: 'team', label: 'Team', icon: 'team', to: '/team/players', match: '/team/', items: [['/team/players', 'Players', 'players'], ['/team/tactics', 'Tactics', 'tactics'], ['/team/training', 'Training', 'training'], ['/team/staff', 'Coaching Staff', 'staff'], ['/team/medical', 'Medical & Support', 'medical'], ['/team/market', 'Transfers & Scouting', 'market'], ['/team/academy', 'Academy', 'academy']] },
-  { id: 'infra', label: 'Arena', icon: 'arena', to: '/infrastructure/stadium', match: '/infrastructure/', items: [['/infrastructure/stadium', 'Stadium', 'arena'], ['/infrastructure/tickets', 'Tickets', 'ticket'], ['/infrastructure/stores', 'Stores', 'store'], ['/infrastructure/restaurants', 'Restaurants', 'food']] },
-  { id: 'results', label: 'Results', icon: 'results', to: '/results/standings', match: '/results/', items: [['/results/standings', 'Standings', 'standings'], ['/results/schedule', 'Fixtures & Results', 'fixtures'], ['/results/competitions', 'Competitions', 'bracket'], ['/results/stats', 'Statistics', 'stats'], ['/results/rules', 'Rules', 'rules']] },
-  { id: 'legacy', label: 'Legacy', icon: 'legacy', to: '/legacy', match: '/legacy' },
-  { id: 'settings', label: 'Settings', icon: 'settings', to: '/settings', match: '/settings' },
-];
+const PAGE_VARIANTS = {
+  initial: (d: NavDir) => (d === 'in' ? { opacity: 0, scale: 0.94, y: 18, filter: 'blur(4px)' } : d === 'out' ? { opacity: 0, scale: 1.05, y: -10, filter: 'blur(4px)' } : d === 'next' ? { opacity: 0, x: 46 } : d === 'prev' ? { opacity: 0, x: -46 } : { opacity: 0, y: 10 }),
+  animate: { opacity: 1, scale: 1, x: 0, y: 0, filter: 'blur(0px)' },
+  exit: (d: NavDir) => (d === 'in' ? { opacity: 0, scale: 1.06, filter: 'blur(4px)' } : d === 'out' ? { opacity: 0, scale: 0.94, y: 14, filter: 'blur(4px)' } : d === 'next' ? { opacity: 0, x: -40 } : d === 'prev' ? { opacity: 0, x: 40 } : { opacity: 0 }),
+};
+
+/** Direction of travel between two routes: deeper into a section, back out, or across siblings. */
+function navDirection(from: string, to: string): NavDir {
+  if (from === to) return 'none';
+  const a = sectionOf(from);
+  const b = sectionOf(to);
+  if (!a || !b || a.id !== b.id) return 'none';
+  const da = depthOf(from), db = depthOf(to);
+  if (db > da) return 'in';
+  if (db < da) return 'out';
+  const ia = subsectionOf(from).index, ib = subsectionOf(to).index;
+  return ib >= ia ? 'next' : 'prev';
+}
 
 function GameShell() {
   const w = useWorld();
   const c = userClub(w);
   const [menuOpen, setMenuOpen] = useState(false);
   const loc = useLocation();
-  const section = SECTIONS.find((s) => loc.pathname.startsWith(s.match));
+  const section = sectionOf(loc.pathname);
+  const prevPath = useRef(loc.pathname);
+  const dirRef = useRef<NavDir>('none');
+  if (prevPath.current !== loc.pathname) {
+    dirRef.current = navDirection(prevPath.current, loc.pathname);
+    prevPath.current = loc.pathname;
+  }
+  const dir = dirRef.current;
   const pending = w.decisions.filter((d) => !d.resolved).length;
   const mainRef = useRef<HTMLElement>(null);
   const liveId = useGame((st) => st.liveFixtureId);
   const navTo = useNavigate();
   useEffect(() => {
-    if (liveId != null && !loc.pathname.startsWith('/live/')) navTo(`/live/${liveId}`);
-  }, [liveId, loc.pathname, navTo]);
+    if (liveId != null && !window.location.hash.startsWith('#/live/')) navTo(`/live/${liveId}`);
+    // only when a new live game becomes available — never trap the user on the live screen
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [liveId]);
   useEffect(() => {
     setMenuOpen(false);
     mainRef.current?.scrollTo({ top: 0 });
@@ -131,28 +150,25 @@ function GameShell() {
           <NavLink key={s.id} to={s.to} className={() => `rail-item ${section?.id === s.id ? 'active' : ''}`} aria-current={section?.id === s.id ? 'page' : undefined}>
             <span className="rail-icon"><Icon name={s.icon} size={26} /></span>
             {s.label}
-            {s.id === 'today' && pending > 0 && <span className="rail-dot" aria-label={`${pending} pending`}>{pending}</span>}
+            {s.id === 'today' && liveId != null && <span className="rail-live" aria-label="Live game waiting">LIVE</span>}
+            {s.id === 'today' && liveId == null && pending > 0 && <span className="rail-dot" aria-label={`${pending} pending`}>{pending}</span>}
           </NavLink>
         ))}
       </nav>
       <TopBar />
-      {section?.items ? (
-        <div className="subnav" role="navigation" aria-label={`${section.label} pages`}>
-          {section.items.map(([to, label, icon]) => (
-            <NavLink key={to} to={to} className={({ isActive }) => (isActive ? 'active' : '')}>
-              <Icon name={icon} size={17} /> {label}
-            </NavLink>
-          ))}
-        </div>
-      ) : <div />}
+      <div />
       <main className="main" ref={mainRef}>
-        <AnimatePresence mode="wait" initial={false}>
+        <SectionHeader />
+        <AnimatePresence mode="wait" initial={false} custom={dir}>
           <motion.div
             key={loc.pathname}
-            initial={{ opacity: 0, x: 28, filter: 'blur(3px)' }}
-            animate={{ opacity: 1, x: 0, filter: 'blur(0px)' }}
-            exit={{ opacity: 0, x: -22, filter: 'blur(2px)' }}
-            transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
+            custom={dir}
+            variants={PAGE_VARIANTS}
+            initial="initial"
+            animate="animate"
+            exit="exit"
+            transition={{ duration: 0.26, ease: [0.16, 1, 0.3, 1] }}
+            style={{ transformOrigin: '50% 0%' }}
           >
             <Routes location={loc}>
               <Route path="/today" element={<Today />} />
@@ -251,6 +267,7 @@ function TopBar() {
   const nextF = nextDay != null && c ? w.fixtures.find((f) => f.day === nextDay && !f.played && !f.cancelled && (f.homeId === c.id || f.awayId === c.id)) : null;
   const opp = nextF && c ? getClub(w, nextF.homeId === c.id ? nextF.awayId : nextF.homeId) : null;
   const pending = w.decisions.filter((d) => !d.resolved).length;
+  const liveFixtureId = useGame((s) => s.liveFixtureId);
   const menuRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (!open) return;
@@ -310,9 +327,15 @@ function TopBar() {
         <Badge tone="bad">Game over</Badge>
       ) : (
         <div className="dropdown row gap4" ref={menuRef}>
-          <button type="button" className="btn primary cta" onClick={() => go(c ? 'nextGame' : 'week')} title="Shift+Space">
-            <span className="row gap4"><Icon name="play" size={18} /> {c ? 'Play next game' : 'Advance week'}</span>
-          </button>
+          {liveFixtureId != null ? (
+            <button type="button" className="btn primary cta" onClick={() => nav(`/live/${liveFixtureId}`)} title="Your game is ready to watch">
+              <span className="row gap4"><span className="live-dot" aria-hidden="true" /> Watch game</span>
+            </button>
+          ) : (
+            <button type="button" className="btn primary cta" onClick={() => go(c ? 'nextGame' : 'week')} title="Shift+Space">
+              <span className="row gap4"><Icon name="play" size={18} /> {c ? 'Play next game' : 'Advance week'}</span>
+            </button>
+          )}
           <button type="button" className="btn" aria-label="More ways to advance time" aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen(!open)}><Icon name="chevronDown" size={18} /></button>
           <AnimatePresence>
             {open && (

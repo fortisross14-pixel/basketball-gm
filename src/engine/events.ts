@@ -8,6 +8,7 @@ import { refPrice } from './economy';
 import { SEAT_ZONES } from './types';
 import { STAFF_LABEL, staffAsk } from './staff';
 import { resolveJobOffer, fanReaction } from './career';
+import { prFactor } from './facilities';
 import { salaryAsk, ROLE_MINUTES } from './player';
 
 type Tpl = 'unhappyMinutes' | 'raiseRequest' | 'fanPrices' | 'councilGrant' | 'prospect' | 'staffPoach' | 'incident' | 'sponsorAppearance' | 'coachWish' | 'press' | 'returnToPlay' | 'leaderMeeting';
@@ -245,12 +246,16 @@ function resolveEvent(w: World, d: Decision, choice: string): string {
       return 'The coach is disappointed.';
     case 'press': {
       const sq = roster(w, c.id);
+      // a better PR office softens bad press and amplifies good press
+      const k = prFactor(w, c);
+      const m0 = c.board.trust.media;
+      const done = (text: string) => { const d = c.board.trust.media - m0; c.board.trust.media = clamp(m0 + (d > 0 ? d * k : d / k), 0, 100); return text; };
       w.user.pressStance += choice === 'defend' ? 1 : choice === 'demand' ? -1 : choice === 'expect' ? -0.5 : 0;
       if (choice === 'calm') {
-        if (r.chance(0.35)) { c.board.trust.media = clamp(c.board.trust.media - 3, 0, 100); fanReaction(w, -2, 'Evasive press conference'); return 'The press called it evasive: "No answers from the executive."'; }
-        c.board.trust.media = clamp(c.board.trust.media + 2, 0, 100); return 'Measured answers. No headlines.';
+        if (r.chance(0.35 / k)) { c.board.trust.media = clamp(c.board.trust.media - 3, 0, 100); fanReaction(w, -2, 'Evasive press conference'); return done('The press called it evasive: "No answers from the executive."'); }
+        c.board.trust.media = clamp(c.board.trust.media + 2, 0, 100); return done('Measured answers. No headlines.');
       }
-      if (choice === 'defend') { for (const x of sq) x.morale = clamp(x.morale + 4, 0, 100); c.board.trust.media = clamp(c.board.trust.media - 2, 0, 100); return 'The locker room appreciates it; some media call it denial.'; }
+      if (choice === 'defend') { for (const x of sq) x.morale = clamp(x.morale + 4, 0, 100); c.board.trust.media = clamp(c.board.trust.media - 2, 0, 100); return done('The locker room appreciates it; some media call it denial.'); }
       if (choice === 'demand') { for (const x of sq) x.morale = clamp(x.morale + (x.personality.ego > 65 ? -6 : 2), 0, 100); c.fans.sentiment = clamp(c.fans.sentiment + 3, 0, 100); return 'Fans like the honesty; big egos do not.'; }
       c.fans.hype = clamp(c.fans.hype - 4, 0, 100); c.board.trust.relationship = clamp(c.board.trust.relationship - 3, 0, 100); return 'Expectations lowered. The board is not pleased.';
     }

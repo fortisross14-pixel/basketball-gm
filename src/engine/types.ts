@@ -204,6 +204,9 @@ export interface Arena {
 }
 
 export type ProjectKind =
+  | 'office'
+  | 'store'
+  | 'storeUpgrade'
   | 'expandGeneral'
   | 'expandLower'
   | 'premiumSeats'
@@ -216,6 +219,9 @@ export interface ArenaProject {
   id: number;
   kind: ProjectKind;
   facility?: FacilityKey;
+  office?: OfficeKey;
+  storeKind?: StoreKind;
+  storeId?: number;
   label: string;
   cost: number;
   paid: number;
@@ -251,6 +257,39 @@ export interface Concessions {
 }
 
 export type MerchLine = 'home' | 'away' | 'retro' | 'city' | 'european' | 'signature' | 'kids' | 'lifestyle';
+
+// ---------------------------------------------------------------------------
+// Club facilities (infrastructure section). All optional: old saves initialise lazily.
+// ---------------------------------------------------------------------------
+export type OfficeKey = 'corporate' | 'pr';
+export type StoreKind = 'arena' | 'online' | 'city' | 'outlet' | 'airport';
+/** Facilities that can have a responsible staff member. */
+export type OwnedFacility = 'training' | 'academy' | 'lockerRoom' | 'medical';
+
+export interface ClubStore {
+  id: number;
+  kind: StoreKind;
+  name: string;
+  level: number; // 1-3 for extra stores (arena/online mirror arena facility levels)
+  lines: MerchLine[];
+  priceMult: number; // 0.8-1.3 vs club jersey price
+  stock: 'lean' | 'normal' | 'deep';
+  managerId: number | null;
+  openedDay: number;
+  lastWeekSales: number; // revenue
+  lastWeekUnits: number;
+  seasonSales: number;
+}
+
+export interface ClubFacilities {
+  owners: Partial<Record<OwnedFacility, number>>; // staff id
+  offices: Record<OfficeKey, number>; // levels 1-5
+  stores: ClubStore[];
+  lastPress: number | null; // abs day of last user press conference
+  pressLog: { day: number; topic: string; stance: string; result: string }[];
+  usage: Partial<Record<OwnedFacility, number>>; // last weekly usage score 0-100
+  officeBase?: Record<OfficeKey, number>; // levels the club started with (only expansions cost upkeep)
+}
 
 export interface Merch {
   lines: MerchLine[];
@@ -496,6 +535,7 @@ export interface Club {
   rivals: number[];
   sponsorLocks?: Partial<Record<SponsorSlot, number>>; // slot -> abs day until new offers
   logoUrl?: string; // optional licensed logo (overrides the generated emblem)
+  facilities?: ClubFacilities;
   history: SeasonRecord[];
   trophies: { season: number; name: string }[];
   retiredNumbers: { jersey: number; playerId: number; name: string }[];
@@ -647,6 +687,8 @@ export interface GameLog {
   away: TeamBox;
   ot: number;
   factors: ExplanationFactor[]; // from perspective of userClub
+  /** score by minute (lead chart) */
+  flow?: { m: number; h: number; a: number }[];
   attendance: number;
   revenue: number;
   mvpId: number;
@@ -869,6 +911,7 @@ export interface Settings {
   seed: number;
   debugDeterministic: boolean;
   textScale?: number; // UI text size multiplier (1 = 100%)
+  liveGames?: boolean; // watch your games minute by minute (default on)
 }
 
 // ---------------------------------------------------------------------------

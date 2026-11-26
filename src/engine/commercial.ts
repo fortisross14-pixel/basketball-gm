@@ -5,6 +5,7 @@ import { addNews, book, fmtMoney, hold, isUser, logDelegation, nextId, rng, staf
 import { BROADCASTER_PROFILE, SLOT_INFO, inventoryUnits, localTvBenchmark, merchDemandUnits, merchUnitCost, seasonTicketTarget, sponsorBenchmark, suiteDemand, currentWinPct, refPrice, MERCH_LINES } from './economy';
 import { clamp } from './rng';
 import { buildCalendar, monthOf } from './calendar';
+import { recordArenaMerch } from './facilities';
 
 // ---------------------------------------------------------------------------
 // Sponsors
@@ -316,6 +317,7 @@ function weeklyMerch(w: World, c: Club) {
   const sold = Math.max(0, Math.min(stockUnits, weekly));
   const revenue = sold * c.merch.jerseyPrice * 0.75; // product mix average
   book(w, c, 'merch', Math.round(revenue));
+  recordArenaMerch(c, revenue, sold);
   c.merch.stockValue = Math.max(0, c.merch.stockValue - sold * merchUnitCost(c));
 }
 

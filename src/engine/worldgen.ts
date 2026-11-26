@@ -13,6 +13,7 @@ import { maintenanceNeed } from './arena';
 import { nextId, invalidateIndex, rng, club as getClub, roster, addNews, fmtMoney } from './world';
 import { startSeason } from './season';
 import { BACKGROUND_INFO } from './career';
+import { ensureFacilities } from './facilities';
 import { absDay } from './types';
 
 export const SAVE_VERSION = 2;
@@ -93,6 +94,7 @@ function defaultSettings(seed: number, difficulty: Settings['difficulty'], noise
     },
     seed,
     debugDeterministic: false,
+    liveGames: true,
   };
 }
 
@@ -180,6 +182,7 @@ export function createWorld(opts: NewGameOptions): World {
     setupCommercial(w, r, c);
     c.board = generateBoard(w, c);
     calibrateFinances(w, r, c);
+    if (!c.foreign) ensureFacilities(w, c);
   }
   w.user.clubId = null;
   startSeason(w);

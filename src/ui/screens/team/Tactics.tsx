@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import { useAct, useNotify, useWorld } from '../../store';
-import { Badge, Button, Callout, Card, Meter, Page, Pills, PlayerLink } from '../../components/ui';
+import { Badge, Button, Callout, Card, Meter, NumberField, Page, Pills, PlayerLink } from '../../components/ui';
 import { OvrCell, InjuryBadge } from '../../helpers';
 import { club as getClub, roster, staffOf } from '../../../engine/world';
 import { fmtAbs as fmtAbsDay } from '../../../engine/calendar';
@@ -43,7 +43,7 @@ export default function Tactics() {
   return (
     <Page
       title="Tactics"
-      subtitle="Games resolve instantly: your roster, your coach and these settings decide them."
+      subtitle="Your roster, your coach and these settings decide games. When you watch a game live you can adjust them at every quarter break."
       actions={<Button onClick={() => { if (!confirm('Let the coach replace your systems and lineup with his own plan?')) return; act((ww) => coachSetsTactics(ww, getClub(ww, c.id), true)); notify(`Coach ${coach?.lastName ?? '(interim)'} set the game plan.`); }}>Let the coach decide</Button>}
     >
       {delegated && (
@@ -162,8 +162,7 @@ export default function Tactics() {
                   </span>
                 </td>
                 <td>
-                  <input type="number" min={0} max={40} style={{ width: 64 }} value={t.minuteLimits[p.id] ?? 0} onChange={(e) => act(() => {
-                    const v = Number(e.target.value);
+                  <NumberField label={`Minute limit for ${p.lastName} (0 = none)`} min={0} max={40} width={44} value={t.minuteLimits[p.id] ?? 0} onChange={(v) => act(() => {
                     if (!v) delete c.tactics.minuteLimits[p.id];
                     else c.tactics.minuteLimits[p.id] = Math.max(1, Math.min(40, v));
                   })} />

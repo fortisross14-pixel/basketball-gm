@@ -83,7 +83,7 @@ interface SP {
   rank: number; // depth rank 0..n
 }
 
-interface ST {
+export interface ST {
   inp: SimTeamIn;
   players: SP[];
   court: SP[];
@@ -177,58 +177,129 @@ function comp(p: SP) {
   };
 }
 
-/** Run a complete game. `homeCourt` false for neutral venues. */
-export function simulateGame(home: SimTeamIn, away: SimTeamIn, r: Rng, homeCourt = true): SimResult {
-  const teams: ST[] = [home, away].map((t) => initTeam(t));
-  const preGameEdge = (teamStrength(home.players) - teamStrength(away.players)) * 1.1 + (homeCourt ? 3 : 0);
-  const injuries: SimInjury[] = [];
-  let leadChanges = 0;
-  let lastLeader = 0;
-  let q = 0;
-  let ot = 0;
-  let poss: 0 | 1 = r.chance(0.5) ? 0 : 1;
-  let transition = false;
-  let lastTovBy: 0 | 1 | -1 = -1;
-  const homeAdv = homeCourt ? 0.012 : 0;
+// ---------------------------------------------------------------------------
+// Live game: simulated one period at a time, recording a minute-by-minute
+// timeline (score, play-by-play, live leaders). Tactics can change between periods.
+// ---------------------------------------------------------------------------
+export type PlayKind = 'three' | 'jumper' | 'layup' | 'ft' | 'and1' | 'timeout' | 'injury' | 'run' | 'period' | 'steal' | 'block';
 
-  const scoreDiff = () => teams[0].out.score - teams[1].out.score;
+export interface PlayEvent {
+  t: number; // seconds elapsed in the game
+  side: 0 | 1 | -1;
+  kind: PlayKind;
+  pts: number;
+  playerId?: number;
+  assistId?: number;
+  score: [number, number];
+}
 
-  const credit = (side: 0 | 1, pts: number) => {
-    const t = teams[side];
+export interface MinuteTick {
+  m: number; // minutes elapsed (1-based: tick m covers minute m)
+  period: number; // 0-based
+  h: number;
+  a: number;
+  /** per side, per player (same order as LiveGame.roster(side)): [pts, reb, ast] */
+  lines: [number, number, number][][];
+}
+
+export class LiveGame {
+  readonly teams: ST[];
+  readonly preGameEdge: number;
+  readonly injuries: SimInjury[] = [];
+  readonly events: PlayEvent[] = [];
+  readonly timeline: MinuteTick[] = [];
+  leadChanges = 0;
+  q = 0;
+  ot = 0;
+  private lastLeader = 0;
+  private poss: 0 | 1;
+  private transition = false;
+  private lastTovBy: 0 | 1 | -1 = -1;
+  private elapsed = 0;
+  private readonly homeAdv: number;
+
+  constructor(home: SimTeamIn, away: SimTeamIn, private r: Rng, homeCourt = true) {
+    this.teams = [home, away].map((t) => initTeam(t));
+    this.preGameEdge = (teamStrength(home.players) - teamStrength(away.players)) * 1.1 + (homeCourt ? 3 : 0);
+    this.poss = r.chance(0.5) ? 0 : 1;
+    this.homeAdv = homeCourt ? 0.012 : 0;
+  }
+
+  get periods() { return 4 + this.ot; }
+  get finished() { return this.q >= this.periods; }
+  score(): [number, number] { return [this.teams[0].out.score, this.teams[1].out.score]; }
+  periodLength(q = this.q) { return q < 4 ? QLEN : OTLEN; }
+  /** Player ids in timeline line order for one side. */
+  roster(side: 0 | 1): number[] { return this.teams[side].players.map((p) => p.inp.id); }
+  onCourt(side: 0 | 1): number[] { return this.teams[side].court.map((p) => p.inp.id); }
+  energy(side: 0 | 1): Map<number, number> { return new Map(this.teams[side].players.map((p) => [p.inp.id, p.energy])); }
+  fouls(side: 0 | 1): Map<number, number> { return new Map(this.teams[side].players.map((p) => [p.inp.id, p.fouls])); }
+
+  /** Change a side's tactics between periods (systems, pace, emphasis sliders). */
+  setTactics(side: 0 | 1, tactics: Tactics) {
+    const t = this.teams[side];
+    t.inp = { ...t.inp, tactics };
+    const ex = execution(t.inp);
+    t.execOff = ex.off;
+    t.execDef = ex.def;
+  }
+
+  private diff() { return this.teams[0].out.score - this.teams[1].out.score; }
+
+  private credit(side: 0 | 1, pts: number) {
+    const t = this.teams[side];
     t.out.score += pts;
-    t.out.quarters[q] = (t.out.quarters[q] ?? 0) + pts;
+    t.out.quarters[this.q] = (t.out.quarters[this.q] ?? 0) + pts;
     for (const p of t.court) p.box.pm += pts;
-    for (const p of teams[1 - side].court) p.box.pm -= pts;
-    const lead = side === 0 ? scoreDiff() : -scoreDiff();
+    for (const p of this.teams[1 - side].court) p.box.pm -= pts;
+    const lead = side === 0 ? this.diff() : -this.diff();
     if (lead > t.out.biggestLead) t.out.biggestLead = lead;
-    const leader = Math.sign(scoreDiff());
-    if (leader !== 0 && lastLeader !== 0 && leader !== lastLeader) leadChanges++;
-    if (leader !== 0) lastLeader = leader;
+    const leader = Math.sign(this.diff());
+    if (leader !== 0 && this.lastLeader !== 0 && leader !== this.lastLeader) this.leadChanges++;
+    if (leader !== 0) this.lastLeader = leader;
     if (t.run >= 0) t.run += pts;
     else t.run = pts;
-    teams[1 - side].run = 0;
-  };
+    this.teams[1 - side].run = 0;
+  }
 
-  const periods = () => 4 + ot;
-  while (q < periods()) {
-    const len = q < 4 ? QLEN : OTLEN;
+  private pushTicks(periodStart: number) {
+    while (this.elapsed >= (this.timeline.length + 1) * 60 - 0.0001 && this.timeline.length < Math.floor(periodStart / 60 + this.periodLength() / 60)) {
+      this.timeline.push({
+        m: this.timeline.length + 1,
+        period: this.q,
+        h: this.teams[0].out.score,
+        a: this.teams[1].out.score,
+        lines: this.teams.map((t) => t.players.map((p) => [p.box.pts, p.box.orb + p.box.drb, p.box.ast] as [number, number, number])),
+      });
+    }
+  }
+
+  /** Simulate the next period. Returns the events it produced. */
+  playPeriod(): PlayEvent[] {
+    if (this.finished) return [];
+    const r = this.r;
+    const teams = this.teams;
+    const q = this.q;
+    const fromEvent = this.events.length;
+    const len = this.periodLength();
+    const periodStart = this.elapsed;
     let clock = len;
     for (const t of teams) {
       t.teamFoulsQ = 0;
       t.out.quarters[q] = t.out.quarters[q] ?? 0;
       if (q === 2) t.timeoutsLeft = 3;
-      // breaks restore energy
-      const rec = q === 2 ? 0.14 : 0.05;
+      const rec = q === 2 ? 0.14 : q === 0 ? 0 : 0.05;
       for (const p of t.players) p.energy = Math.min(1, p.energy + rec);
     }
-    if (q > 0) poss = q % 2 === 1 ? (1 - poss) as 0 | 1 : poss;
+    if (q > 0) this.poss = q % 2 === 1 ? ((1 - this.poss) as 0 | 1) : this.poss;
     while (clock > 0) {
+      const poss = this.poss;
       const off = teams[poss];
       const def = teams[1 - poss];
-      const clutch = q >= 3 && clock <= 240 && Math.abs(scoreDiff()) <= 8;
-      const result = possession(r, off, def, poss, transition, clock, homeAdv * (poss === 0 ? 1 : -1), clutch, q);
+      const clutch = q >= 3 && clock <= 240 && Math.abs(this.diff()) <= 8;
+      const result = possession(r, off, def, poss, this.transition, clock, this.homeAdv * (poss === 0 ? 1 : -1), clutch, q);
       clock -= result.secs;
-      // time & energy bookkeeping
+      this.elapsed += result.secs;
       for (const t of teams) {
         const pace = t.inp.tactics.pace === 'fast' ? 1.15 : t.inp.tactics.pace === 'slow' ? 0.9 : 1;
         const press = t.inp.tactics.def === 'pressure' ? 1.18 : 1;
@@ -244,54 +315,87 @@ export function simulateGame(home: SimTeamIn, away: SimTeamIn, r: Rng, homeCourt
         }
       }
       if (result.pts > 0) {
-        credit(poss, result.pts);
+        const runBefore = off.run;
+        this.credit(poss, result.pts);
         if (clutch) off.out.clutchPts += result.pts;
         if (result.fastBreak) off.out.fastBreak += result.pts;
         if (result.second) off.out.secondChance += result.pts;
-        if (lastTovBy === (1 - poss) && result.afterTov) off.out.offTov += result.pts;
+        if (this.lastTovBy === 1 - poss && result.afterTov) off.out.offTov += result.pts;
+        this.events.push({ t: Math.round(this.elapsed), side: poss, kind: result.ev?.kind ?? 'jumper', pts: result.pts, playerId: result.ev?.pid, assistId: result.ev?.ast, score: this.score() });
+        if (runBefore < 8 && off.run >= 8) this.events.push({ t: Math.round(this.elapsed), side: poss, kind: 'run', pts: off.run, score: this.score() });
+      } else if (result.ev && (result.ev.kind === 'steal' || result.ev.kind === 'block')) {
+        this.events.push({ t: Math.round(this.elapsed), side: (1 - poss) as 0 | 1, kind: result.ev.kind, pts: 0, playerId: result.ev.pid, score: this.score() });
       }
-      // injuries (rare)
       for (const side of [0, 1] as const) {
         const t = teams[side];
         for (const p of t.court) {
-          const risk = 0.000055 * result.secs / 15 * (0.5 + p.inp.injuryProne / 60) * (1.6 - p.energy) * (1 - (t.inp.medical - 50) / 250);
+          const risk = (0.000055 * result.secs) / 15 * (0.5 + p.inp.injuryProne / 60) * (1.6 - p.energy) * (1 - (t.inp.medical - 50) / 250);
           if (r.chance(risk)) {
             p.out = true;
-            injuries.push({ playerId: p.inp.id, side });
+            this.injuries.push({ playerId: p.inp.id, side });
+            this.events.push({ t: Math.round(this.elapsed), side, kind: 'injury', pts: 0, playerId: p.inp.id, score: this.score() });
           }
         }
       }
-      lastTovBy = result.tov ? (poss as 0 | 1) : -1;
-      transition = result.transitionNext;
-      if (!result.keep) poss = (1 - poss) as 0 | 1;
-      // AI timeouts on opponent runs
-      for (const t of teams) {
-        const opp = teams[1 - teams.indexOf(t)];
+      this.lastTovBy = result.tov ? poss : -1;
+      this.transition = result.transitionNext;
+      if (!result.keep) this.poss = (1 - poss) as 0 | 1;
+      for (const [i, t] of teams.entries()) {
+        const opp = teams[1 - i];
         if (opp.run >= 9 && t.timeoutsLeft > 0) {
           t.timeoutsLeft--;
           t.out.timeouts++;
           opp.run = 0;
           for (const p of t.players) p.energy = Math.min(1, p.energy + 0.03);
+          this.events.push({ t: Math.round(this.elapsed), side: i as 0 | 1, kind: 'timeout', pts: 0, score: this.score() });
         }
       }
       for (const t of teams) substitutions(t, q, clock);
+      this.pushTicks(periodStart);
     }
-    q++;
-    if (q >= 4 && q === periods() && scoreDiff() === 0) ot++;
+    this.elapsed = periodStart + len;
+    this.pushTicks(periodStart);
+    this.events.push({ t: Math.round(this.elapsed), side: -1, kind: 'period', pts: q, score: this.score() });
+    this.q++;
+    if (this.q >= 4 && this.q === this.periods && this.diff() === 0) this.ot++;
+    return this.events.slice(fromEvent);
   }
 
-  // finalise boxes
-  for (const t of teams) {
-    for (const p of t.players) {
-      p.box.min = Math.round((p.box.secs / 60) * 10) / 10;
-      p.box.energy = p.energy;
-      if (p.box.secs === 0) p.box.gp = 0;
-      if (!p.box.starter) t.out.bench += p.box.pts;
-      t.out.fouls += p.box.pf;
-    }
-    t.out.players = t.players.map((p) => p.box);
+  playAll(): this {
+    while (!this.finished) this.playPeriod();
+    return this;
   }
-  return { teams: [teams[0].out, teams[1].out], ot, injuries, leadChanges, preGameEdge };
+
+  result(): SimResult {
+    for (const t of this.teams) {
+      t.out.bench = 0;
+      t.out.fouls = 0;
+      for (const p of t.players) {
+        p.box.min = Math.round((p.box.secs / 60) * 10) / 10;
+        p.box.energy = p.energy;
+        p.box.gp = p.box.secs === 0 ? 0 : 1;
+        if (!p.box.starter) t.out.bench += p.box.pts;
+        t.out.fouls += p.box.pf;
+      }
+      t.out.players = t.players.map((p) => p.box);
+    }
+    return { teams: [this.teams[0].out, this.teams[1].out], ot: this.ot, injuries: this.injuries, leadChanges: this.leadChanges, preGameEdge: this.preGameEdge };
+  }
+}
+
+/** Run a complete game instantly. `homeCourt` false for neutral venues. */
+export function simulateGame(home: SimTeamIn, away: SimTeamIn, r: Rng, homeCourt = true): SimResult {
+  return new LiveGame(home, away, r, homeCourt).playAll().result();
+}
+
+function execution(t: SimTeamIn) {
+  const tac = t.tactics;
+  const coachFitOff = t.coach.offPref === tac.off ? 1 : 0;
+  const coachFitDef = t.coach.defPref === tac.def ? 1 : 0;
+  return {
+    off: (t.coach.rating - 50) / 1200 + coachFitOff * 0.006 - (1 - coachFitOff) * 0.002 + (t.assistOff - 50) / 2500 + (t.cohesion - 50) / 2600 + (t.analytics - 50) / 5000,
+    def: (t.coach.rating - 50) / 1500 + coachFitDef * 0.006 - (1 - coachFitDef) * 0.002 + (t.assistDef - 50) / 2500 + (t.cohesion - 50) / 3200,
+  };
 }
 
 function initTeam(t: SimTeamIn): ST {
@@ -306,11 +410,7 @@ function initTeam(t: SimTeamIn): ST {
     maxSecs: (t.tactics.minuteLimits[p.id] ?? (i < rot ? 40 : i < rot + 2 ? 6 : 0)) * 60,
     rank: i,
   }));
-  const tac = t.tactics;
-  const coachFitOff = t.coach.offPref === tac.off ? 1 : 0;
-  const coachFitDef = t.coach.defPref === tac.def ? 1 : 0;
-  const execOff = (t.coach.rating - 50) / 1200 + coachFitOff * 0.006 - (1 - coachFitOff) * 0.002 + (t.assistOff - 50) / 2500 + (t.cohesion - 50) / 2600 + (t.analytics - 50) / 5000;
-  const execDef = (t.coach.rating - 50) / 1500 + coachFitDef * 0.006 - (1 - coachFitDef) * 0.002 + (t.assistDef - 50) / 2500 + (t.cohesion - 50) / 3200;
+  const ex = execution(t);
   return {
     inp: t,
     players,
@@ -319,8 +419,8 @@ function initTeam(t: SimTeamIn): ST {
     teamFoulsQ: 0,
     timeoutsLeft: 2,
     run: 0,
-    execOff,
-    execDef,
+    execOff: ex.off,
+    execDef: ex.def,
   };
 }
 
@@ -363,6 +463,7 @@ interface PossResult {
   fastBreak: boolean;
   second: boolean;
   afterTov: boolean;
+  ev?: { pid: number; ast?: number; kind: PlayKind };
 }
 
 function possession(r: Rng, off: ST, def: ST, side: 0 | 1, transition: boolean, clock: number, homeAdv: number, clutch: boolean, q: number, second = false): PossResult {
@@ -394,6 +495,7 @@ function possession(r: Rng, off: ST, def: ST, side: 0 | 1, transition: boolean, 
       const sIdx = r.weighted([0, 1, 2, 3, 4], dc.map((c) => c.stl * c.stl));
       def.court[sIdx].box.stl++;
       def.out.stl++;
+      res.ev = { pid: def.court[sIdx].inp.id, kind: 'steal' };
       res.transitionNext = r.chance(0.65);
     }
     return res;
@@ -407,6 +509,7 @@ function possession(r: Rng, off: ST, def: ST, side: 0 | 1, transition: boolean, 
     if (def.teamFoulsQ > 4) {
       const shooter = r.weighted([0, 1, 2, 3, 4], oc.map((c) => c.create + c.rim));
       res.pts += shootFts(r, off, shooter, oc[shooter].ft, 2);
+      res.ev = { pid: off.court[shooter].inp.id, kind: 'ft' };
       return res;
     }
     // side-out: continue with shorter possession
@@ -501,6 +604,7 @@ function possession(r: Rng, off: ST, def: ST, side: 0 | 1, transition: boolean, 
       blocked = true;
       const bIdx = r.weighted([0, 1, 2, 3, 4], dc.map((c) => c.blk * c.blk));
       def.court[bIdx].box.blk++;
+      res.ev = { pid: def.court[bIdx].inp.id, kind: 'block' };
     }
   }
 
@@ -519,11 +623,13 @@ function possession(r: Rng, off: ST, def: ST, side: 0 | 1, transition: boolean, 
     if (pts3) { s.box.tpm++; off.out.thrM++; } else if (zone === 'rim') { off.out.rimM++; off.out.paint += 2; } else off.out.midM++;
     if (assisted) off.court[passerIdx].box.ast++;
     res.pts += pts;
+    res.ev = { pid: s.inp.id, ast: assisted ? off.court[passerIdx].inp.id : undefined, kind: fouled ? 'and1' : pts3 ? 'three' : zone === 'rim' ? 'layup' : 'jumper' };
     if (fouled) res.pts += shootFts(r, off, si, sc.ft, 1);
     return res;
   }
   if (fouled) {
     res.pts += shootFts(r, off, si, sc.ft, pts3 ? 3 : 2);
+    res.ev = { pid: s.inp.id, kind: 'ft' };
     return res;
   }
   // rebound

@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import type { BoxLine, GameLog, TeamBox } from '../../engine/types';
+import type { BoxLine, Club, GameLog, TeamBox } from '../../engine/types';
 import { club as getClub, fixture as getFixture } from '../../engine/world';
 import { fmtAbs } from '../../engine/calendar';
 import { useWorld } from '../store';
@@ -44,6 +44,11 @@ export default function GameView() {
           </div>
         </Card>
       </div>
+      {g.flow && g.flow.length > 0 && (
+        <Card title="Game flow · lead by minute" className="mt16">
+          <FlowChart flow={g.flow} home={home} away={away} />
+        </Card>
+      )}
       <Card title="Team comparison" className="mt16">
         <Comparison a={g.home} b={g.away} an={home.abbrev} bn={away.abbrev} />
       </Card>
@@ -125,5 +130,33 @@ function BoxCard({ box, title }: { box: TeamBox; title: ReactNode }) {
         />
       </div>
     </Card>
+  );
+}
+
+function FlowChart({ flow, home, away }: { flow: { m: number; h: number; a: number }[]; home: Club; away: Club }) {
+  const W = 760, H = 180, padL = 34, padR = 10, padT = 10, padB = 22;
+  const total = Math.max(40, flow[flow.length - 1].m);
+  const pts = [{ m: 0, d: 0 }, ...flow.map((t) => ({ m: t.m, d: t.h - t.a }))];
+  const scale = Math.ceil(Math.max(8, ...pts.map((p) => Math.abs(p.d))) / 5) * 5;
+  const x = (m: number) => padL + (m / total) * (W - padL - padR);
+  const y = (d: number) => padT + ((scale - d) / (2 * scale)) * (H - padT - padB);
+  const line = pts.map((p) => `${x(p.m)},${y(p.d)}`).join(' ');
+  const area = `${x(0)},${y(0)} ${line} ${x(pts[pts.length - 1].m)},${y(0)}`;
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} style={{ width: '100%', height: 'auto', display: 'block' }} role="img" aria-label="Lead by minute">
+      <defs>
+        <clipPath id="gv-top"><rect x="0" y="0" width={W} height={y(0)} /></clipPath>
+        <clipPath id="gv-bot"><rect x="0" y={y(0)} width={W} height={H} /></clipPath>
+      </defs>
+      {[scale, -scale].map((t) => <text key={t} x={padL - 6} y={y(t) + 4} textAnchor="end" fontSize="11" fill="#9fb1d8">+{Math.abs(t)}</text>)}
+      <line x1={padL} x2={W - padR} y1={y(0)} y2={y(0)} stroke="#e8f0ff" strokeOpacity=".3" />
+      {[10, 20, 30, 40].filter((m) => m < total).map((m) => <line key={m} x1={x(m)} x2={x(m)} y1={padT} y2={H - padB} stroke="#e8f0ff" strokeOpacity=".15" strokeDasharray="3 5" />)}
+      {['Q1', 'Q2', 'Q3', 'Q4'].map((q, i) => <text key={q} x={x(i * 10 + 5)} y={H - 6} textAnchor="middle" fontSize="11" fill="#9fb1d8">{q}</text>)}
+      <polygon points={area} fill={home.colors[0]} fillOpacity=".45" clipPath="url(#gv-top)" />
+      <polygon points={area} fill={away.colors[0]} fillOpacity=".45" clipPath="url(#gv-bot)" />
+      <polyline points={line} fill="none" stroke="#fff" strokeWidth="2" className="spark-line" pathLength={1} />
+      <text x={padL + 4} y={padT + 12} fontSize="11" fill="#fff">{home.abbrev} ahead</text>
+      <text x={padL + 4} y={H - padB - 6} fontSize="11" fill="#fff">{away.abbrev} ahead</text>
+    </svg>
   );
 }

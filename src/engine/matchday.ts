@@ -1,6 +1,6 @@
 import type { BoxLine, Club, CompType, Fixture, GameLog, Player, SeasonStats, StatLine, TeamBox, World } from './types';
 import { absDay } from './types';
-import { simulateGame, teamStrength, type SimTeamIn, type SimTeamOut, type SimResult } from './sim/game';
+import { simulateGame, teamStrength, LiveGame, type SimTeamIn, type SimTeamOut, type SimResult } from './sim/game';
 import { explainGame } from './sim/explain';
 import { addNews, age, book, club as getClub, hold, isUser, player as getPlayer, roster, rng, shortName, staffOf, staffRating, playerName, fmtMoney } from './world';
 import { onFixtureComplete } from './competitions';
@@ -88,15 +88,21 @@ function statEntry(p: Player, season: number, teamId: number, comp: CompType): S
 
 const STAT_KEYS: (keyof StatLine)[] = ['gp', 'gs', 'min', 'pts', 'fgm', 'fga', 'tpm', 'tpa', 'ftm', 'fta', 'orb', 'drb', 'ast', 'stl', 'blk', 'tov', 'pf', 'pm'];
 
-/** Simulate and fully apply one fixture. */
-export function playFixture(w: World, f: Fixture): GameLog | null {
+/** Set up a fixture to be played live, one period at a time. */
+export function startLiveFixture(w: World, f: Fixture): LiveGame {
+  return new LiveGame(simTeamInput(w, getClub(w, f.homeId)), simTeamInput(w, getClub(w, f.awayId)), rng(w), !f.neutral);
+}
+
+/** Simulate (or take a finished live game) and fully apply one fixture. */
+export function playFixture(w: World, f: Fixture, live?: LiveGame): GameLog | null {
   if (f.played || f.cancelled) return null;
   const r = rng(w);
   const home = getClub(w, f.homeId);
   const away = getClub(w, f.awayId);
-  const hIn = simTeamInput(w, home);
-  const aIn = simTeamInput(w, away);
-  const res = simulateGame(hIn, aIn, r, !f.neutral);
+  if (live && !live.finished) live.playAll();
+  const hIn = live ? live.teams[0].inp : simTeamInput(w, home);
+  const aIn = live ? live.teams[1].inp : simTeamInput(w, away);
+  const res = live ? live.result() : simulateGame(hIn, aIn, r, !f.neutral);
   const hs = res.teams[0].score;
   const as = res.teams[1].score;
 
@@ -170,6 +176,7 @@ export function playFixture(w: World, f: Fixture): GameLog | null {
   const userSide = isUser(w, home.id) ? 0 : isUser(w, away.id) ? 1 : -1;
   if (userSide >= 0) {
     log = buildLog(w, f, res, [home, away], userSide as 0 | 1, attendance, gateRevenue, injuredNames, [hIn, aIn]);
+    if (live) log.flow = live.timeline.map((t) => ({ m: t.m, h: t.h, a: t.a }));
     f.result.gameId = log.id;
     w.games.push(log);
     const us = userSide === 0 ? home : away;

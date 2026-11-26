@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import { useState } from 'react';
 import type { Club, CompType, Player, SeasonStats, Staff, StaffRole, StatLine, World } from '../engine/types';
 import { age, club as getClub, staffOf, fmtMoney, tierOf } from '../engine/world';
@@ -5,6 +6,7 @@ import { scoutedRange } from '../engine/player';
 import { knowledge } from '../engine/squad';
 import { STAFF_EFFECT, STAFF_LABEL, staffAsk, severance, hireStaff, fireStaff, OFF_LABEL, DEF_LABEL } from '../engine/staff';
 import { book } from '../engine/world';
+import { canAddStaff } from '../engine/facilities';
 import { Badge, Button, Card, Modal, Rating, Table } from './components/ui';
 import { useAct, useNotify, useWorld } from './store';
 
@@ -131,9 +133,11 @@ export function HireStaffModal({ club, role, onClose }: { club: Club; role: Staf
   const current = staffOf(w, club, role);
   const pool = w.staff.filter((s) => s.teamId == null && s.role === role).sort((a, b) => b.rating - a.rating);
   const interested = (s: Staff) => s.reputation <= club.prestige + 30 + w.user.reputation / 4;
+  const room = current ? { ok: true as const, reason: undefined } : canAddStaff(w, club);
   return (
     <Modal title={`Hire: ${STAFF_LABEL[role]}`} onClose={onClose} wide>
       <p className="muted small">{STAFF_EFFECT[role]} {current ? `Replacing ${current.firstName} ${current.lastName} costs ${fmtMoney(severance(w, current))} in severance.` : ''}</p>
+      {!room.ok && <div className="callout warn small mb8">{room.reason} <Link className="link" to="/infrastructure/club-facilities">Expand offices</Link></div>}
       <Table
         rows={pool}
         rowKey={(s) => s.id}
@@ -148,7 +152,7 @@ export function HireStaffModal({ club, role, onClose }: { club: Club; role: Staf
           { key: 'rep', label: 'Rep.', render: (s) => s.reputation, sort: (s) => s.reputation, align: 'r' },
           { key: 'ask', label: 'Asks', render: (s) => fmtMoney(staffAsk(w, s, tier)) + '/yr', sort: (s) => staffAsk(w, s, tier), align: 'r' },
           {
-            key: 'act', label: '', render: (s) => interested(s) ? (
+            key: 'act', label: '', render: (s) => !room.ok ? <Badge title={room.reason}>No desk free</Badge> : interested(s) ? (
               <Button size="sm" variant="primary" onClick={() => {
                 act((ww) => {
                   if (current) book(ww, club, 'severance', -severance(ww, current));

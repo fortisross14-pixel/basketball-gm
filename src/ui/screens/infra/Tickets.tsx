@@ -5,13 +5,13 @@ import { avgLeaguePrestige, gameDemand, refPrice, seasonTicketTarget, suiteDeman
 import { buildCalendar, fmtDate } from '../../../engine/calendar';
 import { club as getClub, fmtMoney } from '../../../engine/world';
 import { MODE_LABEL } from '../../../engine/delegation';
-import { Badge, Button, Callout, Card, Money, NumberField, Page, Pills, Stat, Table } from '../../components/ui';
+import { Badge, Button, Callout, Card, Money, NumberField, Pills, Stat, Table } from '../../components/ui';
 import { useAct, useNotify } from '../../store';
 import { useUserClub } from './common';
 
 const ZONE_LABEL: Record<SeatZone, string> = { general: 'General (upper)', lower: 'Lower bowl', premium: 'Courtside / club' };
 
-export default function Tickets() {
+export function TicketStrategy() {
   const { w, c } = useUserClub();
   const act = useAct();
   const notify = useNotify();
@@ -37,14 +37,14 @@ export default function Tickets() {
   const changed = JSON.stringify(draft) !== JSON.stringify(c.ticketing);
   const mode = w.user.delegation.tickets.mode;
   return (
-    <Page
-      title="Ticketing strategy"
-      subtitle="Set prices and policies; the preview shows expected demand before you confirm."
-      actions={<>
+    <div>
+      <div className="row mb8" style={{ marginBottom: 12 }}>
+        <div className="small muted">Set prices and policies; the preview shows expected demand before you confirm.</div>
+        <span className="spacer" />
+        {changed && <Badge tone="warn">Unsaved changes</Badge>}
         <Button disabled={!changed} onClick={() => setDraft(clone(c.ticketing))}>Reset</Button>
         <Button variant="primary" disabled={!changed} onClick={() => { act((ww) => { getClub(ww, c.id).ticketing = clone(draft); }); notify('Ticket strategy applied.', 'good'); }}>Apply strategy</Button>
-      </>}
-    >
+      </div>
       {mode !== 'manual' && mode !== 'recommend' && (
         <Callout>Ticket pricing is delegated to your commercial director ({MODE_LABEL[mode]}): prices are re-optimised monthly and may override your changes. Change it in Settings → Delegation.</Callout>
       )}
@@ -65,13 +65,13 @@ export default function Tickets() {
                   <td>{ZONE_LABEL[z]}</td>
                   <td className="r">{c.arena.seats[z].toLocaleString('en')}</td>
                   <td className="r muted" title="What fans consider fair for this market">{fmtMoney(refPrice(w, c, z))}</td>
-                  <td><NumberField value={draft.prices[z]} min={1} prefix="€" width={80} onChange={(v) => set((d) => { d.prices[z] = Math.max(1, v); })} /></td>
-                  <td><NumberField value={draft.seasonPrices[z]} min={1} step={10} prefix="€" width={90} onChange={(v) => set((d) => { d.seasonPrices[z] = Math.max(1, v); })} /></td>
+                  <td><NumberField label={`${ZONE_LABEL[z]} single-game price`} value={draft.prices[z]} min={1} max={Math.max(20, Math.round(refPrice(w, c, z) * 3))} prefix="€" width={64} onChange={(v) => set((d) => { d.prices[z] = Math.max(1, v); })} /></td>
+                  <td><NumberField label={`${ZONE_LABEL[z]} season-ticket price`} value={draft.seasonPrices[z]} min={1} max={Math.max(200, Math.round(refPrice(w, c, z) * 40))} step={10} prefix="€" width={72} onChange={(v) => set((d) => { d.seasonPrices[z] = Math.max(1, v); })} /></td>
                 </tr>
               ))}
               <tr>
                 <td>Suites ({c.arena.suites})</td><td className="r">{c.arena.suites}</td><td /><td className="muted small">per season</td>
-                <td><NumberField value={draft.suitePrice} min={0} step={500} prefix="€" width={90} onChange={(v) => set((d) => { d.suitePrice = Math.max(0, v); })} /></td>
+                <td><NumberField label="Suite price per season" value={draft.suitePrice} min={0} step={500} prefix="€" width={80} onChange={(v) => set((d) => { d.suitePrice = Math.max(0, v); })} /></td>
               </tr>
             </tbody>
           </table>
@@ -79,8 +79,8 @@ export default function Tickets() {
         </Card>
         <Card title="Policies">
           <div className="col">
-            <div className="row"><span style={{ minWidth: 180 }}>Big-game markup</span><input type="range" min={0} max={0.6} step={0.05} value={draft.bigGameMarkup} onChange={(e) => set((d) => { d.bigGameMarkup = Number(e.target.value); })} /><b>+{Math.round(draft.bigGameMarkup * 100)}%</b></div>
-            <div className="row"><span style={{ minWidth: 180 }}>Playoff markup</span><input type="range" min={0} max={1} step={0.05} value={draft.playoffMarkup} onChange={(e) => set((d) => { d.playoffMarkup = Number(e.target.value); })} /><b>+{Math.round(draft.playoffMarkup * 100)}%</b></div>
+            <div className="row"><span style={{ minWidth: 180 }}>Big-game markup</span><NumberField label="Big-game markup" value={Math.round(draft.bigGameMarkup * 100)} min={0} max={60} step={5} suffix="%" width={60} onChange={(v) => set((d) => { d.bigGameMarkup = v / 100; })} /></div>
+            <div className="row"><span style={{ minWidth: 180 }}>Playoff markup</span><NumberField label="Playoff markup" value={Math.round(draft.playoffMarkup * 100)} min={0} max={100} step={5} suffix="%" width={60} onChange={(v) => set((d) => { d.playoffMarkup = v / 100; })} /></div>
             <label className="row"><input type="checkbox" checked={draft.dynamicPricing} onChange={(e) => set((d) => { d.dynamicPricing = e.target.checked; })} /> Dynamic pricing <span className="small muted">— raises prices when demand exceeds supply, cuts them when the arena is half empty</span></label>
             <label className="row"><input type="checkbox" checked={draft.protectSeasonHolders} disabled={!draft.dynamicPricing} onChange={(e) => set((d) => { d.protectSeasonHolders = e.target.checked; })} /> Protect season-ticket holders <span className="small muted">— avoids the sentiment hit of dynamic pricing</span></label>
             <label className="row"><input type="checkbox" checked={draft.studentDiscount} onChange={(e) => set((d) => { d.studentDiscount = e.target.checked; })} /> Student discount <span className="small muted">— a little extra general demand</span></label>
@@ -140,9 +140,11 @@ export default function Tickets() {
           ]}
         />
       </Card>
-    </Page>
+    </div>
   );
 }
+
+export default TicketStrategy;
 
 function ZoneTable({ d, label }: { d: GameDemand; label: string }) {
   return (

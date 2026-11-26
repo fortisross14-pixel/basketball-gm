@@ -14,6 +14,7 @@ import { weeklyEvents, expireDecisions } from './events';
 import { monthlyDelegation, weeklyTacticsDelegation } from './delegation';
 import { seasonEnd, rollover } from './season';
 import { jobMarket, weeklyEvaluation } from './career';
+import { weeklyFacilities } from './facilities';
 import { estimateRevenue } from './economy';
 import { generateRecruits } from './worldgen';
 
@@ -105,6 +106,7 @@ function weekly(w: World) {
   }
   const preseason = w.day < buildCalendar(w.season).leagueRoundDays[0];
   weeklyEvaluation(w);
+  weeklyFacilities(w);
   aiFillRosters(w, preseason);
   aiTransfers(w);
   aiBidsForUser(w);
@@ -194,6 +196,15 @@ export function advance(w: World, mode: AdvanceMode, maxDays = 400): AdvanceResu
     if (w.gameOver) { res.stoppedBy = 'Game over'; break; }
     const dayBefore = w.day;
     const seasonBefore = w.season;
+    // stop before one of your games so you can watch it live (long holidays simulate instantly)
+    if (w.settings.liveGames !== false && mode !== 'month' && mode !== 'endOfPhase' && w.user.clubId != null) {
+      const live = fixturesOnDay(w, dayBefore).find((f) => !f.played && !f.cancelled && (f.homeId === w.user.clubId || f.awayId === w.user.clubId));
+      if (live) {
+        res.liveFixtureId = live.id;
+        res.stoppedBy = 'Game day';
+        break;
+      }
+    }
     const userFixtures = w.user.clubId != null ? fixturesOnDay(w, dayBefore).filter((f) => !f.played && !f.cancelled && (f.homeId === w.user.clubId || f.awayId === w.user.clubId)).map((f) => f.id) : [];
     processDay(w);
     res.days++;

@@ -12,6 +12,7 @@ import type { World } from '../src/engine/types';
 
 function world(seed = 99): World {
   const w = createWorld({ seed, userName: 'T', role: 'gm', clubId: null, style: 'gm', difficulty: 'standard', worldNoise: 'normal' });
+  w.settings.liveGames = false;
   const cid = w.clubs.find((c) => c.leagueId === 'ORO')!.id;
   assignUser(w, { userName: 'T', role: 'gm', clubId: cid, style: 'gm', difficulty: 'standard', worldNoise: 'normal' });
   return w;

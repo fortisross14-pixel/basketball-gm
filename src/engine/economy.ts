@@ -6,6 +6,7 @@ import { SEAT_ZONES } from './types';
 import { clamp } from './rng';
 import { club as getClub, roster, tierOf, comp as getComp } from './world';
 import { buildCalendar } from './calendar';
+import { arenaStoreFactor } from './facilities';
 
 // ---------------------------------------------------------------------------
 // Reference values by tier (1 = Élite … 3 = Plata, 0 = foreign)
@@ -240,7 +241,7 @@ export function merchDemandUnits(w: World, c: Club): number {
   const hype = 0.6 + f.hype / 120;
   const star = 1 + Math.max(0, starPower(w, c)) * (c.merch.lines.includes('signature') ? 1.5 : 0.6);
   const euro = c.merch.lines.includes('european') && inEuro(w, c) ? 1.08 : 1;
-  return Math.round(base * hype * lineFactor * store * priceFactor * star * euro);
+  return Math.round(base * hype * lineFactor * store * priceFactor * star * euro * (c.facilities ? arenaStoreFactor(w, c) : 1));
 }
 
 export function merchUnitCost(c: Club) {

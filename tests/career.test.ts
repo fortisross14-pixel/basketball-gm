@@ -8,6 +8,7 @@ import type { World } from '../src/engine/types';
 
 function profile(nat: string, seed = 11): World {
   const w = createWorld({ seed, userName: 'T', role: 'gm', clubId: null, style: 'gm', difficulty: 'standard', worldNoise: 'normal' });
+  w.settings.liveGames = false;
   assignUser(w, { userName: 'T', role: 'gm', clubId: null, style: 'gm', difficulty: 'standard', worldNoise: 'normal', nationality: nat, background: 'business' });
   careerStartOffers(w);
   return w;

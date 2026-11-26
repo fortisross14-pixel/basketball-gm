@@ -13,7 +13,9 @@ npm test           # engine regression tests (vitest)
 npm run build      # production build in dist/
 ```
 
-Saves live in the browser (IndexedDB) and autosave after every advance. You can export/import a save file from **Settings & Saves**.
+Saves live in the browser (IndexedDB, with persistent storage requested) and autosave after every advance; the title screen shows where saves are stored and how much space they use. You can export/import a save file from **Settings & Saves**.
+
+The game is an installable app (PWA): use **Install app** on the title screen or Today, and it works offline after the first visit.
 
 ## How a career plays
 
@@ -22,7 +24,7 @@ Saves live in the browser (IndexedDB) and autosave after every advance. You can 
 - **The owner and the fans grade you every week**, against what *your* club is expected to achieve (not in absolute terms). The owner weighs objectives, finances, promises and the relationship; fans weigh results vs expectations, their mood (prices, atmosphere) and your decisions (selling favourites, exciting signings, listening to protests). See Club → Board → *Your evaluation*.
 - **Get fired or get poached.** Poor ratings bring warnings, an ultimatum, fan protests and dismissal (mid-season under sustained fan pressure, or at the season review). Strong ratings raise your executive reputation and bring offers from bigger clubs — at season's end and even mid-season. After a dismissal you start again from equal or smaller jobs. You can also resign.
 
-- **Games are instant simulated results.** Your influence is who you sign, who coaches, and the tactics you set. Under the hood every game is simulated possession by possession (≈1 ms per game), so box scores are credible and tactics, coach fit, fatigue and depth change outcomes. Every game ends with a **"Why we won / lost"** report with at least three causal factors and tactical suggestions.
+- **Watch your games live.** The clock stops on game day and the game plays one quarter at a time, a game minute per tick (speed ½×–4×), with a broadcast scoreboard, play-by-play, live leaders and a +/− lead chart by minute. It stops at every quarter break, where you can change systems, pace and emphasis for the next quarter (each quarter is genuinely simulated when you press play). Skip to the final at any time, or switch live games off in Settings. Every other game is simulated instantly, possession by possession. Every game ends with a **"Why we won / lost"** report.
 - **The weekly loop:** Monday digest → decisions (offers, bids, events, press) → games → cash, fans and board react. Use **Play next game**, or the dropdown to advance a day, a week, a month, to the next event, or to the end of the season. Calendar holds (Settings) decide what stops the clock.
 - **Climb the pyramid:** Liga Plata → Liga Oro → Liga Élite (16 clubs each, 30 rounds) plus the Copa, title playoffs, promotion playoffs and the Continental Cup. In the US college league there is no promotion: you recruit high-school classes (NIL money matters less than playing time, coach and program prestige), players graduate after their eligibility or declare early for the pros, and the season ends with the 8-team NCL Tournament. Promotion is **licensed**: your arena must meet the next league's capacity and you must be able to pay its entry guarantee, or the place goes to someone else.
 - **Career mobility:** as General Manager the board can dismiss you; success raises your executive reputation and brings job offers from bigger clubs. As Owner-President you can't be fired but administration ends your career.
