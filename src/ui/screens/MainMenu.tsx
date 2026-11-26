@@ -6,6 +6,7 @@ import { Button, Card, Badge } from '../components/ui';
 import { BrandMark } from '../art/icons';
 import { InstallButton } from '../components/install';
 import { StorageStatus } from '../components/storage';
+import { Banner } from '../art/Banner';
 import { motion } from 'framer-motion';
 
 export default function MainMenu() {
@@ -57,6 +58,7 @@ export default function MainMenu() {
 
   return (
     <div className="title-screen">
+      <Banner which="menu" className="menu-banner" />
       <div style={{ width: 'min(960px, 94vw)', position: 'relative' }}>
         <div className="row" style={{ gap: 26, marginBottom: 28, alignItems: 'center' }}>
           <motion.div initial={{ scale: 0.3, rotate: -30, opacity: 0 }} animate={{ scale: 1, rotate: 0, opacity: 1 }} transition={{ type: 'spring', stiffness: 220, damping: 14 }}>

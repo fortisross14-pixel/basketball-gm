@@ -2,6 +2,9 @@ import type { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Icon, type IconName } from '../../art/icons';
+import { Banner, type BannerKey } from '../../art/Banner';
+
+const BANNER_OF: Partial<Record<IconName, BannerKey>> = { club: 'club', team: 'team', arena: 'infrastructure', results: 'results', calendar: 'calendar', legacy: 'legacy', today: 'today' };
 import './hubs.css';
 
 export interface HubMetric {
@@ -26,6 +29,7 @@ export function SectionHub({ kicker, title, icon, tagline, stats, tiles, childre
   return (
     <div className="hub">
       <motion.section className="hub-hero" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}>
+        <Banner which={BANNER_OF[icon] ?? 'club'} className="hub-banner" />
         <div className="hub-hero-art" aria-hidden="true"><Icon name={icon} size={220} /></div>
         <div className="hub-hero-copy">
           <div className="kicker">{kicker}</div>

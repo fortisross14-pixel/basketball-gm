@@ -1,5 +1,6 @@
 // Custom line icons for navigation and HUD (24x24 grid, currentColor).
 import type { CSSProperties } from 'react';
+import { useSheet, SheetCell } from './sheets';
 
 export type IconName =
   | 'today' | 'calendar' | 'club' | 'team' | 'arena' | 'results' | 'legacy' | 'settings' | 'search' | 'play' | 'coin'
@@ -55,7 +56,18 @@ const P: Record<IconName, string> = {
 
 const FILLED: Partial<Record<IconName, boolean>> = { play: true, bolt: true };
 
+// icons.png cell for each icon in the art request (others stay vector)
+const ICON_CELL: Partial<Record<IconName, number>> = {
+  today: 0, calendar: 1, club: 2, team: 3, arena: 4, results: 5, legacy: 6, settings: 7,
+  players: 8, tactics: 9, training: 10, staff: 11, medical: 12, market: 13, academy: 14, contract: 15,
+  money: 16, megaphone: 17, board: 18, news: 19, coin: 20, ticket: 21, store: 22, food: 23,
+  standings: 24, fixtures: 25, bracket: 26, stats: 27, rules: 28, trophy: 29, owner: 30, fans: 31,
+};
+
 export function Icon({ name, size = 20, style, className }: { name: IconName; size?: number; style?: CSSProperties; className?: string }) {
+  const sheet = useSheet('icons');
+  const cell = ICON_CELL[name];
+  if (sheet && cell != null) return <SheetCell sheet="icons" data={sheet} index={cell} mono className={className} style={{ width: size, height: size, flex: 'none', ...style }} />;
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden="true" className={className} style={{ flex: 'none', ...style }}
       fill={FILLED[name] ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round">

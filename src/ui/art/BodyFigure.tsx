@@ -1,8 +1,22 @@
 // Player figure: no face, but body frame, relative height and skin tone,
 // so a glance tells you if he is a slender guard or a heavy centre.
 import type { Body } from '../../engine/extras';
+import { useSheet, SheetCell } from './sheets';
 
-export function BodyFigure({ body, jersey, kit, trim, scaleHeight = true }: { body: Body; jersey: number; kit: string; trim: string; scaleHeight?: boolean }) {
+const FRAMES = ['slender', 'lean', 'athletic', 'strong', 'heavy'] as const;
+
+export function BodyFigure(props: { body: Body; jersey: number; kit: string; trim: string; scaleHeight?: boolean }) {
+  const sheet = useSheet('bodies');
+  if (sheet) {
+    // bodies.png: row-major, height band (short < 1.93 m, medium < 2.06 m, tall) × frame
+    const band = props.body.heightCm < 193 ? 0 : props.body.heightCm < 206 ? 1 : 2;
+    const idx = band * 5 + FRAMES.indexOf(props.body.frame);
+    return <SheetCell sheet="bodies" data={sheet} index={idx} tint={{ r: props.kit, g: props.trim, b: props.body.skin }} style={{ height: '100%', aspectRatio: '1 / 2', display: 'block', margin: '0 auto' }} />;
+  }
+  return <DrawnBody {...props} />;
+}
+
+function DrawnBody({ body, jersey, kit, trim, scaleHeight = true }: { body: Body; jersey: number; kit: string; trim: string; scaleHeight?: boolean }) {
   // 175 cm → 0.86, 220 cm → 1.0 of the frame height
   const hs = scaleHeight ? Math.max(0.82, Math.min(1, 0.86 + ((body.heightCm - 175) / 45) * 0.14)) : 1;
   const wdt = body.width;

@@ -8,6 +8,7 @@ import { useAct, useNotify } from '../store';
 import { Crest, Modal, Pills } from '../components/ui';
 import type { World } from '../../engine/types';
 import { useWorld } from '../store';
+import { Banner } from '../art/Banner';
 import { Badge, Button, Card, Page } from '../components/ui';
 
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
@@ -68,6 +69,7 @@ export default function CalendarScreen() {
 
   return (
     <Page title="Calendar" subtitle={`Season ${seasonLabel(w.season)}`} actions={uid != null && <Button variant="primary" onClick={() => setFriendlyDay(w.day + 2)}>Arrange friendly</Button>}>
+      <Banner which="calendar" className="page-banner" />
       <div className="grid" style={{ gridTemplateColumns: 'minmax(0, 2fr) minmax(0, 1fr)' }}>
         <Card
           title={`${MONTHS[month]} ${year}`}

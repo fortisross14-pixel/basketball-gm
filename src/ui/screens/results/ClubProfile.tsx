@@ -10,6 +10,7 @@ import { payroll } from '../../../engine/finance';
 import { Badge, Button, Card, ClubLink, Crest, Empty, Money, Page, PlayerLink, Stat, Table } from '../../components/ui';
 import { useWorld } from '../../store';
 import { ClubEditorModal } from '../../components/clubEditor';
+import { TrophyArt } from '../../art/TrophyArt';
 import { InjuryBadge, OvrCell, PotCell, seasonLine, perGame } from '../../helpers';
 
 export default function ClubProfile() {
@@ -58,7 +59,7 @@ export default function ClubProfile() {
         </Card>
         <Card title="Trophy cabinet">
           {c.trophies.length ? (
-            <div className="col small">{[...c.trophies].reverse().map((t, i) => <div key={i}>🏆 {t.name} <span className="muted">{seasonLabel(t.season)}</span></div>)}</div>
+            <div className="col small">{[...c.trophies].reverse().map((t, i) => <div key={i}><TrophyArt name={t.name} /> {t.name} <span className="muted">{seasonLabel(t.season)}</span></div>)}</div>
           ) : <div className="muted small">No trophies yet.</div>}
           {c.retiredNumbers.length > 0 && <div className="small mt8">Retired numbers: {c.retiredNumbers.map((r) => `#${r.jersey} ${r.name}`).join(', ')}</div>}
         </Card>

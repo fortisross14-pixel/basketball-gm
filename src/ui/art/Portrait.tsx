@@ -3,7 +3,7 @@
 // Both are driven by the same stable Look, so a person is recognisable on every screen.
 import type { CSSProperties } from 'react';
 import type { Look } from '../../engine/looks';
-import { artUrl, usePack } from './assets';
+import { useSheet, SheetCell } from './sheets';
 
 interface Props {
   look: Look;
@@ -13,52 +13,16 @@ interface Props {
   round?: boolean;
 }
 
-const pad = (n: number) => String(n).padStart(2, '0');
 
 export function Portrait({ look, colors, size = 48, title, round }: Props) {
-  const pack = usePack('portrait/head-01.png');
+  const sheet = useSheet('faces');
   const style: CSSProperties = { width: size, height: round ? size : size * 1.25, flex: 'none', position: 'relative', overflow: 'hidden', borderRadius: round ? '50%' : 4, background: `radial-gradient(circle at 50% 35%, color-mix(in srgb, ${colors[0]} 45%, #0a1530), #070e24)` };
+  // the same person always gets the same cell of faces.png: players rows 1-3, staff row 4
+  const staff = look.outfit !== 'jersey';
+  const idx = staff ? 24 + ((look.head * 7 + look.hair * 3 + look.eyes) % 8) : (look.head * 31 + look.hair * 7 + look.beard * 3 + look.nose) % 24;
   return (
     <span className="portrait" style={style} title={title} role="img" aria-label={title ?? 'Portrait'}>
-      {pack ? <Layers look={look} colors={colors} /> : <FallbackFace look={look} colors={colors} />}
-    </span>
-  );
-}
-
-// ------------------------------------------------------------------ art pack layers
-function Layer({ src, tint, blend = 'multiply' }: { src: string; tint?: string; blend?: CSSProperties['mixBlendMode'] }) {
-  const fill: CSSProperties = { position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'contain' };
-  if (!tint) return <img src={artUrl(src)} alt="" style={fill} draggable={false} />;
-  const mask = `url(${artUrl(src)}) center / contain no-repeat`;
-  return (
-    <>
-      <img src={artUrl(src)} alt="" style={fill} draggable={false} />
-      <span style={{ ...fill, background: tint, mixBlendMode: blend, WebkitMask: mask, mask }} />
-    </>
-  );
-}
-
-function Mask({ src, color }: { src: string; color: string }) {
-  const mask = `url(${artUrl(src)}) center / contain no-repeat`;
-  return <span style={{ position: 'absolute', inset: 0, background: color, mixBlendMode: 'multiply', WebkitMask: mask, mask }} />;
-}
-
-function Layers({ look, colors }: { look: Look; colors: [string, string] }) {
-  const f = look.frame;
-  return (
-    <span style={{ position: 'absolute', inset: 0 }}>
-      <Layer src={`portrait/body-${f}.png`} tint={look.skin} />
-      {look.outfit === 'jersey' && <><Layer src={`portrait/kit-jersey-${f}-base.png`} /><Mask src={`portrait/kit-jersey-${f}-primary.png`} color={colors[0]} /><Mask src={`portrait/kit-jersey-${f}-trim.png`} color={colors[1]} /></>}
-      {look.outfit === 'suit' && <><Layer src={`portrait/coach-suit-${f}-base.png`} /><Mask src={`portrait/coach-suit-${f}-tie.png`} color={colors[0]} /></>}
-      {look.outfit === 'polo' && <><Layer src={`portrait/coach-polo-${f}-base.png`} /><Mask src={`portrait/coach-polo-${f}-primary.png`} color={colors[0]} /></>}
-      <Layer src={`portrait/head-${pad(look.head)}.png`} tint={look.skin} />
-      <Layer src={`portrait/nose-${pad(look.nose)}.png`} tint={look.skin} />
-      <Layer src={`portrait/mouth-${pad(look.mouth)}.png`} />
-      <Layer src={`portrait/eyes-${pad(look.eyes)}.png`} />
-      <Layer src={`portrait/brows-${pad(look.brows)}.png`} tint={look.hairColor} />
-      {look.beard > 0 && <Layer src={`portrait/beard-${pad(look.beard)}.png`} tint={look.hairColor} />}
-      {look.hair > 0 && <Layer src={`portrait/hair-${pad(look.hair)}.png`} tint={look.hairColor} />}
-      {look.extra !== 'none' && <Layer src={`portrait/extra-${look.extra}.png`} />}
+      {sheet ? <SheetCell sheet="faces" data={sheet} index={idx} tint={{ r: colors[0], g: colors[1], b: look.skin }} style={{ position: 'absolute', left: 0, right: 0, bottom: 0, width: '100%', height: round ? '100%' : '80%' }} /> : <FallbackFace look={look} colors={colors} />}
     </span>
   );
 }

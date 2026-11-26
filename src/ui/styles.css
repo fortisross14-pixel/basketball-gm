@@ -450,3 +450,13 @@ a.list-item:hover { background: rgba(46, 168, 255, 0.07); padding-left: 6px; }
 .biz-main { flex: 1; min-width: 240px; }
 .biz-kpis { display: flex; flex-wrap: wrap; gap: 6px 16px; color: var(--muted); }
 .biz-kpis b { color: var(--text); }
+
+/* section banners (banners.png) */
+.section-banner { position: absolute; inset: 0; overflow: hidden; pointer-events: none; z-index: 0; }
+.section-banner img { width: 100%; height: 100%; object-fit: cover; opacity: 0.55; -webkit-mask-image: linear-gradient(90deg, transparent, #000 35%); mask-image: linear-gradient(90deg, transparent, #000 35%); }
+.hub-hero .hub-hero-copy, .hub-hero .hub-stats { position: relative; z-index: 1; }
+.section-banner.page-banner { position: relative; inset: auto; height: 120px; margin-bottom: 12px; border-radius: var(--radius); }
+.section-banner.page-banner img { opacity: 0.85; }
+.section-banner.menu-banner { position: fixed; inset: 0; z-index: 0; }
+.section-banner.menu-banner img { opacity: 0.35; -webkit-mask-image: none; mask-image: none; }
+.title-screen > *:not(.section-banner) { position: relative; z-index: 1; }

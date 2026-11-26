@@ -1,9 +1,19 @@
+import { useSheet, SheetCell } from './sheets';
 // Small broadcast-style illustrations for infrastructure tiles and cards.
 export type InfraArtKind = 'arena' | 'sports' | 'commercial' | 'offices' | 'training' | 'academy' | 'lockerRoom' | 'medical' | 'store' | 'online' | 'city' | 'outlet' | 'airport' | 'food' | 'pr' | 'corporate';
 
 const S = { stroke: 'currentColor', strokeWidth: 2.2, fill: 'none', strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const };
 
+// facilities.png cells (see docs/ART_REQUEST.md)
+const CELL: Record<InfraArtKind, number> = {
+  store: 0, city: 1, outlet: 2, airport: 3, online: 4, food: 6, commercial: 0,
+  training: 8, sports: 8, medical: 9, academy: 10, lockerRoom: 11, corporate: 13, offices: 13, pr: 14,
+  arena: 16,
+};
+
 export function InfraArt({ kind, size = 96, accent = '#ff8a1f' }: { kind: InfraArtKind; size?: number; accent?: string }) {
+  const sheet = useSheet('facilities');
+  if (sheet) return <SheetCell sheet="facilities" data={sheet} index={CELL[kind]} style={{ width: size, height: size, display: 'block', filter: `drop-shadow(0 0 10px ${accent}55)` }} />;
   return (
     <svg width={size} height={size} viewBox="0 0 100 100" aria-hidden="true" style={{ display: 'block', color: '#cfe4ff', filter: `drop-shadow(0 0 10px ${accent}55)` }}>
       <defs>

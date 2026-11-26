@@ -3,6 +3,8 @@ import { Link } from 'react-router-dom';
 import { club as getClub, idx } from '../../engine/world';
 import { fmtAbs, seasonLabel } from '../../engine/calendar';
 import { Badge, Card, ClubLink, Crest, Empty, Money, Page, Stat, Table, Tabs } from '../components/ui';
+import { Banner } from '../art/Banner';
+import { TrophyArt } from '../art/TrophyArt';
 import { useWorld } from '../store';
 
 type Tab = 'career' | 'club' | 'league' | 'awards' | 'records' | 'hof';
@@ -14,6 +16,7 @@ export default function Legacy() {
   const allAch = w.user.career.flatMap((s) => s.achievements);
   return (
     <Page title="Legacy" subtitle={`${w.user.name} · executive reputation ${w.user.reputation}/100`}>
+      <Banner which="legacy" className="page-banner" />
       <div className="grid g4 mb8">
         <Stat label="Reputation" value={`${w.user.reputation}/100`} />
         <Stat label="Clubs managed" value={new Set(w.user.career.map((s) => s.clubId)).size} />
@@ -117,7 +120,7 @@ function ClubLegacy({ clubId }: { clubId: number }) {
     <div className="col">
       <div className="grid g3">
         <Card title="Trophy cabinet">
-          {c.trophies.length ? <div className="col">{[...c.trophies].reverse().map((t, i) => <div key={i}>🏆 <b>{t.name}</b> <span className="muted small">{seasonLabel(t.season)}</span></div>)}</div> : <div className="muted small">The cabinet is still empty.</div>}
+          {c.trophies.length ? <div className="col">{[...c.trophies].reverse().map((t, i) => <div key={i}><TrophyArt name={t.name} /> <b>{t.name}</b> <span className="muted small">{seasonLabel(t.season)}</span></div>)}</div> : <div className="muted small">The cabinet is still empty.</div>}
         </Card>
         <Card title="Milestones">
           <div className="kv small">

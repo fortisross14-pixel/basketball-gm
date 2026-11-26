@@ -2,6 +2,7 @@
 // gets a deterministic SVG crest (shape + colour pattern + mascot glyph). A
 // licensed logo pack can override this by setting `club.logoUrl`.
 import { useId } from 'react';
+import { useSheet, SheetCell } from './sheets';
 import type { Club } from '../../engine/types';
 
 type Glyph = 'ball' | 'star' | 'crown' | 'wave' | 'mountain' | 'tower' | 'flame' | 'wing' | 'anchor' | 'tree' | 'bolt' | 'sun' | 'shield' | 'helmet' | 'horns' | 'paw' | 'eye' | 'pick' | 'wheel' | 'leaf';
@@ -58,6 +59,8 @@ const SHAPES = {
   diamond: 'M50 3 L95 42 L50 97 L5 42 Z',
 } as const;
 type ShapeKey = keyof typeof SHAPES;
+const SHAPE_ORDER: ShapeKey[] = ['shield', 'roundel', 'hex', 'badge', 'diamond'];
+const GLYPH_ORDER: Glyph[] = ['ball', 'star', 'crown', 'wave', 'mountain', 'tower', 'flame', 'wing', 'anchor', 'tree', 'bolt', 'sun', 'shield', 'helmet', 'horns', 'paw', 'eye', 'pick', 'wheel', 'leaf'];
 
 function GlyphPath({ g, fill, stroke }: { g: Glyph; fill: string; stroke: string }) {
   const s = { fill, stroke, strokeWidth: 2.2, strokeLinejoin: 'round' as const, strokeLinecap: 'round' as const };
@@ -87,6 +90,7 @@ function GlyphPath({ g, fill, stroke }: { g: Glyph; fill: string; stroke: string
 
 export function ClubLogo({ club, size = 32, title }: { club: Pick<Club, 'id' | 'name' | 'nickname' | 'abbrev' | 'colors'> & { logoUrl?: string }; size?: number; title?: string }) {
   const uid = useId().replace(/:/g, '');
+  const sheet = useSheet('emblems');
   if (club.logoUrl) return <img src={club.logoUrl} width={size} height={size} alt={club.name} style={{ objectFit: 'contain' }} />;
   const h = hash(club.name);
   const shapeKey = (['shield', 'roundel', 'hex', 'badge', 'diamond'] as ShapeKey[])[h % 5];
@@ -98,6 +102,15 @@ export function ClubLogo({ club, size = 32, title }: { club: Pick<Club, 'id' | '
   const glyph = glyphFor(club);
   const path = SHAPES[shapeKey];
   const showText = size >= 56;
+  if (sheet) {
+    // emblems.png: frames in cells 0-4, symbols from cell 5 in GLYPH_ORDER
+    return (
+      <span role="img" aria-label={title ?? `${club.name} emblem`} style={{ width: size, height: size, position: 'relative', display: 'block', flex: 'none', filter: size >= 40 ? 'drop-shadow(0 3px 6px rgba(0,0,0,.45))' : undefined }}>
+        <SheetCell sheet="emblems" data={sheet} index={SHAPE_ORDER.indexOf(shapeKey)} tint={{ r: a, g: b }} style={{ position: 'absolute', inset: 0 }} />
+        <SheetCell sheet="emblems" data={sheet} index={5 + GLYPH_ORDER.indexOf(glyph)} mono style={{ position: 'absolute', left: '22%', top: '20%', width: '56%', height: '56%', color: ink }} />
+      </span>
+    );
+  }
   return (
     <svg width={size} height={size} viewBox="0 0 100 100" role="img" aria-label={title ?? `${club.name} emblem`} style={{ display: 'block', flex: 'none', filter: size >= 40 ? 'drop-shadow(0 3px 6px rgba(0,0,0,.45))' : undefined }}>
       <defs>

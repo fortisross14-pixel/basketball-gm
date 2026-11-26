@@ -32,7 +32,12 @@ export default function Today() {
   const name = w.user.name.split(' ')[0];
   return (
     <div className="today-wrap">
-    {c && <ArenaBackdrop club={c} view="exterior" className="today-bd" />}
+    {c && (() => {
+      const h = c.history[c.history.length - 1];
+      const celebrate = w.day < 35 && h && h.season === w.season - 1 && (h.promoted || h.playoff === 'Champion' || h.cup === 'Champion' || h.euro === 'Champion');
+      const building = (w.projects[c.id] ?? []).some((p) => p.kind === 'newArena');
+      return celebrate ? <ArenaBackdrop club={c} view="interior" moment="celebration" className="today-bd" /> : <ArenaBackdrop club={c} view="exterior" moment={building ? 'construction' : undefined} className="today-bd" />;
+    })()}
     <Page
       kicker={c ? `${c.name} · ${TIER_LABEL[arenaTier(c)]}` : 'Executive desk'}
       title={`Good morning, ${name}`}

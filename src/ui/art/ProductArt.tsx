@@ -1,28 +1,20 @@
-// Merchandise and food-concept art. Uses public/art/shop/* and public/art/food/* when present
-// (with club-colour masks), otherwise procedural SVG in the club's colours.
-import type { CSSProperties } from 'react';
-import { artUrl, useArt } from './assets';
+// Merchandise and food-concept art: cells of shop.png (tinted with club colours via shop-map.png),
+// otherwise procedural SVG in the club's colours.
+import { useSheet, SheetCell } from './sheets';
 
 export type ProductKind = 'jersey-home' | 'jersey-away' | 'scarf' | 'keychain' | 'cap';
 export type FoodConcept = 'kiosk' | 'grill' | 'lounge';
 
-const fill: CSSProperties = { position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'contain' };
 
-function Masked({ base, layers }: { base: string; layers: { src: string; color: string }[] }) {
-  return (
-    <>
-      <img src={base} alt="" style={fill} draggable={false} />
-      {layers.map((l) => <span key={l.src} style={{ ...fill, background: l.color, mixBlendMode: 'multiply', WebkitMask: `url(${artUrl(l.src)}) center / contain no-repeat`, mask: `url(${artUrl(l.src)}) center / contain no-repeat` }} />)}
-    </>
-  );
-}
+
+const SHOP_INDEX: Record<ProductKind | FoodConcept, number> = { 'jersey-home': 0, 'jersey-away': 1, scarf: 2, cap: 3, keychain: 4, kiosk: 5, grill: 6, lounge: 7 };
 
 export function ProductArt({ kind, colors, size = 72 }: { kind: ProductKind; colors: [string, string]; size?: number }) {
-  const base = useArt(`shop/${kind}-base.png`);
+  const sheet = useSheet('shop');
   const [a, b] = kind === 'jersey-away' ? [colors[1], colors[0]] : colors;
   return (
     <span className="product-art" style={{ width: size, height: size, position: 'relative', display: 'inline-block', flex: 'none' }} aria-hidden="true">
-      {base ? <Masked base={base} layers={[{ src: `shop/${kind}-primary.png`, color: colors[0] }, ...(kind === 'keychain' ? [] : [{ src: `shop/${kind}-trim.png`, color: colors[1] }])]} /> : <ProductSvg kind={kind} a={a} b={b} />}
+      {sheet ? <SheetCell sheet="shop" data={sheet} index={SHOP_INDEX[kind]} tint={{ r: colors[0], g: colors[1] }} style={{ width: '100%', height: '100%' }} /> : <ProductSvg kind={kind} a={a} b={b} />}
     </span>
   );
 }
@@ -61,10 +53,10 @@ function ProductSvg({ kind, a, b }: { kind: ProductKind; a: string; b: string })
 }
 
 export function FoodArt({ concept, color, height = 140 }: { concept: FoodConcept; color: string; height?: number }) {
-  const img = useArt(`food/${concept}.webp`);
+  const sheet = useSheet('shop');
   return (
-    <div className="food-art" style={{ height, position: 'relative', overflow: 'hidden', borderRadius: 4 }} aria-hidden="true">
-      {img ? <img src={img} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <FoodSvg concept={concept} c={color} />}
+    <div className="food-art" style={{ height, position: 'relative', overflow: 'hidden', borderRadius: 4, display: 'flex', justifyContent: 'center', background: 'rgba(0,0,0,.25)' }} aria-hidden="true">
+      {sheet ? <SheetCell sheet="shop" data={sheet} index={SHOP_INDEX[concept]} tint={{ r: color }} style={{ height: '100%', aspectRatio: '1 / 1' }} /> : <FoodSvg concept={concept} c={color} />}
     </div>
   );
 }

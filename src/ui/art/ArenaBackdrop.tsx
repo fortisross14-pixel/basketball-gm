@@ -3,7 +3,7 @@
 // otherwise a procedural SVG skyline / bowl in the club's colours.
 import type { CSSProperties } from 'react';
 import type { Club } from '../../engine/types';
-import { artUrl, useArt } from './assets';
+import { useSheetCellUrl } from './sheets';
 
 export type ArenaTier = 'municipal' | 'modern' | 'showpiece';
 export type ArenaView = 'exterior' | 'interior';
@@ -15,18 +15,15 @@ export function arenaTier(c: Club): ArenaTier {
 
 export const TIER_LABEL: Record<ArenaTier, string> = { municipal: 'Municipal pavilion', modern: 'Modern domestic arena', showpiece: 'Continental showpiece' };
 
-export function ArenaBackdrop({ club, view, className, style }: { club: Club; view: ArenaView; className?: string; style?: CSSProperties }) {
+const TIER_INDEX: Record<ArenaTier, number> = { municipal: 0, modern: 1, showpiece: 2 };
+
+export function ArenaBackdrop({ club, view, className, style, moment }: { club: Club; view: ArenaView; className?: string; style?: CSSProperties; moment?: 'construction' | 'celebration' }) {
   const tier = arenaTier(club);
-  const img = useArt(`arena/${tier}-${view}.webp`);
-  const mask = useArt(img ? `arena/${tier}-${view}-mask.png` : null);
+  // venues-outside.png / venues-inside.png: [municipal, modern, showpiece, construction|celebration]
+  const img = useSheetCellUrl(view === 'exterior' ? 'venues-outside' : 'venues-inside', moment ? 3 : TIER_INDEX[tier]);
   return (
     <div className={`arena-backdrop ${className ?? ''}`} style={style} aria-hidden="true" data-tier={tier}>
-      {img ? (
-        <>
-          <img src={img} alt="" />
-          {mask && <span className="ab-mask" style={{ background: club.colors[0], WebkitMask: `url(${artUrl(`arena/${tier}-${view}-mask.png`)}) center / cover no-repeat`, mask: `url(${artUrl(`arena/${tier}-${view}-mask.png`)}) center / cover no-repeat` }} />}
-        </>
-      ) : view === 'exterior' ? <Exterior tier={tier} c={club.colors[0]} c2={club.colors[1]} /> : <Interior tier={tier} c={club.colors[0]} c2={club.colors[1]} />}
+      {img ? <img src={img} alt="" /> : view === 'exterior' ? <Exterior tier={tier} c={club.colors[0]} c2={club.colors[1]} /> : <Interior tier={tier} c={club.colors[0]} c2={club.colors[1]} />}
     </div>
   );
 }
