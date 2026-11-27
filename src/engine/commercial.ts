@@ -39,7 +39,7 @@ export function sponsorDecision(w: World, c: Club, o: SponsorOffer): Decision {
     title: `${o.brand} offer ${fmtMoney(o.annual)}/yr for ${SLOT_INFO[o.slot].label.toLowerCase()}`,
     body: `${o.category} brand · ${o.expires - w.season + 1}-year deal · brand fit ${o.fit}/100 · reputational risk ${o.risk}/100.${o.promoBonus ? ` Promotion bonus ${fmtMoney(o.promoBonus)}.` : ''}${current ? ` Replaces ${current.brand} (${fmtMoney(current.annual)}/yr).` : ' The slot is currently empty.'}${o.risk >= 50 ? ' Supporters may react badly to this category.' : ''}`,
     createdDay: absDay(w), deadlineDay: o.expiresDay, urgency: 1, impact: o.annual > 100000 ? 2 : 1, dept: 'sponsors',
-    options: [{ id: 'accept', label: 'Sign the deal', tone: 'good' }, { id: 'counter', label: 'Ask for +15%', tone: 'risky' }, { id: 'reject', label: 'Decline', tone: 'neutral' }],
+    options: [{ id: 'accept', label: 'Sign the deal', tone: 'good' }, { id: 'upfront', label: 'Sign, half paid today', tone: 'good', detail: 'Cash now: 45% of the whole contract today, then half the yearly fee.' }, { id: 'counter', label: 'Ask for +15%', tone: 'risky' }, { id: 'reject', label: 'Decline', tone: 'neutral' }],
     recommended: recommendSponsor(w, c, o),
     recommendedBy: 'Commercial director',
     payload: { offerId: o.id, clubId: c.id },
@@ -64,7 +64,7 @@ function recommendSponsor(w: World, c: Club, o: SponsorOffer): string {
  * (and especially risky categories) erodes sentiment week by week.
  */
 export function sponsorSaturation(c: Club): { count: number; comfortable: number; penalty: number; label: string } {
-  const comfortable = 4 + Math.round(c.fans.loyalty / 40); // 4-6
+  const comfortable = 5 + Math.round(c.fans.loyalty / 35); // 5-7
   const count = c.sponsors.length;
   const risky = c.sponsors.filter((s) => s.risk >= 50).length;
   const penalty = Math.max(0, count - comfortable) * 3 + risky * 2;
@@ -92,7 +92,16 @@ export function resolveSponsorDecision(w: World, d: Decision, choice: string): s
   w.sponsorOffers[c.id] = offers.filter((x) => x !== o);
   if (choice === 'accept') {
     signSponsor(w, c, o);
-    return `Signed ${o.brand}: ${fmtMoney(o.annual)}/yr.`;
+    return `Signed ${o.brand}: ${fmtMoney(o.annual)}/yr.${liftBudget(w, c, o.annual, 0)}`;
+  }
+  if (choice === 'upfront') {
+    // half of the whole contract paid today (10% discount), the rest spread over the years
+    const years = o.expires - w.season + 1;
+    const now = Math.round((o.annual * years * 0.45) / 1000) * 1000;
+    o.annual = Math.round(o.annual / 2 / 1000) * 1000;
+    signSponsor(w, c, o);
+    book(w, c, 'sponsors', now);
+    return `Signed ${o.brand}: ${fmtMoney(now)} paid today, then ${fmtMoney(o.annual)}/yr.${liftBudget(w, c, o.annual, now)}`;
   }
   if (choice === 'counter') {
     const r = rng(w);
@@ -395,4 +404,50 @@ export function weeklyCommercial(w: World, c: Club) {
 export function signaturePlayer(w: World, c: Club): string {
   const best = roster(w, c.id).sort((a, b) => b.ovr - a.ovr)[0];
   return best ? playerName(best) : '—';
+}
+
+/** Ask the commercial director to find a partner for a slot now (one approach per slot every 3 weeks). */
+export function seekSponsor(w: World, c: Club, slot: SponsorSlot): { ok: boolean; message: string } {
+  const lock = c.sponsorLocks?.[slot] ?? 0;
+  if (lock > absDay(w)) return { ok: false, message: `Brands are not ready to talk about this slot yet (try again on day ${lock - absDay(w)} from now).` };
+  if ((w.sponsorOffers[c.id] ?? []).some((o) => o.slot === slot && o.expiresDay >= absDay(w))) return { ok: false, message: 'There is already an offer on the table for this slot.' };
+  const o = generateSponsorOffer(w, c, slot);
+  (w.sponsorOffers[c.id] ??= []).push(o);
+  w.decisions.push(sponsorDecision(w, c, o));
+  (c.sponsorLocks ??= {})[slot] = absDay(w) + 21;
+  return { ok: true, message: `${o.brand} (${o.category}) offer ${fmtMoney(o.annual)} a year for the ${SLOT_INFO[slot].label.toLowerCase()}.` };
+}
+
+/** Sell this season's local broadcast rights for a lump sum (no multi-year commitment). */
+export function sellSeasonRights(w: World, c: Club): { ok: boolean; message: string } {
+  if (c.tv && c.tv.expires >= w.season) return { ok: false, message: 'Your rights are already sold this season.' };
+  const cal = buildCalendar(w.season);
+  const start = cal.leagueRoundDays[0], end = cal.leagueRoundDays[cal.leagueRoundDays.length - 1];
+  const left = w.day <= start ? 1 : Math.max(0.1, (end - w.day) / (end - start));
+  const amount = Math.round((localTvBenchmark(w, c) * left * 0.9) / 1000) * 1000;
+  const r = rng(w);
+  const b = r.pick(BROADCASTERS.filter((x) => x.kind === 'regional' || x.kind === 'streamer'));
+  const prof = BROADCASTER_PROFILE[b.kind];
+  c.tv = { id: nextId(w), broadcaster: b.name, kind: b.kind, annual: 0, expires: w.season, reach: prof.reach, digitalBoost: prof.digital, exclusivity: false };
+  w.tvOffers = [];
+  book(w, c, 'tv', amount);
+  addNews(w, `${b.name} buy this season's games`, `${fmtMoney(amount)} paid today for one season of local rights.`, { tags: ['finance', 'media'], clubIds: [c.id] });
+  return { ok: true, message: `${b.name} pay ${fmtMoney(amount)} today for this season's rights.` };
+}
+
+/** A new executive starts without a local TV deal: broadcasters make offers instead. */
+export function freshMediaRights(w: World, c: Club) {
+  if (c.foreign) return;
+  c.tv = null;
+  w.tvOffers = generateTvOffers(w, c);
+}
+
+/** New commercial money on the user's club: the board lets most of it go to the squad. */
+function liftBudget(w: World, c: Club, annual: number, now: number): string {
+  if (!isUser(w, c.id)) return '';
+  const lift = Math.round((annual * 0.7 + now * 0.6) / 1000) * 1000;
+  if (lift <= 0) return '';
+  c.finances.budget.payroll += lift;
+  c.finances.budget.transfer += Math.round((now * 0.3) / 1000) * 1000;
+  return ` The board adds ${fmtMoney(lift)} to the payroll budget.`;
 }

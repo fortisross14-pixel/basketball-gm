@@ -186,7 +186,7 @@ function GameShell() {
               <Route path="/business/merchandise" element={<Navigate to="/infrastructure/commercial/merchandise" replace />} />
               <Route path="/business/food" element={<Navigate to="/infrastructure/commercial/food" replace />} />
               <Route path="/business/tickets" element={<Navigate to="/infrastructure/arena/tickets" replace />} />
-              <Route path="/business/revenue-drive" element={<Navigate to="/club/commercial/drive" replace />} />
+              <Route path="/business/revenue-drive" element={<Navigate to="/club/commercial" replace />} />
               <Route path="/club/contracts" element={<RequireClub><Contracts /></RequireClub>} />
               <Route path="/club/board" element={<RequireClub><Board /></RequireClub>} />
               <Route path="/club/media" element={<Media />} />

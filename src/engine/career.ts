@@ -93,7 +93,7 @@ export function switchClub(w: World, c: Club, exitLabel: string | null) {
   w.user.negotiations = [];
   w.user.shortlist = [];
   w.user.onboarding = { visited: [], dismissed: false };
-  w.tvOffers = [];
+  freshMediaRights(w, c);
   for (const p of roster(w, c.id)) w.user.knowledge[p.id] = 100;
   c.board.trust = { results: 60, finances: 60, fans: 60, media: 60, promises: 60, relationship: 65 };
   w.user.approval = { board: 61, fans: 55, fanBonus: 5, lowFanWeeks: 0, history: [], notes: [{ day: now, text: `Appointed at ${c.name}: a honeymoon period`, delta: 5, who: 'fans' }] };
@@ -263,6 +263,7 @@ import { fireUser } from './board';
 import { ensureShop, releaseShop } from './shop';
 import { applyStartSupport } from './worldgen';
 import { clubStrength } from './matchday';
+import { freshMediaRights } from './commercial';
 import { buildCalendar } from './calendar';
 function fireUserFromCareer(w: World, c: Club, reason: string) {
   fireUser(w, c, reason);

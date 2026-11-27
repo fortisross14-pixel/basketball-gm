@@ -15,6 +15,7 @@ import { startSeason } from './season';
 import { BACKGROUND_INFO } from './career';
 import { ensureFacilities } from './facilities';
 import { ensureShop } from './shop';
+import { freshMediaRights } from './commercial';
 import { absDay } from './types';
 
 export const SAVE_VERSION = 3;
@@ -213,7 +214,7 @@ export function assignUser(w: World, opts: Pick<NewGameOptions, 'userName' | 'ro
     w.user.reputation = c.leagueId === 'ELITE' ? 45 : c.leagueId === 'ORO' ? 30 : c.leagueId === 'COLLEGE' ? 20 + Math.round(c.prestige / 5) : 20;
     if (opts.role === 'owner') { c.board.owner = w.user.name; c.board.ownerWealth = 60; }
     applyStartSupport(w, c);
-    if (!c.foreign) ensureShop(w, c);
+    if (!c.foreign) { ensureShop(w, c); freshMediaRights(w, c); }
     const rules = c.leagueId ? w.rules.leagues[c.leagueId] : null;
     addNews(w, `${w.user.name} takes charge of ${c.name}`, `${c.board.owner} welcomes the new ${opts.role === 'owner' ? 'owner-president' : 'general manager'}. Vision: ${c.board.plan.vision}. The board has set ${c.board.objectives.length} objectives and a payroll budget of ${fmtMoney(c.finances.budget.payroll)}. ${rules ? `${rules.name}: ${rules.teams} clubs, max ${rules.maxNonEU} non-EU players, min ${rules.minHomegrown} homegrown.` : ''} The summer transfer window is open until 30 September.`, { tags: ['career', 'board'], clubIds: [c.id], importance: 3 });
   } else {

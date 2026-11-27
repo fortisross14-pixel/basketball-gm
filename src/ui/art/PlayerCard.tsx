@@ -43,7 +43,7 @@ export function PlayerCard({ p, club, ovrLabel, sub, index = 0 }: { p: Player; c
         <span className="pc-ovr">{ovrLabel ?? p.ovr}</span>
         <span className="pc-pos">{p.pos}</span>
         {club && <span className="pc-logo"><ClubLogo club={club} size={28} /></span>}
-        <div className="pc-art" title={`${(body.heightCm / 100).toFixed(2)} m · ${body.weightKg} kg · ${FRAME_LABEL[body.frame]}`}><BodyFigure body={body} jersey={p.jersey} kit={club?.colors[0] ?? '#1e3a8a'} trim={club?.colors[1] ?? '#ffffff'} /><span className="pc-face"><PlayerFace player={p} size={46} /></span></div>
+        <div className="pc-art" title={`${(body.heightCm / 100).toFixed(2)} m · ${body.weightKg} kg · ${FRAME_LABEL[body.frame]}`}><BodyFigure body={body} jersey={p.jersey} kit={club?.colors[0] ?? '#1e3a8a'} trim={club?.colors[1] ?? '#ffffff'} /><span className="pc-face"><PlayerFace player={p} size={40} round /></span></div>
         <span className="pc-body">{(body.heightCm / 100).toFixed(2)}m · {FRAME_LABEL[body.frame]}</span>
         <div className="pc-name">
           {p.firstName[0]}. {p.lastName}

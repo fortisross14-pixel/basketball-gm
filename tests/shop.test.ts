@@ -23,13 +23,16 @@ describe('merchandise loop', () => {
     const s = c.shop!;
     expect(s).toBeTruthy();
     const q = quoteOrder(w, c, 'jersey', 'standard', 500);
-    expect(q.cashDue).toBe(6000); // 500 × €12
+    expect(q.cashDue).toBe(5100); // 500 × €12, −15% volume discount
+    expect(quoteOrder(w, c, 'jersey', 'standard', 100).unitCost).toBe(12); // small run: list price
+    expect(quoteOrder(w, c, 'jersey', 'standard', 2000).unitCost).toBeLessThan(q.unitCost);
+    expect(unitsOnHand(s, 'jersey')).toBe(0); // the shop opens empty
     setPrice(w, c, 'jersey', 29);
-    expect(Math.round(quoteOrder(w, c, 'jersey', 'standard', 500).margin * 100)).toBe(59);
+    expect(Math.round(quoteOrder(w, c, 'jersey', 'standard', 500).margin * 100)).toBe(65);
     const cash0 = c.finances.cash;
     const before = unitsOnHand(s, 'jersey');
     expect(placeOrder(w, c, 'jersey', 'standard', 500).ok).toBe(true);
-    expect(cash0 - c.finances.cash).toBe(6000);
+    expect(cash0 - c.finances.cash).toBe(5100);
     // price change leaves quantities and purchase costs intact
     const cost = avgCostOf(s, 'jersey');
     setPrice(w, c, 'jersey', 35);

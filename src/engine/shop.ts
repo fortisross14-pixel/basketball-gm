@@ -46,8 +46,19 @@ export function refPriceOf(w: World, c: Club, p: ProductId): number {
   return Math.round(PRODUCTS[p].ref[tierOf(w, c)] * (0.85 + c.economy * 0.15));
 }
 
-export function supplierCost(p: ProductId, s: SupplierId): number {
-  return Math.round(PRODUCTS[p].cost * SUPPLIERS[s].costMult * 100) / 100;
+/** Bigger runs are cheaper per unit (the factory sets up once). */
+export const VOLUME_TIERS: { min: number; off: number }[] = [
+  { min: 0, off: 0 }, { min: 250, off: 0.07 }, { min: 500, off: 0.15 }, { min: 1000, off: 0.25 }, { min: 2000, off: 0.35 },
+];
+export function volumeDiscount(units: number): number {
+  let off = 0;
+  for (const t of VOLUME_TIERS) if (units >= t.min) off = t.off;
+  return off;
+}
+
+/** Cost per unit from a supplier; pass the order size to apply the volume discount. */
+export function supplierCost(p: ProductId, s: SupplierId, units = 0): number {
+  return Math.round(PRODUCTS[p].cost * SUPPLIERS[s].costMult * (1 - volumeDiscount(units)) * 100) / 100;
 }
 
 export function conceptRefSpend(w: World, c: Club, k: FoodConceptId): number {
@@ -73,7 +84,7 @@ export function syncOutlets(w: World, c: Club, s: ShopState) {
   for (const o of s.food.outlets) o.points = clamp(o.points, 1, maxPoints(c, o.slot));
 }
 
-/** Create the shop for a club (first time the user runs it); seeds ~8 weeks of stock. */
+/** Create the shop for a club (first time the user runs it). It opens with no stock. */
 export function ensureShop(w: World, c: Club): ShopState {
   if (c.shop) { syncOutlets(w, c, c.shop); syncStores(w, c, c.shop); return c.shop; }
   const prices = Object.fromEntries(PRODUCT_IDS.map((p) => [p, refPriceOf(w, c, p)])) as Record<ProductId, number>;
@@ -85,17 +96,9 @@ export function ensureShop(w: World, c: Club): ShopState {
   };
   c.shop = s;
   syncStores(w, c, s);
-  // opening stock: the inventory the club already paid for (c.merch.stockValue), spread by
-  // forecast demand, with at least ~8 weeks of cover so the first weeks can sell
-  const weekly = Object.fromEntries(PRODUCT_IDS.map((p) => [p, storesOf(w, c).reduce((a, st) => a + expectedDemand(w, c, st, p, prices[p], 1, false), 0)])) as Record<ProductId, number>;
-  const valueW = PRODUCT_IDS.reduce((a, p) => a + weekly[p] * supplierCost(p, 'standard'), 0) || 1;
-  const weeksPaid = Math.max(8, Math.min(30, c.merch.stockValue / valueW));
-  for (const st of storesOf(w, c)) {
-    for (const p of PRODUCT_IDS) {
-      const units = Math.round(expectedDemand(w, c, st, p, prices[p], 1, false) * weeksPaid);
-      if (units > 0) s.stock[st.id][p] = { units, avgCost: supplierCost(p, 'standard'), quality: 1 };
-    }
-  }
+  // the shop opens empty: you decide what to make. Any stock the previous management left
+  // behind is sold to a wholesaler.
+  if (c.merch.stockValue > 0) book(w, c, 'other', Math.round(c.merch.stockValue * 0.6));
   c.merch.stockValue = 0;
   syncOutlets(w, c, s);
   return s;
@@ -205,7 +208,7 @@ export function defaultAllocation(w: World, c: Club, p: ProductId, units: number
 export function quoteOrder(w: World, c: Club, p: ProductId, supplier: SupplierId, units: number, allocation?: Record<number, number>): OrderQuote {
   const s = ensureShop(w, c);
   const sup = SUPPLIERS[supplier];
-  const unitCost = supplierCost(p, supplier);
+  const unitCost = supplierCost(p, supplier, units);
   const cashDue = Math.round(unitCost * units);
   const weekly = forecastWeekly(w, c, p);
   const cover = (unitsOnHand(s, p) + unitsIncoming(s, p) + units) / Math.max(0.1, weekly);
@@ -220,7 +223,7 @@ export function quoteOrder(w: World, c: Club, p: ProductId, supplier: SupplierId
     ok: !reason, reason, unitCost, cashDue, arriveDay: absDay(w) + sup.leadDays, weeklyDemand: weekly, weeksOfCover: cover,
     margin: marginAt(s.prices[p], unitCost), grossProfitIfSold: Math.round(units * (s.prices[p] - unitCost)),
     stockoutRisk: onHandWeeks < leadWeeks ? 'high' : onHandWeeks < leadWeeks + 2 ? 'medium' : 'low',
-    overstockRisk: cover > 20, allocation: alloc,
+    overstockRisk: cover > 40, allocation: alloc,
   };
 }
 

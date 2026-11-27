@@ -8,14 +8,16 @@ import { fmtAbs } from '../../../engine/calendar';
 import {
   CONCEPTS, PRODUCTS, PRODUCT_IDS, SUPPLIERS, avgCostOf, clearToWholesaler, conceptRefSpend, defaultAllocation, forecastOutlet, forecastWeekly,
   marginAt, maxPoints, moveStock, offDayIncome, openPopup, placeOrder, popupCost, priceForMargin, quoteOrder, refPriceOf, setOutlet, setPrice,
-  supplierCost, unitsIncoming, unitsOnHand, conceptRefit,
+  supplierCost, unitsIncoming, unitsOnHand, conceptRefit, VOLUME_TIERS,
 } from '../../../engine/shop';
 import { Badge, Button, Callout, Card, Modal, NumberField, Pills, Stat } from '../../components/ui';
 import { ProductArt, FoodArt, type ProductKind } from '../../art/ProductArt';
 import { useAct, useNotify } from '../../store';
 import { useUserClub } from './common';
+import '../hubs/hubs.css';
 
 const pct = (x: number) => `${Math.round(x * 100)}%`;
+const clampPct = (x: number) => Math.max(0, Math.min(0.85, x));
 /** Exact euros for business-sized amounts (fmtMoney rounds to k). */
 const eur = (n: number) => (Math.abs(n) < 100000 ? `${n < 0 ? '−' : ''}€${Math.abs(Math.round(n)).toLocaleString('en')}` : fmtMoney(n));
 const ART: Record<ProductId, ProductKind> = { jersey: 'jersey-home', scarf: 'scarf', cap: 'cap', keychain: 'keychain' };
@@ -97,7 +99,7 @@ function ProductRow({ p, i, onOrder, onMove }: { p: ProductId; i: number; onOrde
   const act = useAct();
   const notify = useNotify();
   const s = c.shop!;
-  const cost = avgCostOf(s, p) || supplierCost(p, 'standard');
+  const cost = avgCostOf(s, p) || supplierCost(p, 'standard', 500);
   const price = s.prices[p];
   const weekly = forecastWeekly(w, c, p);
   const have = unitsOnHand(s, p);
@@ -111,15 +113,16 @@ function ProductRow({ p, i, onOrder, onMove }: { p: ProductId; i: number; onOrde
       <div className="biz-main">
         <div className="row" style={{ flexWrap: 'wrap', gap: 8 }}>
           <b>{PRODUCTS[p].label}</b>
-          <span className="small muted">avg cost {fmtMoney(cost)} · market reference {fmtMoney(refPriceOf(w, c, p))}</span>
-          {cover < 3 && <Badge tone="bad">Low stock</Badge>}
-          {cover > 26 && <Badge tone="warn">Overstocked</Badge>}
+          <span className="small muted">{avgCostOf(s, p) ? 'avg cost' : 'cost (500-unit run)'} {fmtMoney(cost)} · market price {fmtMoney(refPriceOf(w, c, p))}</span>
+          {have + inc === 0 && <Badge tone="warn">No stock: order some</Badge>}
+          {cover < 3 && have + inc > 0 && <Badge tone="bad">Low stock</Badge>}
+          {cover > 40 && <Badge tone="warn">Overstocked</Badge>}
         </div>
-        <div className="row mt8" style={{ flexWrap: 'wrap', gap: 14 }}>
-          <span className="small muted">Price</span>
-          <NumberField label={`Price of ${PRODUCTS[p].plural}`} value={price} min={1} max={Math.round(refPriceOf(w, c, p) * 2.5)} step={0.5} prefix="€" width={64} onChange={upd} />
+        <div className="row mt8" style={{ flexWrap: 'wrap', gap: 14, alignItems: 'center' }}>
           <span className="small muted">Margin</span>
-          <NumberField label="Target margin" value={Math.round(marginAt(price, cost) * 100)} min={0} max={90} step={1} suffix="%" width={50} onChange={(m) => upd(priceForMargin(cost, m / 100))} />
+          <input type="range" aria-label={`Margin on ${PRODUCTS[p].plural}`} min={0} max={85} step={1} value={Math.round(clampPct(marginAt(price, cost)) * 100)} onChange={(e) => upd(priceForMargin(cost, Number(e.target.value) / 100))} style={{ flex: 1, minWidth: 140, maxWidth: 320 }} />
+          <b>{pct(marginAt(price, cost))}</b>
+          <span className="small">sells at <b>{fmtMoney(price)}</b> <span className={price > refPriceOf(w, c, p) * 1.2 ? 'warn' : 'muted'}>({Math.round((price / refPriceOf(w, c, p)) * 100)}% of market)</span></span>
         </div>
         <div className="small mt8 biz-kpis">
           <span>Forecast <b>{weekly.toFixed(1)}</b>/wk</span>
@@ -144,7 +147,7 @@ function OrderModal({ p, onClose }: { p: ProductId; onClose: () => void }) {
   const s = c.shop!;
   const weekly = forecastWeekly(w, c, p);
   const [supplier, setSupplier] = useState<SupplierId>('standard');
-  const [units, setUnits] = useState(() => Math.max(SUPPLIERS.standard.minOrder, Math.round((weekly * 8) / 10) * 10));
+  const [units, setUnits] = useState(() => Math.max(300, SUPPLIERS.standard.minOrder, Math.round((weekly * 12) / 50) * 50));
   const [alloc, setAlloc] = useState<Record<number, number> | null>(null);
   const stores = c.facilities?.stores ?? [];
   const auto = useMemo(() => defaultAllocation(w, c, p, units), [w, c, p, units]);
@@ -156,10 +159,27 @@ function OrderModal({ p, onClose }: { p: ProductId; onClose: () => void }) {
       <div className="col gap16">
         <div>
           <div className="small muted mb8">Supplier</div>
-          <Pills<SupplierId> value={supplier} onChange={(v) => setSupplier(v)} options={(Object.keys(SUPPLIERS) as SupplierId[]).map((id) => ({ id, label: `${SUPPLIERS[id].label} · ${fmtMoney(supplierCost(p, id))}`, title: SUPPLIERS[id].desc }))} />
+          <Pills<SupplierId> value={supplier} onChange={(v) => setSupplier(v)} options={(Object.keys(SUPPLIERS) as SupplierId[]).map((id) => ({ id, label: `${SUPPLIERS[id].label} · ${fmtMoney(supplierCost(p, id, units))}`, title: SUPPLIERS[id].desc }))} />
           <div className="small faint mt8">{SUPPLIERS[supplier].desc} Delivery {SUPPLIERS[supplier].leadDays} days · minimum {SUPPLIERS[supplier].minOrder} units.</div>
         </div>
-        <NumberField label="Quantity" value={units} min={SUPPLIERS[supplier].minOrder} max={Math.max(2000, Math.round(weekly * 40 / 100) * 100)} step={10} suffix="units" width={80} onChange={(v) => { setUnits(v); setAlloc(null); }} />
+        <div>
+          <NumberField label="Quantity" value={units} min={SUPPLIERS[supplier].minOrder} max={Math.max(3000, Math.round(weekly * 40 / 100) * 100)} step={50} suffix="units" width={80} onChange={(v) => { setUnits(v); setAlloc(null); }} />
+          <div className="small muted mt8 mb8">The bigger the run, the cheaper each unit:</div>
+          <div className="row" style={{ flexWrap: 'wrap', gap: 6 }}>
+            {VOLUME_TIERS.map((t, k) => {
+              const next = VOLUME_TIERS[k + 1];
+              const on = units >= t.min && (!next || units < next.min);
+              const n = Math.max(t.min, SUPPLIERS[supplier].minOrder);
+              return (
+                <button key={t.min} type="button" className={`slot-chip ${on ? 'sel' : ''}`} style={{ minWidth: 104 }} onClick={() => { setUnits(n); setAlloc(null); }}>
+                  <span className="sc-label">{t.min ? `${t.min}+ units` : 'Small run'}</span>
+                  <span className="sc-brand">{fmtMoney(supplierCost(p, supplier, n))}</span>
+                  <span className="small muted">{t.off ? `−${Math.round(t.off * 100)}% per unit` : 'list price'}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
         <div>
           <div className="row small"><span className="muted">Allocate to stores</span><span className="spacer" /><span className={allocated === units ? 'good' : 'bad'}>{allocated}/{units} allocated</span>{alloc && <Button size="sm" variant="ghost" onClick={() => setAlloc(null)}>Auto</Button>}</div>
           <div className="col mt8" style={{ gap: 6 }}>
@@ -179,7 +199,7 @@ function OrderModal({ p, onClose }: { p: ProductId; onClose: () => void }) {
         </div>
         <div className="small">
           If every unit sells: gross profit <b>{eur(q.grossProfitIfSold)}</b> on the units sold. Stock-out risk before delivery: <Badge tone={q.stockoutRisk === 'high' ? 'bad' : q.stockoutRisk === 'medium' ? 'warn' : 'good'}>{q.stockoutRisk}</Badge>
-          {q.overstockRisk && <> · <span className="warn">More than 20 weeks of stock: cash tied up and jerseys lose appeal when the new kit arrives.</span></>}
+          {q.overstockRisk && <> · <span className="warn">More than a season of stock: cash tied up, and jerseys lose appeal when the new kit arrives.</span></>}
         </div>
         {q.reason && <Callout tone="bad">{q.reason}</Callout>}
       </div>

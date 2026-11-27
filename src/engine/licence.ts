@@ -62,7 +62,7 @@ export function licencePlan(w: World, c: Club): LicencePlan | null {
       required: fmtMoney(r.promotionFee), current: `${fmtMoney(cash)} cash + ${fmtMoney(credit)} credit`,
       gap: cash + credit < r.promotionFee ? fmtMoney(r.promotionFee - cash - credit) : undefined,
       explain: 'Paid to the league when you go up. Cash or available bank credit (half of annual revenue, minus debt) both count.',
-      actions: [{ label: 'Revenue drive', to: '/business/revenue-drive', primary: true }, { label: 'Finance & loans', to: '/club/finance' }],
+      actions: [{ label: 'Find sponsors', to: '/club/commercial', primary: true }, { label: 'Finance & loans', to: '/club/finance' }],
     },
     {
       id: 'standard', label: 'Financial standard', ok: cash + credit + ownerGuarantee >= r.minPayrollGuarantee,

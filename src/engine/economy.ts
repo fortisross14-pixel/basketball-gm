@@ -273,14 +273,17 @@ export function inEuro(w: World, c: Club) {
 // Sponsors / TV / grants
 // ---------------------------------------------------------------------------
 export const SLOT_INFO: Record<SponsorSlot, { label: string; weight: number }> = {
-  shirt: { label: 'Main shirt partner', weight: 1 },
-  shirtSecondary: { label: 'Shirt sleeve / back', weight: 0.32 },
-  naming: { label: 'Arena naming rights', weight: 0.7 },
-  court: { label: 'Court & LED boards', weight: 0.3 },
-  local1: { label: 'Local partner A', weight: 0.12 },
-  local2: { label: 'Local partner B', weight: 0.1 },
-  local3: { label: 'Local partner C', weight: 0.08 },
+  shirt: { label: 'Main shirt sponsor', weight: 1 },
+  shirtSecondary: { label: 'Sleeve sponsor', weight: 0.22 },
+  shirtBack: { label: 'Back of shirt', weight: 0.25 },
+  training: { label: 'Training kit', weight: 0.16 },
+  naming: { label: 'Arena name', weight: 0.7 },
+  court: { label: 'Centre court & LED ribbon', weight: 0.3 },
+  local1: { label: 'Courtside fence ads (sideline)', weight: 0.12 },
+  local2: { label: 'Courtside fence ads (baseline)', weight: 0.1 },
+  local3: { label: 'Concourse & entrance boards', weight: 0.08 },
   digital: { label: 'Digital & streaming partner', weight: 0.18 },
+  app: { label: 'Official app partner', weight: 0.12 },
 };
 
 const SHIRT_BASE: Record<number, number> = { 0: 1_600_000, 1: 850_000, 2: 85_000, 3: 22_000 };

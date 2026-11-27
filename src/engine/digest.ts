@@ -79,7 +79,10 @@ export function buildDigest(w: World): DigestItem[] {
   // commercial
   if (w.tvOffers.length) items.push({ id: 'tv', title: `${w.tvOffers.length} media-rights offers waiting`, detail: 'Choose a broadcaster: cash now vs reach and digital growth.', urgency: 2, impact: 2, deadline: w.tvOffers[0].expiresDay, owner: 'Commercial director', link: '/club/commercial/media', action: 'Choose broadcaster', tone: 'info' });
   const empty = SPONSOR_SLOTS.filter((s) => !c.sponsors.some((x) => x.slot === s) && (s !== 'naming' || c.arena.owned));
-  if (empty.length >= 3) items.push({ id: 'sponsors', title: `${empty.length} sponsorship slots empty`, detail: empty.map((s) => SLOT_INFO[s].label).join(', ') + '. Offers arrive weekly; a better commercial director attracts more.', urgency: 0, impact: 1, deadline: null, owner: 'Commercial director', link: '/club/commercial/drive', action: 'Revenue drive', tone: 'info' });
+  if (empty.length >= 6) items.push({ id: 'sponsors', title: `${empty.length} sponsorship slots empty`, detail: empty.map((s) => SLOT_INFO[s].label).join(', ') + '. Offers arrive weekly; a better commercial director attracts more.', urgency: 0, impact: 1, deadline: null, owner: 'Commercial director', link: '/club/commercial', action: 'Find partners', tone: 'info' });
+  if (c.shop && c.shop.policy.mode === 'manual' && !c.shop.orders.some((o) => o.status === 'ordered') && Object.values(c.shop.stock).every((st) => Object.values(st).every((b) => !b || b.units <= 0))) {
+    items.push({ id: 'shop-empty', title: 'Your club store has nothing to sell', detail: 'Order jerseys, scarves, caps and keychains. Bigger runs cost less per unit; delivery takes 8 to 28 days.', urgency: 1, impact: 1, deadline: null, owner: 'Commercial director', link: '/business/merchandise', action: 'Order stock', tone: 'warn' });
+  }
   // promotion readiness
   if (c.leagueId === 'ORO' || c.leagueId === 'PLATA') {
     const up = c.leagueId === 'ORO' ? 'ELITE' : 'ORO';

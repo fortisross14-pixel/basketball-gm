@@ -467,7 +467,7 @@ const BUSINESS: { to: string; icon: IconName; label: string }[] = [
   { to: '/business/merchandise', icon: 'store', label: 'Merchandise' },
   { to: '/business/food', icon: 'food', label: 'Food & Drink' },
   { to: '/business/tickets', icon: 'ticket', label: 'Ticket prices' },
-  { to: '/business/revenue-drive', icon: 'coin', label: 'Revenue drive' },
+  { to: '/club/commercial', icon: 'coin', label: 'Sponsors' },
 ];
 
 function BusinessLinks() {

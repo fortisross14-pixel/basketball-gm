@@ -395,8 +395,14 @@ export interface Merch {
 // ---------------------------------------------------------------------------
 // Commercial
 // ---------------------------------------------------------------------------
-export type SponsorSlot = 'shirt' | 'shirtSecondary' | 'naming' | 'court' | 'local1' | 'local2' | 'local3' | 'digital';
-export const SPONSOR_SLOTS: SponsorSlot[] = ['shirt', 'shirtSecondary', 'naming', 'court', 'local1', 'local2', 'local3', 'digital'];
+export type SponsorSlot = 'shirt' | 'shirtSecondary' | 'shirtBack' | 'training' | 'naming' | 'court' | 'local1' | 'local2' | 'local3' | 'digital' | 'app';
+export const SPONSOR_SLOTS: SponsorSlot[] = ['shirt', 'shirtSecondary', 'shirtBack', 'training', 'naming', 'court', 'local1', 'local2', 'local3', 'digital', 'app'];
+/** Where each sponsorship lives in the commercial screens. */
+export const SLOT_GROUPS: { id: 'kit' | 'arena' | 'media'; label: string; slots: SponsorSlot[] }[] = [
+  { id: 'kit', label: 'Kit', slots: ['shirt', 'shirtSecondary', 'shirtBack', 'training'] },
+  { id: 'arena', label: 'Arena', slots: ['naming', 'court', 'local1', 'local2', 'local3'] },
+  { id: 'media', label: 'Media', slots: ['digital', 'app'] },
+];
 
 export interface SponsorDeal {
   id: number;

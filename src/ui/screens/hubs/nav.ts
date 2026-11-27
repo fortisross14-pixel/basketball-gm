@@ -102,7 +102,7 @@ export const PAGE_INDEX: { to: string; label: string; keywords: string }[] = [
   { to: '/business/merchandise', label: 'Merchandise', keywords: 'shop store jerseys scarves caps keychains stock orders supplier merch' },
   { to: '/business/food', label: 'Food & Drink', keywords: 'restaurant kiosk grill lounge concessions menu catering bar food drink' },
   { to: '/business/tickets', label: 'Ticket prices', keywords: 'tickets seats season tickets prices gate attendance' },
-  { to: '/business/revenue-drive', label: 'Revenue drive', keywords: 'money naming rights sponsor members tv cash fundraising' },
+  { to: '/club/commercial', label: 'Sponsors & TV overview', keywords: 'money naming rights sponsor shirt arena fence app digital members tv cash fundraising' },
   { to: '/team/tactics/lineup', label: 'Lineup & Minutes', keywords: 'starters rotation bench minutes lineup' },
   { to: '/team/tactics/feedback', label: 'Coach feedback', keywords: 'coach feedback analysis suggestions' },
   { to: '/team/preseason', label: 'Preseason & training camp', keywords: 'friendly friendlies camp training camp summer tour trip preseason cohesion' },
