@@ -71,13 +71,14 @@ def en_colors(key):
 
 
 NO_DOWNLOAD = '--no-download' in sys.argv
+FAILS = [0]  # consecutive refused downloads: stop asking after a few (rate limit)
 
 
 def fetch_logo(url, name):
     cache = os.path.join(WORK, 'logos', name + '.bin')
-    if not os.path.exists(cache) and not NO_DOWNLOAD:
+    if not os.path.exists(cache) and not NO_DOWNLOAD and FAILS[0] < 4:
         url = re.sub(r'/\d+px-', '/250px-', url)
-        for attempt in range(5):
+        for attempt in range(2):
             # curl, not urllib: Wikimedia's robot policy rejects Python's client
             code = subprocess.run(['curl', '-sS', '-m', '30', '-A', UA, '-o', cache, '-w', '%{http_code}', url], capture_output=True, text=True).stdout
             if code == '200':
@@ -85,8 +86,9 @@ def fetch_logo(url, name):
             print('  logo retry', name, code)
             if os.path.exists(cache):
                 os.remove(cache)
-            time.sleep(45 if code == '429' else 6)
-        time.sleep(3.0)
+            time.sleep(60 if code == '429' else 6)
+        FAILS[0] = 0 if os.path.exists(cache) else FAILS[0] + 1
+        time.sleep(4.0)
     if not os.path.exists(cache):
         return None
     try:
