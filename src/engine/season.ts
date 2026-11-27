@@ -187,6 +187,16 @@ function competitionResult(w: World, c: Club): { playoff: string; cup: string; e
 
 export function seasonEnd(w: World) {
   seasonAwards(w);
+  // a full season in charge: other clubs can now judge your work
+  const ucJ = w.user.clubId != null ? getClub(w, w.user.clubId) : null;
+  if (ucJ && !ucJ.foreign && ucJ.leagueId) {
+    const stint = w.user.career[w.user.career.length - 1];
+    const startedBy = absDay(w) - 200; // in charge since before the league started
+    if (stint && stint.from <= startedBy) {
+      w.user.seasonsJudged = (w.user.seasonsJudged ?? 0) + 1;
+      w.user.bestTierJudged = Math.min(w.user.bestTierJudged ?? 9, w.rules.leagues[ucJ.leagueId].tier);
+    }
+  }
   const moves = computeLeagueMoves(w);
   w.pendingMoves = moves;
   // prize money

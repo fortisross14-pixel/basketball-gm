@@ -1,3 +1,4 @@
+import { absDay } from './types';
 import type { World } from './types';
 import { SAVE_VERSION } from './worldgen';
 import { invalidateIndex, club } from './world';
@@ -45,6 +46,13 @@ export function migrate(w: World): World {
   }
   w.version = SAVE_VERSION;
   renameCompetitions(w);
+  if (w.user.seasonsJudged == null && w.user.career.length) {
+    // older saves: count the full years already spent in charge
+    const yrs = Math.floor((absDay(w) - w.user.career[0].from) / 365);
+    w.user.seasonsJudged = yrs;
+    const uc0 = w.user.clubId != null ? w.clubs.find((x) => x.id === w.user.clubId) : undefined;
+    if (yrs > 0 && uc0?.leagueId) w.user.bestTierJudged = w.rules.leagues[uc0.leagueId].tier;
+  }
   w.pendingMoves ??= [];
   w.pendingHolds ??= [];
   for (const c of w.clubs) c.seedName ??= c.name;

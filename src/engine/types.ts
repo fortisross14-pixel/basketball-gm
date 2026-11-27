@@ -1001,6 +1001,9 @@ export interface UserState {
   /** Head coach's trust in you, 0-100 (60 = neutral). Adds or removes a little system buy-in. */
   coachRapport?: number;
   lastCoachAsk?: number; // abs day
+  /** Full seasons you finished in charge of a club, and the best (lowest number) tier among them. */
+  seasonsJudged?: number;
+  bestTierJudged?: number;
   /** Events you planned in the calendar (team, fans, sponsors, board). */
   events?: PlannedEvent[];
 }

@@ -34,7 +34,11 @@ export function jobMarket(w: World, unemployedTick = false, midseason = false) {
   const declined = w.user.declinedOffers ?? {};
   const pool = w.clubs.filter((c) => !c.foreign && c.id !== w.user.clubId && c.id !== lastClub?.id && (declined[c.id] ?? 0) < absDay(w));
   const level = (c: Club) => c.prestige * 0.75 + (c.leagueId === 'ELITE' ? 10 : c.leagueId === 'PLATA' ? -10 : 0);
+  // clubs only hire you once they can judge a full season of your work, and at most one division higher
+  const judged = w.user.seasonsJudged ?? 0;
+  const maxUp = judged === 0 ? lowestTier(w) : Math.max(1, (w.user.bestTierJudged ?? lowestTier(w)) - 1);
   const fit = pool.filter((c) => {
+    if (c.leagueId && c.leagueId !== 'COLLEGE' && w.rules.leagues[c.leagueId].tier < maxUp) return false;
     if (rep < level(c) - 15) return false;
     if (firedRecently && lastClub && level(c) > level(lastClub) + 3) return false; // after a dismissal, only equal or lesser jobs
     if (current && level(c) <= level(current) + 4) return false; // only a step up tempts an employed executive
@@ -134,6 +138,14 @@ export const COUNTRY_OPTIONS: { code: string; label: string }[] = [
   { code: 'CAN', label: 'Canada' }, { code: 'OTHER', label: 'Other' },
 ];
 
+/** The bottom Spanish division: where every new career starts. */
+export function lowestTier(w: World): number {
+  return Math.max(...Object.values(w.rules.leagues).filter((l) => l.kind === 'pro' && l.country === 'ESP').map((l) => l.tier));
+}
+function lowestLeague(w: World): string {
+  return Object.entries(w.rules.leagues).find(([, l]) => l.kind === 'pro' && l.country === 'ESP' && l.tier === lowestTier(w))![0];
+}
+
 function weakest(w: World, leagueId: string, n: number): Club[] {
   return w.clubs.filter((c) => c.leagueId === leagueId).sort((a, b) => a.prestige - b.prestige).slice(0, n);
 }
@@ -142,22 +154,22 @@ function weakest(w: World, leagueId: string, n: number): Club[] {
 export function careerStartOffers(w: World) {
   const r = rng(w);
   const nat = w.user.nationality;
+  const low = lowestLeague(w);
+  const lowName = w.rules.leagues[low as keyof typeof w.rules.leagues].name;
   const picks: { club: Club; reason: string }[] = [];
   const take = (pool: Club[], k: number, reason: (c: Club) => string) => {
     for (const c of r.shuffle([...pool]).slice(0, k)) if (!picks.some((p) => p.club.id === c.id)) picks.push({ club: c, reason: reason(c) });
   };
   if (nat === 'USA' || nat === 'CAN') {
     take(weakest(w, 'COLLEGE', 6), 2, (c) => `${c.name} is a struggling college program looking for a young athletic director with fresh ideas.`);
-    if (r.chance(0.6)) take(weakest(w, 'PLATA', 8), 1, (c) => `${c.name}, a Spanish third-division club, wants an American executive to modernise its recruiting.`);
+    if (r.chance(0.6)) take(weakest(w, low, 12), 1, (c) => `${c.name}, a club in the ${lowName}, wants an American executive to modernise its recruiting.`);
   } else if (nat === 'ESP') {
-    take(weakest(w, 'PLATA', 10), 2, (c) => `${c.board.owner} offers you the reins of ${c.name} in the Segunda FEB, the Spanish third division.`);
-    take(weakest(w, 'ORO', 4), 1, (c) => `${c.name} are bottom-half in the Primera FEB (second division) and want a local executive to stabilise them.`);
+    take(weakest(w, low, 16), 3, (c) => `${c.board.owner} offers you the reins of ${c.name} in the ${lowName}, the bottom of the Spanish pyramid.`);
   } else if (['ARG', 'BRA', 'OTHER'].includes(nat)) {
-    take(weakest(w, 'PLATA', 10), 2, (c) => `${c.name} in the Spanish Segunda FEB are looking for an executive with international contacts.`);
+    take(weakest(w, low, 16), 2, (c) => `${c.name} in the ${lowName} are looking for an executive with international contacts.`);
     take(weakest(w, 'COLLEGE', 6), 1, (c) => `${c.name} wants an international executive to open up its recruiting abroad.`);
   } else {
-    take(weakest(w, 'PLATA', 10), 2, (c) => `${c.name} in the Spanish Segunda FEB want a European executive who knows the continental market.`);
-    take(weakest(w, 'ORO', 5), 1, (c) => `${c.name}, a Primera FEB (second division) club, liked your profile.`);
+    take(weakest(w, low, 16), 3, (c) => `${c.name} in the ${lowName} want a European executive who knows the international market.`);
   }
   for (const p of picks) {
     const d = jobOfferDecision(w, p.club, p.reason);
