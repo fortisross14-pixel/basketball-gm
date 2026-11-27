@@ -16,7 +16,7 @@ export function JobOfferCard({ d }: { d: Decision }) {
   const notify = useNotify();
   const c = getClub(w, d.payload.clubId as number);
   const league = c.leagueId ? w.rules.leagues[c.leagueId] : null;
-  const peers = w.clubs.filter((x) => x.leagueId === c.leagueId);
+  const peers = w.clubs.filter((x) => x.leagueId === c.leagueId && x.group === c.group); // the group you actually play in
   const strRank = [...peers].sort((a, b) => clubStrength(w, b) - clubStrength(w, a)).findIndex((x) => x.id === c.id) + 1;
   const best = Math.max(...roster(w, c.id).map((p) => p.ovr));
   const daysLeft = d.deadlineDay - absDay(w);
@@ -26,7 +26,7 @@ export function JobOfferCard({ d }: { d: Decision }) {
         <Crest club={c} size="lg" />
         <div style={{ flex: 1 }}>
           <h2>{c.name}</h2>
-          <div className="muted small">{league?.name}{league?.kind === 'college' ? ' · United States' : ' · Spain'} · {c.city}</div>
+          <div className="muted small">{league?.name}{c.group ? ` · group ${c.group}` : ''}{league?.kind === 'college' ? ' · United States' : ' · Spain'} · {c.city}</div>
         </div>
         <Badge tone="warn">{daysLeft > 0 ? `${daysLeft} days to answer` : 'Expires today'}</Badge>
       </div>

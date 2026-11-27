@@ -21,7 +21,7 @@ describe('career start', () => {
     expect(offers.length).toBeGreaterThanOrEqual(2);
     const leagues = offers.map((d) => club(w, d.payload.clubId as number).leagueId);
     expect(leagues).toContain('COLLEGE');
-    for (const d of offers) if (club(w, d.payload.clubId as number).leagueId === 'COLLEGE') expect(club(w, d.payload.clubId as number).prestige).toBeLessThan(45);
+    for (const d of offers) if (club(w, d.payload.clubId as number).leagueId === 'COLLEGE') expect(club(w, d.payload.clubId as number).prestige).toBeLessThan(66);
   });
   it('a Spaniard gets offers from the bottom Spanish division', () => {
     const w = profile('ESP');

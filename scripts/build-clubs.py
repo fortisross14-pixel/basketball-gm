@@ -7,7 +7,7 @@ Inputs (made by hand-run fetches, see docs): a work folder with
   enpages.txt    es page -> en page;  en/*.html English pages (badges live there)
 Usage: python3 scripts/build-clubs.py /path/to/workdir
 """
-import hashlib, html, io, json, math, os, re, sys, time, unicodedata, urllib.request
+import hashlib, html, json, math, os, re, subprocess, sys, time, unicodedata
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'data'))
 from cities import CITIES  # noqa: E402
 from world_clubs import NBA, NCAA, EURO  # noqa: E402
@@ -70,19 +70,23 @@ def en_colors(key):
     return [b, second] if b and second and second != b else None
 
 
+NO_DOWNLOAD = '--no-download' in sys.argv
+
+
 def fetch_logo(url, name):
     cache = os.path.join(WORK, 'logos', name + '.bin')
-    if not os.path.exists(cache):
-        for attempt in range(3):
-            try:
-                req = urllib.request.Request(url, headers={'User-Agent': UA})
-                data = urllib.request.urlopen(req, timeout=30).read()
-                open(cache, 'wb').write(data)
+    if not os.path.exists(cache) and not NO_DOWNLOAD:
+        url = re.sub(r'/\d+px-', '/250px-', url)
+        for attempt in range(5):
+            # curl, not urllib: Wikimedia's robot policy rejects Python's client
+            code = subprocess.run(['curl', '-sS', '-m', '30', '-A', UA, '-o', cache, '-w', '%{http_code}', url], capture_output=True, text=True).stdout
+            if code == '200':
                 break
-            except Exception as e:  # noqa: BLE001
-                print('  logo retry', name, e)
-                time.sleep(6)
-        time.sleep(1.2)
+            print('  logo retry', name, code)
+            if os.path.exists(cache):
+                os.remove(cache)
+            time.sleep(45 if code == '429' else 6)
+        time.sleep(3.0)
     if not os.path.exists(cache):
         return None
     try:
@@ -208,7 +212,7 @@ def abbrev_for(name, city):
 
 
 def clean_arena(s):
-    s = re.sub(r'\(.*?\)', '', s or '').strip(' ,')
+    s = re.sub(r'\(.*?\)|\[\d+\]', '', s or '').strip(' ,')
     return s[:48] or None
 
 
@@ -236,7 +240,8 @@ def add(x, league, tier_default_seats, prestige, group=None, abbrev=None, city=N
     if region is None:
         region, pop = 'España', 25000
         print('  ! unknown city', city, x['name'])
-    name = x['name']
+    name = re.sub(r'\s*\[\d+\]', '', x['name']).strip()
+    x['name'] = name
     sl = slug(name)
     logo_im = None
     logo = None

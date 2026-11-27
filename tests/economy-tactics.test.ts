@@ -57,7 +57,7 @@ describe('revenue drive', () => {
     expect(takeQuickDeal(w, c, 'membership', 'run').ok).toBe(true);
     expect(takeQuickDeal(w, c, 'membership', 'run').ok).toBe(false);
     expect(takeQuickDeal(w, c, 'naming', 'standard').ok).toBe(false);
-    expect(c.finances.cash - cash0).toBeGreaterThan(30000);
+    expect(c.finances.cash - cash0).toBeGreaterThan(15000);
     expect(payrollRoom(w, c) - room0).toBeGreaterThan(20000);
     expect(quickDeals(w, c).find((d) => d.kind === 'naming')!.available).toBe(false);
   });

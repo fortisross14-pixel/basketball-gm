@@ -192,7 +192,7 @@ export function boardNote(w: World, delta: number, text: string) {
 
 /** Where the club "should" finish given its stature (prestige rank among league peers). */
 export function expectedWinPct(w: World, c: Club): number {
-  const peers = w.clubs.filter((x) => x.leagueId === c.leagueId).sort((a, b) => b.prestige - a.prestige);
+  const peers = w.clubs.filter((x) => x.leagueId === c.leagueId && x.group === c.group).sort((a, b) => b.prestige - a.prestige);
   const rank = Math.max(0, peers.findIndex((x) => x.id === c.id));
   return 0.75 - (0.5 * rank) / Math.max(1, peers.length - 1);
 }

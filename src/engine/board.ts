@@ -47,7 +47,9 @@ export function setObjectives(w: World, c: Club) {
   const t = tierOf(w, c);
   const objs: Objective[] = [];
   const mk = (kind: Objective['kind'], target: number, label: string, weight: number): Objective => ({ id: nextId(w), kind, target, label, weight, status: 'pending', progress: 0 });
-  const leaguePeers = w.clubs.filter((x) => x.leagueId === c.leagueId).sort((a, b2) => b2.prestige - a.prestige);
+  const leaguePeers = w.clubs.filter((x) => x.leagueId === c.leagueId && x.group === c.group).sort((a, b2) => b2.prestige - a.prestige);
+  const n = leaguePeers.length;
+  const relLine = c.leagueId ? n - Math.ceil((w.rules.leagues[c.leagueId].relegation ?? 0) / (c.group ? Math.max(1, new Set(w.clubs.filter((x) => x.leagueId === c.leagueId).map((x) => x.group)).size) : 1)) : n;
   const expectedRank = Math.max(1, leaguePeers.findIndex((x) => x.id === c.id) + 1);
   if (c.leagueId === 'COLLEGE') {
     if (expectedRank <= 3) objs.push(mk('leaguePos', 2, 'Finish top 2 and contend for the NCAA title', 3));
@@ -56,13 +58,13 @@ export function setObjectives(w: World, c: Club) {
   } else if (t === 1) {
     if (expectedRank <= 3) objs.push(mk('leaguePos', 2, 'Finish in the top 2 of the regular season', 3));
     else if (expectedRank <= 8) objs.push(mk('leaguePos', 8, 'Reach the title playoffs (top 8)', 3));
-    else objs.push(mk('avoidRelegation', 14, 'Avoid relegation (finish 14th or better)', 3));
+    else objs.push(mk('avoidRelegation', relLine, `Avoid relegation (finish ${relLine}th or better)`, 3));
     if (expectedRank <= 5) objs.push(mk('euroQualify', 4, 'Qualify for continental competition (top 4)', 2));
   } else {
     if (expectedRank <= 3) objs.push(mk('promotion', 1, 'Win promotion to the next tier', 3));
     else if (expectedRank <= 7) objs.push(mk('leaguePos', 5, 'Reach the promotion playoffs (top 5)', 3));
     else if (expectedRank <= 11) objs.push(mk('leaguePos', 9, 'Finish in the top half (9th or better)', 3));
-    else objs.push(mk('leaguePos', t === 2 ? 14 : 12, t === 2 ? 'Avoid relegation (14th or better)' : 'Finish in the top 12', 3));
+    else objs.push(relLine < n ? mk('leaguePos', relLine, `Avoid relegation (${relLine}th or better)`, 3) : mk('leaguePos', Math.max(4, n - 2), `Finish in the top ${Math.max(4, n - 2)}`, 3));
   }
   const tol = b.plan.profitTolerance;
   const rev = estimateRevenue(w, c).total;

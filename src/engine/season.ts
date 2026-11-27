@@ -480,9 +480,12 @@ function genStaff(w: World, role: Parameters<typeof generateStaff>[1], rating: n
 
 function pruneHistory(w: World) {
   const keepFrom = w.season - 2;
+  // last season: keep only your games and the knockout rounds (the tables live in competitions)
   w.fixtures = w.fixtures.filter((f) => {
     const s = Number(f.compId.split('-').pop());
-    return s >= w.season - 1;
+    if (s >= w.season) return true;
+    if (s < w.season - 1) return false;
+    return f.comp !== 'league' || isUser(w, f.homeId) || isUser(w, f.awayId);
   });
   w.games = w.games.filter((g) => g.season >= w.season - 1);
   // drop retired non-notable players after a few seasons
