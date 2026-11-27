@@ -30,7 +30,7 @@ export interface LicencePlan {
 }
 
 export function upperLeague(c: Club): LeagueId | null {
-  return c.leagueId === 'ORO' ? 'ELITE' : c.leagueId === 'PLATA' ? 'ORO' : null;
+  return c.leagueId === 'ORO' ? 'ELITE' : c.leagueId === 'PLATA' ? 'ORO' : c.leagueId === 'TERCERA' ? 'PLATA' : null;
 }
 
 export function plannedSeats(w: World, c: Club): number {
@@ -131,7 +131,7 @@ export function payrollBridgeOffer(w: World, c: Club): { amount: number; rate: n
   if (c.promotedSeason !== w.season || c.payrollBridge?.season === w.season || !c.leagueId) return null;
   const d = w.settings.difficulty;
   if (d !== 'relaxed' && d !== 'standard') return null;
-  const lower = c.leagueId === 'ELITE' ? 'ORO' : c.leagueId === 'ORO' ? 'PLATA' : null;
+  const lower = c.leagueId === 'ELITE' ? 'ORO' : c.leagueId === 'ORO' ? 'PLATA' : c.leagueId === 'PLATA' ? 'TERCERA' : null;
   if (!lower) return null;
   const up = centralTvAnnual(w, c);
   const was = w.rules.leagues[lower].centralTv + w.rules.leagues[lower].centralTvMerit / 2;
@@ -166,7 +166,7 @@ export function weeklyLicenceWatch(w: World) {
   const lc = w.competitions.find((x) => x.id === `${c.leagueId}-${w.season}`);
   const st = lc ? [...lc.standings].sort((a, b) => b.w - a.w || (b.pf - b.pa) - (a.pf - a.pa)) : [];
   const rank = st.findIndex((x) => x.clubId === c.id) + 1;
-  const inRace = rank > 0 && rank <= 6 && w.day >= cal.leagueRoundDays[14];
+  const inRace = rank > 0 && rank <= 6 && w.day >= cal.leagueRoundDays[16];
   const seats = plan.items.find((i) => i.id === 'seats');
   const share = groundShareOffer(w, c);
   if (inRace && seats && !seats.ok && share && !(c.groundShare && c.groundShare.season >= share.season) && !pending('groundShare')) {

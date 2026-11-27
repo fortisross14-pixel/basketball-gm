@@ -612,6 +612,8 @@ export interface Club {
   foreign: boolean; // EURO-only club (not in domestic pyramid)
   colors: [string, string];
   leagueId: LeagueId | null;
+  /** Group / conference inside a grouped league (e.g. 'Este', 'A1', 'ACC', 'East'). */
+  group?: string;
   population: number; // metro population
   economy: number; // 0.7 - 1.3 purchasing power
   prestige: number; // 0-100
@@ -654,11 +656,13 @@ export interface Club {
 // ---------------------------------------------------------------------------
 // Competitions
 // ---------------------------------------------------------------------------
-export type LeagueId = 'ELITE' | 'ORO' | 'PLATA' | 'COLLEGE';
+export type LeagueId = 'ELITE' | 'ORO' | 'PLATA' | 'TERCERA' | 'COLLEGE' | 'NBA';
 
 export interface LeagueRules {
-  kind: 'pro' | 'college';
+  kind: 'pro' | 'college' | 'nba';
   country: string;
+  /** Leagues split in groups (Segunda/Tercera FEB, NCAA conferences, NBA conferences): clubs carry a group label. */
+  grouped?: boolean;
   tier: number; // economic tier (college programs are run on a tier-2 budget scale)
   name: string;
   short: string;
@@ -733,6 +737,8 @@ export interface Competition {
   complete: boolean;
   // round dates for knockout
   roundDays?: number[][];
+  /** Knockout series are created in bracket order: next round pairs neighbours (newer saves). */
+  adjacent?: boolean;
 }
 
 export interface Fixture {

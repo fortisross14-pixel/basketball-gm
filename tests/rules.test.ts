@@ -38,9 +38,11 @@ describe('schedule', () => {
         seen.add(k);
       }
     }
+    // double round robin inside each league (or group): everyone plays each opponent home and away
     for (const c of w.clubs.filter((x) => x.leagueId)) {
-      expect(w.fixtures.filter((f) => f.comp === 'league' && (f.homeId === c.id || f.awayId === c.id)).length).toBe(30);
-      expect(w.fixtures.filter((f) => f.comp === 'league' && f.homeId === c.id).length).toBe(15);
+      const mates = w.clubs.filter((x) => x.leagueId === c.leagueId && x.group === c.group).length;
+      expect(w.fixtures.filter((f) => f.comp === 'league' && (f.homeId === c.id || f.awayId === c.id)).length).toBe(2 * (mates - 1));
+      expect(w.fixtures.filter((f) => f.comp === 'league' && f.homeId === c.id).length).toBe(mates - 1);
     }
   });
 });
@@ -103,7 +105,7 @@ describe('season cycle', () => {
     expect(w2.fixtures.length).toBe(w.fixtures.length);
     const start = w2.season;
     playUntil(w2, () => w2.season > start, 400);
-    for (const lid of ['ELITE', 'ORO', 'PLATA']) expect(w2.clubs.filter((c) => c.leagueId === lid).length).toBe(16);
+    for (const lid of ['ELITE', 'ORO', 'PLATA', 'TERCERA'] as const) expect(w2.clubs.filter((c) => c.leagueId === lid).length).toBe(w2.rules.leagues[lid].teams);
     const moved = w2.clubs.filter((c) => c.history[c.history.length - 1]?.promoted || c.history[c.history.length - 1]?.relegated);
     expect(moved.length).toBeGreaterThanOrEqual(4);
     // all knockout competitions finished with a champion

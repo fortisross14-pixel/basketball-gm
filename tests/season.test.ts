@@ -33,7 +33,7 @@ describe('full seasons', () => {
       autoplay(w, 370);
       console.log('season', season, 'ms', Date.now() - t, 'now', w.season, w.day);
       // league sizes stable
-      for (const lid of ['ELITE', 'ORO', 'PLATA']) expect(w.clubs.filter((c) => c.leagueId === lid).length).toBe(16);
+      for (const lid of ['ELITE', 'ORO', 'PLATA', 'TERCERA', 'COLLEGE', 'NBA'] as const) expect(w.clubs.filter((c) => c.leagueId === lid).length).toBe(w.rules.leagues[lid].teams);
       const lines = w.clubs.filter((c) => !c.foreign).map((c) => {
         const st = statement(c, season);
         return { n: c.abbrev, lg: c.history[c.history.length - 1]?.leagueId, rank: c.history[c.history.length - 1]?.rank, rev: Math.round(st.totalIncome / 1000), net: Math.round(st.net / 1000), cash: Math.round(c.finances.cash / 1000), roster: roster(w, c.id).length, att: c.history[c.history.length - 1]?.attendance };

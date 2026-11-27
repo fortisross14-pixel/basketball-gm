@@ -1,0 +1,32 @@
+# city -> (region, population of the club's market, approx.)
+AND='Andalucía'; ARA='Aragón'; AST='Asturias'; BAL='Baleares'; CAN='Canarias'; CANT='Cantabria'; CLM='Castilla-La Mancha'; CYL='Castilla y León'
+CAT='Cataluña'; VAL='C. Valenciana'; EXT='Extremadura'; GAL='Galicia'; MAD='Madrid'; MUR='Murcia'; NAV='Navarra'; PV='País Vasco'; RIO='La Rioja'; CEU='Ceuta'; MEL='Melilla'; AND_='Andorra'
+CITIES = {
+ 'Albacete':(CLM,175000),'Alcalá de Guadaíra':(AND,76000),'Alcalá de Henares':(MAD,197000),'Alcobendas':(MAD,118000),'Aldaia':(VAL,32000),'Algeciras':(AND,123000),
+ 'Alginet':(VAL,13000),'Alhaurín de la Torre':(AND,41000),'Alicante':(VAL,340000),'Almería':(AND,200000),'Almácera':(VAL,7000),'Amorebieta':(PV,19000),
+ 'Arroyo de la Encomienda':(CYL,21000),'Artés':(CAT,6000),'Azpeitia':(PV,15000),'Azuqueca de Henares':(CLM,36000),'Badajoz':(EXT,150000),'Barbastro':(ARA,17000),
+ 'Barcelona':(CAT,3300000),'Benicarló':(VAL,27000),'Benidorm':(VAL,72000),'Betanzos':(GAL,13000),'Bilbao':(PV,900000),'Burgos':(CYL,175000),'Burjasot':(VAL,39000),
+ 'Calpe':(VAL,23000),'Calviá':(BAL,52000),'Campo de Criptana':(CLM,13000),'Carbajosa de la Sagrada':(CYL,7000),'Carballo':(GAL,31000),'Cartagena':(MUR,218000),
+ 'Castelldefels':(CAT,67000),'Castellón de la Plana':(VAL,175000),'Ceuta':(CEU,83000),'Chantada':(GAL,8000),'Ciudad Real':(CLM,75000),'Ciudadela':(BAL,31000),
+ 'Coria del Río':(AND,31000),'Cornellà de Llobregat':(CAT,89000),'Cuarte de Huerva':(ARA,15000),'Culleredo':(GAL,31000),'Cáceres':(EXT,96000),'Córdoba':(AND,320000),
+ 'Denia':(VAL,44000),'Dos Hermanas':(AND,138000),'Durango':(PV,30000),'El Ejido':(AND,85000),'El Prat de Llobregat':(CAT,66000),'El Puerto de Santa María':(AND,89000),
+ 'Elche':(VAL,235000),'Es Castell':(BAL,8000),'Esparraguera':(CAT,22000),'Fuenlabrada':(MAD,190000),'Gandía':(VAL,75000),'Getafe':(MAD,185000),'Gijón':(AST,270000),
+ 'Godella':(VAL,13000),'Granada':(AND,450000),'Granollers':(CAT,62000),'Guadalajara':(CLM,87000),'Güímar':(CAN,20000),'Hospitalet de Llobregat':(CAT,265000),
+ 'Huelva':(AND,142000),'Huesca':(ARA,54000),'Igualada':(CAT,41000),'Inca':(BAL,34000),'Jaén':(AND,111000),"La Bisbal d'Empordà":(CAT,11000),'La Eliana':(VAL,19000),
+ 'La Línea de la Concepción':(AND,63000),'La Roda':(CLM,16000),'La Zubia':(AND,19000),'Las Palmas de Gran Canaria':(CAN,600000),'Las Rozas':(MAD,96000),'León':(CYL,200000),
+ 'Liria':(VAL,24000),'Logroño':(RIO,152000),'Los Llanos de Aridane':(CAN,21000),'Lucena':(AND,42000),'Madrid':(MAD,6700000),'Mahón':(BAL,30000),'Manises':(VAL,31000),
+ 'Marbella':(AND,150000),'Marín':(GAL,24000),'Mataró':(CAT,130000),'Melilla':(MEL,86000),'Mieres':(AST,37000),'Molina de Segura':(MUR,75000),'Mollerusa':(CAT,15000),
+ 'Mollet del Vallès':(CAT,51000),'Mongat':(CAT,12000),'Morón de la Frontera':(AND,27000),'Motril':(AND,58000),'Murcia':(MUR,460000),'Mérida':(EXT,60000),'Navás':(CAT,6000),
+ 'Novelda':(VAL,26000),'Onteniente':(VAL,36000),'Orense':(GAL,105000),'Oviedo':(AST,220000),'Palencia':(CYL,78000),'Palma de Mallorca':(BAL,430000),'Paterna':(VAL,72000),
+ 'Peñarroya-Pueblonuevo':(AND,10000),'Pinto':(MAD,53000),'Ponferrada':(CYL,63000),'Puerto de Sagunto':(VAL,42000),'Quart':(CAT,4000),'Quintanar del Rey':(CLM,7000),
+ 'Renedo':(CANT,10000),'Rincón de la Victoria':(AND,50000),'Rivas-Vaciamadrid':(MAD,97000),'Sagunto':(VAL,68000),'Salamanca':(CYL,190000),'Salou':(CAT,28000),
+ 'San Antonio Abad':(BAL,27000),'San Fernando':(AND,95000),'San José de la Vega':(MUR,6000),'San Sebastián':(PV,190000),'San Vicente del Raspeig':(VAL,60000),
+ 'Santa Cruz de Bezana':(CANT,13000),'Santa Cruz de La Palma':(CAN,16000),'Santa Cruz de Tenerife':(CAN,420000),'Santander':(CANT,175000),'Santiago de Compostela':(GAL,98000),
+ 'Sarriguren':(NAV,40000),'Sevilla':(AND,1500000),'Solares':(CANT,8000),'Sueca':(VAL,28000),'Tabernes Blanques':(VAL,10000),'Talavera de la Reina':(CLM,83000),
+ 'Tarragona':(CAT,135000),'Telde':(CAN,103000),'Tobarra':(CLM,8000),'Toledo':(CLM,86000),'Tolosa':(PV,20000),'Torre del Mar':(AND,22000),'Torrelavega':(CANT,51000),
+ 'Torrente':(VAL,85000),'Tres Cantos':(MAD,50000),'Tíjola':(AND,4000),'Valdemoro':(MAD,80000),'Valencia':(VAL,1600000),'Vall de Uxó':(VAL,32000),'Valladolid':(CYL,400000),
+ 'Valls':(CAT,25000),'Vic':(CAT,48000),'Vigo':(GAL,300000),'Vilanova i la Geltrú':(CAT,68000),'Villagarcia de Arosa':(GAL,38000),'Villarreal':(VAL,52000),
+ 'Villarrobledo':(CLM,25000),'Vitoria':(PV,255000),'Zamora':(CYL,60000),'Zaragoza':(ARA,680000),'Zarauz':(PV,23000),'Zizur Mayor':(NAV,15000),'Zuera':(ARA,9000),'Ávila':(CYL,58000),
+ 'Badalona':(CAT,223000),'La Laguna':(CAN,640000),'Manresa':(CAT,78000),'Girona':(CAT,103000),'Lugo':(GAL,98000),'La Coruña':(GAL,250000),'Andorra la Vella':(AND_,80000),
+ 'Lérida':(CAT,140000),'Vitoria-Gasteiz':(PV,255000),'Málaga':(AND,1000000),'Pamplona':(NAV,330000),
+}

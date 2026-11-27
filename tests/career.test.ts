@@ -23,10 +23,10 @@ describe('career start', () => {
     expect(leagues).toContain('COLLEGE');
     for (const d of offers) if (club(w, d.payload.clubId as number).leagueId === 'COLLEGE') expect(club(w, d.payload.clubId as number).prestige).toBeLessThan(45);
   });
-  it('a Spaniard gets offers from the lower Spanish divisions', () => {
+  it('a Spaniard gets offers from the bottom Spanish division', () => {
     const w = profile('ESP');
     const leagues = w.decisions.filter((d) => d.kind === 'jobOffer').map((d) => club(w, d.payload.clubId as number).leagueId);
-    expect(leagues.every((l) => l === 'PLATA' || l === 'ORO')).toBe(true);
+    expect(leagues.every((l) => l === 'TERCERA')).toBe(true);
   });
 });
 

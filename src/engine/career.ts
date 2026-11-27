@@ -33,7 +33,7 @@ export function jobMarket(w: World, unemployedTick = false, midseason = false) {
   const firedRecently = unemployed && w.user.career[w.user.career.length - 1]?.exit === 'Dismissed';
   const declined = w.user.declinedOffers ?? {};
   const pool = w.clubs.filter((c) => !c.foreign && c.id !== w.user.clubId && c.id !== lastClub?.id && (declined[c.id] ?? 0) < absDay(w));
-  const level = (c: Club) => c.prestige * 0.75 + (c.leagueId === 'ELITE' ? 10 : c.leagueId === 'PLATA' ? -10 : 0);
+  const level = (c: Club) => c.prestige * 0.75 + (c.leagueId === 'ELITE' ? 10 : c.leagueId === 'PLATA' ? -10 : c.leagueId === 'TERCERA' ? -18 : 0);
   // clubs only hire you once they can judge a full season of your work, and at most one division higher
   const judged = w.user.seasonsJudged ?? 0;
   const maxUp = judged === 0 ? lowestTier(w) : Math.max(1, (w.user.bestTierJudged ?? lowestTier(w)) - 1);
@@ -122,7 +122,7 @@ export function updateReputation(w: World, delta: number, achievement?: string) 
 // ===========================================================================
 import type { Background } from './types';
 import { currentWinPct } from './economy';
-import { leagueComp, sortStandings } from './competitions';
+import { leagueComp, tableFor } from './competitions';
 
 export const BACKGROUND_INFO: Record<Background, { label: string; desc: string; rep: number }> = {
   formerPlayer: { label: 'Former player', desc: 'Players respect you: +4 interest in every negotiation.', rep: 24 },
@@ -248,7 +248,7 @@ export function weeklyEvaluation(w: World) {
   if (ap.history.length > 160) ap.history.shift();
   // reputation drifts with how both constituencies rate you, weighted by the stage you work on
   const perf = (ap.board * 0.6 + ap.fans * 0.4) / 100;
-  const stage = c.leagueId === 'ELITE' ? 1.3 : c.leagueId === 'ORO' ? 1 : c.leagueId === 'COLLEGE' ? 0.9 + c.prestige / 200 : 0.8;
+  const stage = c.leagueId === 'ELITE' ? 1.3 : c.leagueId === 'ORO' ? 1 : c.leagueId === 'COLLEGE' ? 0.9 + c.prestige / 200 : c.leagueId === 'TERCERA' ? 0.65 : 0.8;
   w.user.reputation = Math.round(clamp(w.user.reputation + (perf - 0.55) * 0.5 * stage, 0, 100) * 10) / 10;
   // fan pressure
   if (ap.fans < 25) {
@@ -268,7 +268,7 @@ export function weeklyEvaluation(w: World) {
   } else ap.lowFanWeeks = 0;
   // performance attracts bigger clubs during the season
   const cal = buildCalendar(w.season);
-  if (w.day > cal.leagueRoundDays[6] && w.day < cal.leagueRoundDays[26] && perf > 0.62 && rng(w).chance(0.05 + (perf - 0.62))) jobMarket(w, false, true);
+  if (w.day > cal.leagueRoundDays[6] && w.day < cal.leagueRoundDays[29] && perf > 0.62 && rng(w).chance(0.05 + (perf - 0.62))) jobMarket(w, false, true);
 }
 
 import { fireUser } from './board';
@@ -297,5 +297,5 @@ export function resign(w: World): string {
 
 export function finalStanding(w: World, c: Club): number {
   const lc = c.leagueId ? leagueComp(w, c.leagueId) : null;
-  return lc ? sortStandings(lc.standings).findIndex((s) => s.clubId === c.id) + 1 : 0;
+  return lc ? tableFor(lc, c.id).findIndex((s) => s.clubId === c.id) + 1 : 0;
 }

@@ -1,12 +1,20 @@
-import type { LeagueId, Ruleset } from './types';
+import type { LeagueId, Ruleset, World } from './types';
 
 // Versioned, data-driven ruleset. Everything regulatory lives here so it can be
 // audited in game (Results → Rules) and changed per season without code edits.
 
-export const LEAGUE_IDS: LeagueId[] = ['ELITE', 'ORO', 'PLATA', 'COLLEGE'];
-/** The Spanish pyramid (promotion & relegation). */
-export const PYRAMID: LeagueId[] = ['ELITE', 'ORO', 'PLATA'];
-export const LEAGUE_COUNTRY: Record<LeagueId, string> = { ELITE: 'ESP', ORO: 'ESP', PLATA: 'ESP', COLLEGE: 'USA' };
+export const LEAGUE_IDS: LeagueId[] = ['ELITE', 'ORO', 'PLATA', 'TERCERA', 'COLLEGE', 'NBA'];
+/** The Spanish pyramid (promotion & relegation), top to bottom. */
+export const PYRAMID: LeagueId[] = ['ELITE', 'ORO', 'PLATA', 'TERCERA'];
+export const LEAGUE_COUNTRY: Record<LeagueId, string> = { ELITE: 'ESP', ORO: 'ESP', PLATA: 'ESP', TERCERA: 'ESP', COLLEGE: 'USA', NBA: 'USA' };
+
+/** Leagues that exist in this save (older saves have fewer) and have clubs. */
+export function activeLeagues(w: World): LeagueId[] {
+  return LEAGUE_IDS.filter((id) => w.rules.leagues[id] && w.clubs.some((c) => c.leagueId === id));
+}
+export function activePyramid(w: World): LeagueId[] {
+  return PYRAMID.filter((id) => w.rules.leagues[id] && w.clubs.some((c) => c.leagueId === id));
+}
 
 export function defaultRuleset(season: number): Ruleset {
   return {
@@ -14,7 +22,7 @@ export function defaultRuleset(season: number): Ruleset {
     season,
     leagues: {
       ELITE: {
-        kind: 'pro', country: 'ESP', tier: 1, name: 'Liga ACB', short: 'ACB', teams: 16,
+        kind: 'pro', country: 'ESP', tier: 1, name: 'Liga ACB', short: 'ACB', teams: 18,
         rosterMin: 10, rosterMax: 15, matchdaySquad: 12,
         maxNonEU: 3, minHomegrown: 4,
         minArenaSeats: 5000, promotionFee: 450_000,
@@ -23,31 +31,49 @@ export function defaultRuleset(season: number): Ruleset {
         prizeChampion: 600_000, minPayrollGuarantee: 1_000_000,
       },
       ORO: {
-        kind: 'pro', country: 'ESP', tier: 2, name: 'Primera FEB', short: 'Primera FEB', teams: 16,
+        kind: 'pro', country: 'ESP', tier: 2, name: 'Primera FEB', short: 'Primera FEB', teams: 18,
         rosterMin: 10, rosterMax: 14, matchdaySquad: 12,
         maxNonEU: 2, minHomegrown: 5,
         minArenaSeats: 2500, promotionFee: 60_000,
         centralTv: 140_000, centralTvMerit: 60_000, leagueFee: 25_000,
-        directPromotion: 1, playoffPromotion: 1, relegation: 2, playoffTeams: 4,
+        directPromotion: 1, playoffPromotion: 1, relegation: 3, playoffTeams: 8,
         prizeChampion: 80_000, minPayrollGuarantee: 200_000,
       },
       PLATA: {
-        kind: 'pro', country: 'ESP', tier: 3, name: 'Segunda FEB', short: 'Segunda FEB', teams: 16,
+        kind: 'pro', country: 'ESP', tier: 3, name: 'Segunda FEB', short: 'Segunda FEB', teams: 28, grouped: true,
         rosterMin: 10, rosterMax: 14, matchdaySquad: 12,
         maxNonEU: 1, minHomegrown: 6,
-        minArenaSeats: 800, promotionFee: 0,
+        minArenaSeats: 500, promotionFee: 0,
         centralTv: 30_000, centralTvMerit: 15_000, leagueFee: 6_000,
-        directPromotion: 1, playoffPromotion: 1, relegation: 0, playoffTeams: 4,
+        directPromotion: 2, playoffPromotion: 1, relegation: 6, playoffTeams: 8,
         prizeChampion: 20_000, minPayrollGuarantee: 0,
       },
+      TERCERA: {
+        kind: 'pro', country: 'ESP', tier: 4, name: 'Tercera FEB', short: 'Tercera FEB', teams: 138, grouped: true,
+        rosterMin: 9, rosterMax: 14, matchdaySquad: 12,
+        maxNonEU: 1, minHomegrown: 7,
+        minArenaSeats: 300, promotionFee: 0,
+        centralTv: 0, centralTvMerit: 0, leagueFee: 2_500,
+        directPromotion: 6, playoffPromotion: 0, relegation: 0, playoffTeams: 0,
+        prizeChampion: 6_000, minPayrollGuarantee: 0,
+      },
       COLLEGE: {
-        kind: 'college', country: 'USA', tier: 2, name: 'NCAA Division I', short: 'NCAA', teams: 16,
+        kind: 'college', country: 'USA', tier: 2, name: 'NCAA Division I', short: 'NCAA', teams: 32, grouped: true,
         rosterMin: 10, rosterMax: 15, matchdaySquad: 13,
         maxNonEU: 99, minHomegrown: 0,
         minArenaSeats: 0, promotionFee: 0,
         centralTv: 260_000, centralTvMerit: 180_000, leagueFee: 15_000,
-        directPromotion: 0, playoffPromotion: 0, relegation: 0, playoffTeams: 8,
+        directPromotion: 0, playoffPromotion: 0, relegation: 0, playoffTeams: 16,
         prizeChampion: 250_000, minPayrollGuarantee: 0,
+      },
+      NBA: {
+        kind: 'nba', country: 'USA', tier: 0, name: 'NBA', short: 'NBA', teams: 30, grouped: true,
+        rosterMin: 13, rosterMax: 15, matchdaySquad: 13,
+        maxNonEU: 99, minHomegrown: 0,
+        minArenaSeats: 0, promotionFee: 0,
+        centralTv: 0, centralTvMerit: 0, leagueFee: 0,
+        directPromotion: 0, playoffPromotion: 0, relegation: 0, playoffTeams: 16,
+        prizeChampion: 0, minPayrollGuarantee: 0,
       },
     },
     euro: { teams: 16, fromElite: 4, prizeParticipation: 400_000, prizePerWin: 60_000, prizeChampion: 1_500_000, tvShare: 500_000 },

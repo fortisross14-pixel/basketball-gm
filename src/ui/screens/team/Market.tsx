@@ -11,6 +11,7 @@ import { addScoutAssignment } from '../../../engine/squad';
 import { KEY_LABEL, askCoach, fitScore, rapport, requestMatches } from '../../../engine/coachRequests';
 import { staffOf } from '../../../engine/world';
 import { DEF_LABEL, OFF_LABEL } from '../../../engine/staff';
+import { activeLeagues } from '../../../engine/rules';
 import { knowledge } from '../../../engine/squad';
 import ContractModal from '../club/ContractModal';
 import BidModal from './BidModal';
@@ -103,7 +104,7 @@ function PlayerSearch({ pool, onNegotiate, onBid }: { pool: 'fa' | 'all'; onNego
       if (maxAsk > 0 && salaryAsk(w, p, uc ?? undefined) > maxAsk * 1000) return false;
       if (league !== 'any') {
         const cl = p.teamId != null ? getClub(w, p.teamId) : null;
-        if (league === 'FA' ? cl != null : league === 'FOREIGN' ? !cl?.foreign : cl?.leagueId !== league) return false;
+        if (league === 'FA' ? cl != null : league === 'FOREIGN' ? !(cl?.foreign && !cl.leagueId) : cl?.leagueId !== league) return false;
       }
       return true;
     });
@@ -119,10 +120,8 @@ function PlayerSearch({ pool, onNegotiate, onBid }: { pool: 'fa' | 'all'; onNego
         {pool === 'all' && (
           <select value={league} onChange={(e) => setLeague(e.target.value)}>
             <option value="any">All leagues</option>
-            <option value="ELITE">{w.rules.leagues.ELITE.name}</option>
-            <option value="ORO">{w.rules.leagues.ORO.name}</option>
-            <option value="PLATA">{w.rules.leagues.PLATA.name}</option>
-            <option value="FOREIGN">Continental clubs</option>
+            {activeLeagues(w).map((id) => <option key={id} value={id}>{w.rules.leagues[id].name}</option>)}
+            <option value="FOREIGN">European clubs</option>
             <option value="FA">Free agents</option>
           </select>
         )}

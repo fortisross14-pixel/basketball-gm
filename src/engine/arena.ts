@@ -78,7 +78,7 @@ export function projectOptions(w: World, c: Club): ProjectOption[] {
     cost: Math.round(4 * 70000 * m), weeks: 14, disruption: 0.06, suitesDelta: 4, annualUpkeep: 10000, needsBoard: false,
   });
   // licence stand: modular seating sized to close the gap to the league above (financeable)
-  const upper = c.leagueId === 'ORO' ? 'ELITE' : c.leagueId === 'PLATA' ? 'ORO' : null;
+  const upper = c.leagueId === 'ORO' ? 'ELITE' : c.leagueId === 'PLATA' ? 'ORO' : c.leagueId === 'TERCERA' ? 'PLATA' : null;
   if (upper) {
     const planned = cap + active.reduce((a, p) => a + Object.values(p.seatsDelta ?? {}).reduce((x, y) => x + (y ?? 0), 0), 0);
     const gap = w.rules.leagues[upper].minArenaSeats - planned;

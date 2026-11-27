@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 import { useWorld } from '../../store';
 import { userClub, club as getClub, playerName } from '../../../engine/world';
-import { sortStandings } from '../../../engine/competitions';
+import { tableFor } from '../../../engine/competitions';
 import { fmtDate, seasonLabel } from '../../../engine/calendar';
 import { SectionHub, type HubTileData } from './SectionHub';
 import { SECTIONS } from './nav';
@@ -13,7 +13,7 @@ export default function ResultsHub() {
   const c = userClub(w);
   const lid: LeagueId = c?.leagueId ?? 'ELITE';
   const lc = w.competitions.find((x) => x.id === `${lid}-${w.season}`);
-  const st = lc ? sortStandings(lc.standings) : [];
+  const st = lc ? tableFor(lc, c?.id) : [];
   const pos = c ? st.findIndex((s) => s.clubId === c.id) + 1 : 0;
   const me = c ? st.find((s) => s.clubId === c.id) : undefined;
   const upcoming = c ? w.fixtures.filter((f) => !f.played && !f.cancelled && (f.homeId === c.id || f.awayId === c.id) && f.day >= w.day).sort((a, b) => a.day - b.day).slice(0, 3) : [];

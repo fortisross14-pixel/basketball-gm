@@ -1,8 +1,8 @@
-import type { Club, LeagueId, Player, World, SeasonRecord } from './types';
+import type { Club, Competition, LeagueId, Player, World, SeasonRecord } from './types';
 import { SEAT_ZONES, absDay } from './types';
 import { addNews, age, book, club as getClub, hold, invalidateIndex, isUser, playerName, roster, rng, staffOf, tierOf, userClub, fmtMoney, academy } from './world';
-import { createSeasonCompetitions, leagueComp, sortStandings } from './competitions';
-import { defaultRuleset, LEAGUE_IDS } from './rules';
+import { atPosition, createSeasonCompetitions, groupTables, leagueComp, sortStandings, tableFor } from './competitions';
+import { activeLeagues, activePyramid, defaultRuleset } from './rules';
 import { proposeBudget, statement, annualFinanceStart } from './finance';
 import { setObjectives, seasonReview, fireUser } from './board';
 import { placeMerchOrder, expireSponsors, tvMarketCheck } from './commercial';
@@ -83,30 +83,43 @@ export function creditLine(w: World, c: Club): number {
   return Math.max(0, Math.round(estimateRevenue(w, c).total * 0.5 - debt - Math.max(0, -c.finances.cash)));
 }
 
+/** Bottom k clubs of a league table, taken evenly from each group (worst first). */
+function fromBottom(cmp: Competition, k: number): number[] {
+  const tables = groupTables(cmp).map(([, t]) => t.map((x) => x.clubId).reverse());
+  const out: number[] = [];
+  for (let pos = 0; out.length < k && pos < 40; pos++) for (const t of tables) if (t[pos] != null && out.length < k) out.push(t[pos]);
+  return out;
+}
+
 function computeLeagueMoves(w: World): LeagueMove[] {
   const moves: LeagueMove[] = [];
-  const order: LeagueId[] = ['ELITE', 'ORO', 'PLATA'];
+  const order = activePyramid(w);
   for (let i = 1; i < order.length; i++) {
     const lower = order[i];
     const upper = order[i - 1];
     const lr = w.rules.leagues[lower];
     const ur = w.rules.leagues[upper];
-    const lc = leagueComp(w, lower)!;
-    const sorted = sortStandings(lc.standings).map((s) => s.clubId);
+    const lc = leagueComp(w, lower);
+    const uc = leagueComp(w, upper);
+    if (!lc || !uc) continue;
+    const groups = lc.groups ? Object.keys(lc.groups).length : 1;
+    // sporting order: group winners (best record first), then runners-up, …
+    const sorted: number[] = [];
+    for (let pos = 1; pos <= 40; pos++) { const at = lc.groups ? atPosition(lc, pos) : [sortStandings(lc.standings)[pos - 1]?.clubId].filter((x): x is number => x != null); if (!at.length) break; sorted.push(...at); }
     const po = w.competitions.find((x) => x.id === `${lower}-PO-${w.season}`);
     // candidates in priority order: direct, playoff winner, then playoff finalist, then next ranked
-    const cands: number[] = [];
-    cands.push(...sorted.slice(0, lr.directPromotion));
+    const direct = sorted.slice(0, lr.directPromotion);
+    const cands: number[] = [...direct];
     if (po?.champion) cands.push(po.champion);
     if (po?.runnerUp) cands.push(po.runnerUp);
     for (const id of sorted) if (!cands.includes(id)) cands.push(id);
     const slots = lr.directPromotion + lr.playoffPromotion;
+    const maxRank = Math.ceil((lr.directPromotion + lr.playoffTeams) / groups) + 2;
     const promoted: number[] = [];
     for (const id of cands) {
       if (promoted.length >= slots) break;
       const c = getClub(w, id);
-      const rank = sorted.indexOf(id) + 1;
-      if (rank > lr.playoffTeams + lr.directPromotion + 2) break; // not a sporting candidate
+      if (tableFor(lc, id).findIndex((x) => x.clubId === id) + 1 > maxRank) continue; // not a sporting candidate
       const lic = licenceCheck(w, c, upper);
       if (lic.ok) promoted.push(id);
       else {
@@ -114,22 +127,35 @@ function computeLeagueMoves(w: World): LeagueMove[] {
         if (isUser(w, id)) hold(w, 'seasonEvent', `Promotion denied: ${lic.reasons.join(' ')}`);
       }
     }
-    for (const id of promoted) moves.push({ clubId: id, from: lower, to: upper, reason: sorted.indexOf(id) < lr.directPromotion ? 'Champions' : 'Promotion playoff' });
+    for (const id of promoted) moves.push({ clubId: id, from: lower, to: upper, reason: direct.includes(id) ? 'Champions' : 'Promotion playoff' });
     // relegation from upper: as many as promoted (keeps league sizes stable)
-    const uc = leagueComp(w, upper)!;
-    const usorted = sortStandings(uc.standings).map((s) => s.clubId);
-    const relegated = usorted.slice(usorted.length - Math.min(ur.relegation, promoted.length) || usorted.length).slice(0, promoted.length);
+    const relegated = fromBottom(uc, Math.min(ur.relegation, promoted.length));
     for (const id of relegated) moves.push({ clubId: id, from: upper, to: lower, reason: 'Relegated' });
     if (promoted.length < ur.relegation) {
-      const spared = usorted.slice(usorted.length - ur.relegation, usorted.length - promoted.length);
+      const spared = fromBottom(uc, ur.relegation).filter((id) => !relegated.includes(id));
       for (const id of spared) addNews(w, `${getClub(w, id).name} spared from relegation`, 'Not enough eligible clubs from the league below met the licence requirements.', { tags: ['league'], clubIds: [id], importance: 2 });
     }
   }
   return moves;
 }
 
+/** Put a club that changed league into the group of its region (keeping group sizes even). */
+export function assignGroup(w: World, c: Club) {
+  const lid = c.leagueId;
+  if (!lid || !w.rules.leagues[lid]?.grouped) { c.group = undefined; return; }
+  const others = w.clubs.filter((x) => x.leagueId === lid && x.id !== c.id && x.group);
+  const groups = [...new Set(others.map((x) => x.group!))];
+  if (!groups.length) { c.group = 'A'; return; }
+  const avg = others.length / groups.length;
+  const score = (g: string) => {
+    const m = others.filter((x) => x.group === g);
+    return m.filter((x) => x.region === c.region).length * 2 - (m.length - avg) * 1.5;
+  };
+  c.group = groups.sort((a, b) => score(b) - score(a))[0];
+}
+
 function seasonAwards(w: World) {
-  for (const lid of LEAGUE_IDS) {
+  for (const lid of activeLeagues(w)) {
     const lc = leagueComp(w, lid);
     if (!lc) continue;
     const clubs = lc.clubIds;
@@ -200,13 +226,22 @@ export function seasonEnd(w: World) {
   const moves = computeLeagueMoves(w);
   w.pendingMoves = moves;
   // prize money
-  for (const lid of LEAGUE_IDS) {
-    const lc = leagueComp(w, lid)!;
+  for (const lid of activeLeagues(w)) {
+    const lc = leagueComp(w, lid);
+    if (!lc) continue;
     const sorted = sortStandings(lc.standings);
-    const champ = getClub(w, sorted[0].clubId);
-    const champion = lid === 'ELITE' || lid === 'COLLEGE' ? w.competitions.find((x) => x.id === `${lid}-PO-${w.season}`)?.champion ?? sorted[0].clubId : sorted[0].clubId;
+    const titled = lid === 'ELITE' || lid === 'COLLEGE' || lid === 'NBA';
+    const champion = titled ? w.competitions.find((x) => x.id === `${lid}-PO-${w.season}`)?.champion ?? sorted[0].clubId : sorted[0].clubId;
     book(w, getClub(w, champion), 'prize', w.rules.leagues[lid].prizeChampion);
-    if (lid !== 'ELITE' && lid !== 'COLLEGE') champ.trophies.push({ season: w.season, name: `${w.rules.leagues[lid].name} (regular season)` });
+    if (!titled) {
+      // regular-season titles: every group winner in grouped leagues
+      const winners = lc.groups ? groupTables(lc).map(([g, t]) => [g, t[0]?.clubId] as const) : [['', sorted[0].clubId] as const];
+      for (const [g, id] of winners) if (id != null) getClub(w, id).trophies.push({ season: w.season, name: `${w.rules.leagues[lid].name}${g ? ` (group ${g})` : ' (regular season)'}` });
+    }
+  }
+  for (const [pre, prize] of [['SUPER', 120_000], ['PRINCESA', 40_000], ['ESPANA', 10_000]] as const) {
+    const cc = w.competitions.find((x) => x.id === `${pre}-${w.season}`);
+    if (cc?.champion != null) book(w, getClub(w, cc.champion), 'prize', prize);
   }
   const cup = w.competitions.find((x) => x.id === `CUP-${w.season}`);
   if (cup) for (const id of cup.clubIds) book(w, getClub(w, id), 'prize', id === cup.champion ? w.rules.cup.prizeWinner : w.rules.cup.prizeParticipation);
@@ -221,7 +256,7 @@ export function seasonEnd(w: World) {
   // history
   for (const c of w.clubs) {
     const lc = c.leagueId ? leagueComp(w, c.leagueId) : null;
-    const sorted = lc ? sortStandings(lc.standings) : [];
+    const sorted = lc ? tableFor(lc, c.id) : [];
     const rank = sorted.findIndex((s) => s.clubId === c.id) + 1;
     const st = sorted.find((s) => s.clubId === c.id);
     const comp = competitionResult(w, c);
@@ -299,6 +334,7 @@ export function rollover(w: World) {
     const c = getClub(w, m.clubId);
     if (m.to !== m.from && m.reason !== 'Relegated') book(w, c, 'leagueFees', -w.rules.leagues[m.to].promotionFee);
     c.leagueId = m.to;
+    assignGroup(w, c);
     if (m.reason !== 'Relegated') c.promotedSeason = nextSeason;
     for (const s of c.sponsors) if (s.promoBonus && m.reason !== 'Relegated') book(w, c, 'sponsors', s.promoBonus);
     if (m.reason !== 'Relegated') { c.fans.hype = clamp(c.fans.hype + 20, 0, 100); c.fans.local = Math.round(c.fans.local * 1.08); }

@@ -7,7 +7,7 @@ import { userClub, club as getClub, fmtMoney, roster } from '../../engine/world'
 import { fmtAbs, fmtDate, seasonLabel, phaseOf, PHASE_LABEL } from '../../engine/calendar';
 import { nextUserFixtureDay } from '../../engine/daily';
 import { clubStrength } from '../../engine/matchday';
-import { sortStandings } from '../../engine/competitions';
+import { tableFor } from '../../engine/competitions';
 import { OFF_LABEL, DEF_LABEL } from '../../engine/staff';
 import { useAct, useNotify, useWorld, useGame } from '../store';
 import { JobOfferCard } from '../components/career';
@@ -159,7 +159,7 @@ function MiniTable() {
   const c = userClub(w)!;
   const lc = w.competitions.find((x) => x.id === `${c.leagueId}-${w.season}`);
   if (!lc) return null;
-  const st = sortStandings(lc.standings);
+  const st = tableFor(lc, c.id);
   const idx = st.findIndex((s) => s.clubId === c.id);
   const from = Math.max(0, Math.min(st.length - 7, idx - 3));
   return (

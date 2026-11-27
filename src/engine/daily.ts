@@ -5,7 +5,7 @@ import { absDay } from './types';
 import { buildCalendar, weekday, dateNum, monthOf, fmtDate } from './calendar';
 import { fixturesOnDay, userClub, isUser, addNews, hold, club as getClub, rng } from './world';
 import { playFixture } from './matchday';
-import { createCup, createElitePlayoffs, createPromoPlayoffs, createEuroKnockouts, createCollegePlayoffs } from './competitions';
+import { createCup, createElitePlayoffs, createPromoPlayoffs, createEuroKnockouts, createCollegePlayoffs, createNbaPlayoffs } from './competitions';
 import { dailySquad, weeklySquad, weeklyScouting, youthIntake, aiStrategy } from './squad';
 import { weeklyCommercial, closeSeasonTickets, generateTvOffers } from './commercial';
 import { weeklyBoard, fireUser } from './board';
@@ -50,12 +50,14 @@ export function processDay(w: World) {
   dailyCamp(w);
 
   // ---- competition triggers
-  if (d === cal.leagueRoundDays[14] + 1) createCup(w);
+  if (d === cal.leagueRoundDays[16] + 1) createCup(w); // halfway: Copa del Rey, Copa Princesa, Copa España
   if (d === cal.leagueRoundDays[cal.leagueRoundDays.length - 1] + 1) {
     createElitePlayoffs(w);
     createPromoPlayoffs(w, 'ORO');
     createPromoPlayoffs(w, 'PLATA');
+    createPromoPlayoffs(w, 'TERCERA');
     createCollegePlayoffs(w);
+    createNbaPlayoffs(w);
   }
   if (d === cal.euroGroupDays[cal.euroGroupDays.length - 1] + 1) createEuroKnockouts(w);
 
@@ -91,7 +93,7 @@ export function processDay(w: World) {
   }
   if (d === cal.seasonEnd) seasonEnd(w);
   if (d === cal.jobMarket) jobMarket(w);
-  if (uc && d === cal.leagueRoundDays[18]) contractReminder(w);
+  if (uc && d === cal.leagueRoundDays[20]) contractReminder(w);
 
   // ---- decisions & game state
   expireDecisions(w);

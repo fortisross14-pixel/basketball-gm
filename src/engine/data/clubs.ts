@@ -1,6 +1,8 @@
 // Fictional club identities. City names are real places; clubs, nicknames,
 // arenas and colours are invented for the core fictional universe.
 
+import type { LeagueId } from '../types';
+
 export interface ClubSeed {
   name: string;
   nickname: string;
@@ -14,7 +16,10 @@ export interface ClubSeed {
   colors: [string, string];
   arena: string;
   seats: number;
-  tier: 1 | 2 | 3 | 0 | 4; // 0 = foreign (continental only), 4 = US college
+  league: LeagueId | 'FOREIGN'; // FOREIGN = European cup club with no league of its own
+  group?: string; // group / conference inside a grouped league
+  logo?: string; // badge file (public/badges/…), resolved against the site base
+  founded?: number;
 }
 
 export const CLUB_SEEDS: ClubSeed[] = [

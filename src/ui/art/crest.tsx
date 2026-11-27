@@ -91,7 +91,11 @@ function GlyphPath({ g, fill, stroke }: { g: Glyph; fill: string; stroke: string
 export function ClubLogo({ club, size = 32, title }: { club: Pick<Club, 'id' | 'name' | 'nickname' | 'abbrev' | 'colors'> & { logoUrl?: string }; size?: number; title?: string }) {
   const uid = useId().replace(/:/g, '');
   const sheet = useSheet('emblems');
-  if (club.logoUrl) return <img src={club.logoUrl} width={size} height={size} alt={club.name} style={{ objectFit: 'contain' }} />;
+  if (club.logoUrl) {
+    // built-in badges are stored relative to the site ('badges/x.webp'); uploads are data: or full URLs
+    const src = /^(data:|https?:|\/)/.test(club.logoUrl) ? club.logoUrl : `${import.meta.env.BASE_URL}${club.logoUrl}`;
+    return <img src={src} width={size} height={size} alt={club.name} loading="lazy" style={{ objectFit: 'contain', flex: 'none', filter: size >= 40 ? 'drop-shadow(0 3px 6px rgba(0,0,0,.45))' : undefined }} />;
+  }
   const h = hash(club.name);
   const shapeKey = (['shield', 'roundel', 'hex', 'badge', 'diamond'] as ShapeKey[])[h % 5];
   const pattern = (h >> 3) % 5; // 0 solid, 1 diagonal, 2 halves, 3 band, 4 ring

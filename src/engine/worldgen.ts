@@ -10,7 +10,7 @@ import { REF_PRICE, SUITE_REF, estimateRevenue, sponsorBenchmark, localTvBenchma
 import { payroll, operatingEstimate, proposeBudget } from './finance';
 import { staffPayroll } from './staff';
 import { maintenanceNeed } from './arena';
-import { nextId, invalidateIndex, rng, club as getClub, roster, addNews, fmtMoney } from './world';
+import { nextId, invalidateIndex, rng, club as getClub, roster, addNews, fmtMoney, tierOf } from './world';
 import { startSeason } from './season';
 import { BACKGROUND_INFO } from './career';
 import { ensureFacilities } from './facilities';
@@ -100,7 +100,11 @@ function defaultSettings(seed: number, difficulty: Settings['difficulty'], noise
   };
 }
 
-const LEAGUE_OF_TIER: Record<number, LeagueId | null> = { 0: null, 1: 'ELITE', 2: 'ORO', 3: 'PLATA', 4: 'COLLEGE' };
+/** Sporting level of a league for squad generation: 1 = ACB … 4 = Tercera FEB; 0 = European cup club; 5 = NBA. */
+const LEVEL: Record<LeagueId, number> = { ELITE: 1, ORO: 2, PLATA: 3, TERCERA: 4, COLLEGE: 2, NBA: 5 };
+function levelOf(c: Club): number {
+  return c.leagueId ? LEVEL[c.leagueId] : 0;
+}
 
 export function createWorld(opts: NewGameOptions): World {
   const seed = opts.seed ?? Math.floor(Math.random() * 2 ** 31);
@@ -211,7 +215,7 @@ export function assignUser(w: World, opts: Pick<NewGameOptions, 'userName' | 'ro
     const c = getClub(w, opts.clubId);
     w.user.career.push({ clubId: c.id, clubName: c.name, role: opts.role, from: absDay(w), to: null, achievements: [], exit: null });
     for (const p of roster(w, c.id)) w.user.knowledge[p.id] = 100;
-    w.user.reputation = c.leagueId === 'ELITE' ? 45 : c.leagueId === 'ORO' ? 30 : c.leagueId === 'COLLEGE' ? 20 + Math.round(c.prestige / 5) : 20;
+    w.user.reputation = c.leagueId === 'ELITE' ? 45 : c.leagueId === 'ORO' ? 30 : c.leagueId === 'COLLEGE' ? 20 + Math.round(c.prestige / 5) : c.leagueId === 'TERCERA' ? 14 : 20;
     if (opts.role === 'owner') { c.board.owner = w.user.name; c.board.ownerWealth = 60; }
     applyStartSupport(w, c);
     if (!c.foreign) { ensureShop(w, c); freshMediaRights(w, c); }
@@ -240,8 +244,11 @@ export function applyStartSupport(w: World, c: Club) {
 }
 
 function makeClub(w: World, r: Rng, s: ClubSeed): Club {
-  const college = s.tier === 4;
-  const tier = college ? 2 : s.tier; // college programs run on a tier-2 economic scale
+  const league = s.league === 'FOREIGN' ? null : s.league;
+  const college = league === 'COLLEGE';
+  const nba = league === 'NBA';
+  // economic tier: college programs run on a tier-2 scale, NBA and European clubs on the top scale, Tercera like Segunda
+  const tier = college ? 2 : nba || !league ? 0 : Math.min(3, LEVEL[league]);
   const local = Math.round(Math.sqrt(s.population) * 14 * (0.4 + s.prestige / 80));
   const general = Math.round(s.seats * 0.66 / 50) * 50;
   const lower = Math.round(s.seats * 0.28 / 50) * 50;
@@ -261,9 +268,11 @@ function makeClub(w: World, r: Rng, s: ClubSeed): Club {
     city: s.city,
     region: s.region,
     country: s.country,
-    foreign: s.tier === 0,
+    foreign: !league || nba,
     colors: s.colors,
-    leagueId: LEAGUE_OF_TIER[s.tier],
+    leagueId: league,
+    group: s.group,
+    logoUrl: s.logo,
     population: s.population,
     economy: s.economy,
     prestige: s.prestige,
@@ -327,7 +336,7 @@ function makeClub(w: World, r: Rng, s: ClubSeed): Club {
     history: [],
     trophies: [],
     retiredNumbers: [],
-    founded: START_SEASON - r.int(20, 90),
+    founded: s.founded ?? START_SEASON - r.int(20, 90),
   };
   return c;
 }
@@ -336,20 +345,34 @@ function topTarget(c: Club, tier: number) {
   if (tier === 0) return 66 + c.prestige * 0.16;
   if (tier === 1) return 60 + c.prestige * 0.2;
   if (tier === 2) return 54 + c.prestige * 0.16;
-  return 48 + c.prestige * 0.15;
+  if (tier === 3) return 48 + c.prestige * 0.15;
+  return 42 + c.prestige * 0.14; // Tercera FEB: semi-professional
+}
+
+function generateNbaRoster(w: World, r: Rng, c: Club) {
+  const top = 80 + c.prestige * 0.12;
+  const pos = r.shuffle(['PG', 'SG', 'SF', 'PF', 'C', 'PG', 'SG', 'SF', 'PF', 'C', 'SG', 'SF', 'PF', 'C'] as Player['pos'][]);
+  for (let i = 0; i < 14; i++) {
+    const intl = r.chance(0.25);
+    const p = generatePlayer(w, { targetOvr: Math.round(top - i * r.float(1.3, 2.0) + r.normal(0, 1.5)), age: i < 5 ? r.int(23, 33) : r.int(20, 34), country: intl ? undefined : 'USA', region: intl ? r.pick(['EU', 'NONEU'] as Region[]) : 'NONEU', pos: pos[i] });
+    signInitial(w, r, p, c, i, 0);
+    p.contract!.salary = Math.round(p.contract!.salary * 4 / 1000) * 1000; // NBA money
+    w.players.push(p);
+  }
 }
 
 function regionMix(c: Club, tier: number, r: Rng): Region[] {
   const n = 13;
   if (tier === 0) return r.shuffle([...Array(5).fill('LOCAL'), ...Array(4).fill('EU'), ...Array(4).fill('NONEU')]) as Region[];
-  const nonEU = tier === 1 ? 3 : tier === 2 ? 2 : 1;
-  const eu = tier === 1 ? 3 : tier === 2 ? 2 : 1;
+  const nonEU = tier === 1 ? 3 : tier === 2 ? 2 : tier === 3 ? 1 : r.chance(0.5) ? 1 : 0;
+  const eu = tier === 1 ? 3 : tier === 2 ? 2 : tier === 3 ? 1 : 0;
   return [...Array(nonEU).fill('NONEU'), ...Array(eu).fill('EU'), ...Array(n - nonEU - eu).fill('ESP')] as Region[];
 }
 
 function generateRoster(w: World, r: Rng, c: Club) {
   if (c.leagueId === 'COLLEGE') return generateCollegeRoster(w, r, c);
-  const tier = c.foreign ? 0 : w.rules.leagues[c.leagueId!].tier;
+  if (c.leagueId === 'NBA') return generateNbaRoster(w, r, c);
+  const tier = levelOf(c);
   const top = topTarget(c, tier);
   const regions = regionMix(c, tier, r);
   // non-EU imports tend to be the better players; ESP fill the depth
@@ -373,7 +396,7 @@ function generateRoster(w: World, r: Rng, c: Club) {
   if (!c.foreign) {
     for (let i = 0; i < 5; i++) {
       const lvlBonus = c.arena.levels.academy * 2;
-      const p = generatePlayer(w, { targetOvr: Math.round(r.normal(30 + lvlBonus + (3 - tier) * 2, 4)), age: r.int(15, 18), region: 'ESP', potBoost: r.int(0, 6) });
+      const p = generatePlayer(w, { targetOvr: Math.round(r.normal(30 + lvlBonus + (3 - Math.min(3, tier)) * 2 - (tier > 3 ? 2 : 0), 4)), age: r.int(15, 18), region: 'ESP', potBoost: r.int(0, 6) });
       p.homegrown = true;
       p.teamId = c.id;
       p.academy = true;
@@ -445,11 +468,12 @@ function signInitial(w: World, r: Rng, p: Player, c: Club, rank: number, tier: n
 }
 
 function generateClubStaff(w: World, r: Rng, c: Club) {
-  const tier = c.foreign ? 0 : w.rules.leagues[c.leagueId!].tier;
-  const base = tier === 0 ? 62 : tier === 1 ? 48 : tier === 2 ? 36 : 26;
+  const lvl = levelOf(c);
+  const tier = lvl >= 4 ? 3 : lvl === 5 ? 0 : lvl;
+  const base = lvl === 5 ? 72 : tier === 0 ? 62 : lvl === 1 ? 48 : lvl === 2 ? 36 : lvl === 3 ? 26 : 20;
   const roles: StaffRole[] = c.foreign ? ['headCoach', 'assistantOff', 'assistantDef', 'medicalLead', 'physio'] : STAFF_ROLES;
   for (const role of roles) {
-    if (!c.foreign && tier === 3 && (role === 'analytics' || role === 'prLead') && r.chance(0.5)) continue; // small clubs lack some posts
+    if (!c.foreign && lvl >= 3 && (role === 'analytics' || role === 'prLead') && r.chance(lvl === 4 ? 0.8 : 0.5)) continue; // small clubs lack some posts
     const s = generateStaff(w, role, clamp(r.normal(base + c.prestige * 0.3, 8), 15, 95), c.id, tier || 1);
     s.history.push({ season: w.season, teamId: c.id, role });
     w.staff.push(s);
@@ -460,7 +484,7 @@ function generateClubStaff(w: World, r: Rng, c: Club) {
 
 function setupCommercial(w: World, r: Rng, c: Club) {
   if (c.foreign) return;
-  const tier = w.rules.leagues[c.leagueId!].tier;
+  const tier = tierOf(w, c);
   // Clubs start with a couple of partners; the rest of the inventory is sold during the game.
   const slots: SponsorSlot[] = ['shirt', 'local1'];
   if (tier === 1) slots.push('court');

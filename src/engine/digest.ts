@@ -69,7 +69,7 @@ export function buildDigest(w: World): DigestItem[] {
   if (expiring.length && (w.day > cal.winterWindowOpen || expiring.some((p) => p.ovr >= Math.max(...squad.map((x) => x.ovr)) - 3))) {
     const key = [...expiring].sort((a, b) => b.ovr - a.ovr)[0];
     const many = expiring.length > 1;
-    items.push({ id: 'exp', title: many ? `${expiring.length} contracts expire in June` : `${playerName(key)}'s contract expires in June`, detail: `${expiring.map((p) => `${playerName(p)} (${p.ovr})`).join(', ')}. Renew before rivals approach them.`, urgency: w.day > cal.leagueRoundDays[25] ? 2 : 1, impact: key.ovr >= 55 ? 3 : 2, deadline: null, owner: 'Sporting director', link: `/player/${key.id}?do=renew`, action: `Renew ${key.lastName}`, tone: key.ovr >= 55 ? 'warn' : 'info' });
+    items.push({ id: 'exp', title: many ? `${expiring.length} contracts expire in June` : `${playerName(key)}'s contract expires in June`, detail: `${expiring.map((p) => `${playerName(p)} (${p.ovr})`).join(', ')}. Renew before rivals approach them.`, urgency: w.day > cal.leagueRoundDays[28] ? 2 : 1, impact: key.ovr >= 55 ? 3 : 2, deadline: null, owner: 'Sporting director', link: `/player/${key.id}?do=renew`, action: `Renew ${key.lastName}`, tone: key.ovr >= 55 ? 'warn' : 'info' });
   }
   // window
   if (transferWindowOpen(w.season, w.day)) {
@@ -84,10 +84,10 @@ export function buildDigest(w: World): DigestItem[] {
     items.push({ id: 'shop-empty', title: 'Your club store has nothing to sell', detail: 'Order jerseys, scarves, caps and keychains. Bigger runs cost less per unit; delivery takes 8 to 28 days.', urgency: 1, impact: 1, deadline: null, owner: 'Commercial director', link: '/business/merchandise', action: 'Order stock', tone: 'warn' });
   }
   // promotion readiness
-  if (c.leagueId === 'ORO' || c.leagueId === 'PLATA') {
-    const up = c.leagueId === 'ORO' ? 'ELITE' : 'ORO';
+  if (c.leagueId === 'ORO' || c.leagueId === 'PLATA' || c.leagueId === 'TERCERA') {
+    const up = c.leagueId === 'ORO' ? 'ELITE' : c.leagueId === 'PLATA' ? 'ORO' : 'PLATA';
     const lic = licenceCheck(w, c, up);
-    if (!lic.ok && true) items.push({ id: 'licence', title: `Not licensed for the ${w.rules.leagues[up].name}`, detail: `If you win promotion: ${lic.reasons.join(' ')}`, urgency: w.day > cal.leagueRoundDays[22] ? 3 : 1, impact: 3, deadline: null, owner: 'You', link: '/club/licence', action: 'Check promotion licence', tone: 'warn' });
+    if (!lic.ok && true) items.push({ id: 'licence', title: `Not licensed for the ${w.rules.leagues[up].name}`, detail: `If you win promotion: ${lic.reasons.join(' ')}`, urgency: w.day > cal.leagueRoundDays[25] ? 3 : 1, impact: 3, deadline: null, owner: 'You', link: '/club/licence', action: 'Check promotion licence', tone: 'warn' });
   }
   if (c.promotedSeason === w.season && (w.settings.difficulty === 'relaxed' || w.settings.difficulty === 'standard') && c.payrollBridge?.season !== w.season && c.leagueId !== 'PLATA') items.push({ id: 'bridge', title: 'Promotion payroll bridge available', detail: 'The league can advance part of your bigger media income to strengthen the squad.', urgency: 1, impact: 2, deadline: null, owner: 'Finance', link: '/club/licence', action: 'See the advance', tone: 'info' });
   // preseason planning (summer only)

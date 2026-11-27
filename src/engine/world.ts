@@ -119,7 +119,8 @@ export function isCollege(c: Club | null | undefined): boolean {
 }
 
 export function tierOf(w: World, c: Club): number {
-  return c.leagueId ? w.rules.leagues[c.leagueId].tier : 0;
+  // economic tier: the amateur 4th tier runs on the 3rd tier's price scale (smaller fanbases do the rest)
+  return c.leagueId ? Math.min(3, w.rules.leagues[c.leagueId].tier) : 0;
 }
 
 export function leagueClubs(w: World, leagueId: string): Club[] {

@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import type { LeagueId, Standing, World } from '../../../engine/types';
-import { sortStandings } from '../../../engine/competitions';
+import { groupKeyOf, groupTables, sortStandings } from '../../../engine/competitions';
+import { activeLeagues } from '../../../engine/rules';
 import { club as getClub, comp as getComp, isUser } from '../../../engine/world';
-import { Badge, Card, ClubLink, Crest, Empty, Page, Table, Tabs } from '../../components/ui';
+import { Badge, Card, ClubLink, Crest, Empty, Page, Pills, Table, Tabs } from '../../components/ui';
 import { useWorld } from '../../store';
 import { SeasonSelect } from './common';
 
@@ -19,10 +20,7 @@ export default function Standings() {
         value={tab}
         onChange={setTab}
         tabs={[
-          { id: 'ELITE', label: w.rules.leagues.ELITE.name },
-          { id: 'ORO', label: w.rules.leagues.ORO.name },
-          { id: 'PLATA', label: w.rules.leagues.PLATA.name },
-          { id: 'COLLEGE', label: `${w.rules.leagues.COLLEGE.name} (USA)` },
+          ...activeLeagues(w).map((id) => ({ id: id as Tab, label: w.rules.leagues[id].kind === 'pro' ? w.rules.leagues[id].name : `${w.rules.leagues[id].name} (USA)` })),
           { id: 'EURO', label: 'EuroCup' },
         ]}
       />
@@ -31,10 +29,23 @@ export default function Standings() {
   );
 }
 
-function zoneOf(w: World, lid: LeagueId, rank: number, n: number): { label: string; tone: 'good' | 'info' | 'bad' | 'accent' } | null {
+function zoneOf(w: World, lid: LeagueId, rank: number, n: number, groups = 1): { label: string; tone: 'good' | 'info' | 'bad' | 'accent' } | null {
   const r = w.rules.leagues[lid];
   if (lid === 'COLLEGE') {
-    if (rank <= r.playoffTeams) return { label: 'NCAA Tournament', tone: 'good' };
+    if (rank <= Math.ceil(r.playoffTeams / groups)) return { label: 'NCAA Tournament', tone: 'good' };
+    return null;
+  }
+  if (lid === 'NBA') {
+    if (rank <= 8) return { label: 'Playoffs', tone: 'good' };
+    return null;
+  }
+  if (groups > 1) {
+    const direct = r.directPromotion / groups;
+    const po = Math.ceil(r.playoffTeams / groups);
+    if (rank === 1) return direct >= 1 ? { label: 'Promotion', tone: 'accent' } : { label: 'Group winner: promotion race', tone: 'accent' };
+    if (r.playoffPromotion && rank <= Math.ceil(direct) + po) return { label: 'Promo playoff', tone: 'good' };
+    const rel = Math.ceil(r.relegation / groups);
+    if (rel && rank > n - rel) return { label: 'Relegation', tone: 'bad' };
     return null;
   }
   if (lid === 'ELITE') {
@@ -68,17 +79,27 @@ function standingColumns(w: World, zone?: (rank: number) => ReturnType<typeof zo
 function LeagueTable({ leagueId, season }: { leagueId: LeagueId; season: number }) {
   const w = useWorld();
   const cmp = getComp(w, `${leagueId}-${season}`);
+  const mine = w.user.clubId != null && cmp ? groupKeyOf(cmp, w.user.clubId) : null;
+  const tables = cmp ? groupTables(cmp) : [];
+  const [g, setG] = useState<string>(mine ?? tables[0]?.[0] ?? '');
   if (!cmp) return <Empty>No standings for this season.</Empty>;
-  const rows = sortStandings(cmp.standings);
   const r = w.rules.leagues[leagueId];
+  const groups = tables.length;
+  const shown = groups > 1 ? tables.filter(([k]) => k === g || (!tables.some(([x]) => x === g) && k === tables[0][0])) : tables;
   return (
-    <Card title={cmp.name} className="flush">
-      <div style={{ padding: '0 8px 8px' }}>
-        <Table rows={rows} rowKey={(s) => s.clubId} rowClass={(s) => (isUser(w, s.clubId) ? 'me' : '')} columns={standingColumns(w, (rank) => zoneOf(w, leagueId, rank, rows.length))} />
-      </div>
+    <Card title={cmp.name} className="flush" actions={groups > 1 ? <Pills<string> value={g} onChange={setG} options={tables.map(([k]) => ({ id: k, label: leagueId === 'NBA' || leagueId === 'COLLEGE' ? k : `Group ${k}` }))} /> : undefined}>
+      {shown.map(([k, rows]) => (
+        <div key={k} style={{ padding: '0 8px 8px' }}>
+          <Table rows={rows} rowKey={(s) => s.clubId} rowClass={(s) => (isUser(w, s.clubId) ? 'me' : '')} columns={standingColumns(w, (rank) => zoneOf(w, leagueId, rank, rows.length, groups))} />
+        </div>
+      ))}
       <div className="small faint" style={{ padding: '0 16px 12px' }}>
         {leagueId === 'ELITE'
           ? `Top ${r.playoffTeams} reach the title playoffs; top ${w.rules.euro.fromElite} qualify for next season's EuroCup; top ${w.rules.cup.teams} at the halfway point play the Copa del Rey; bottom ${r.relegation} are relegated.`
+          : leagueId === 'NBA' ? 'Top eight of each conference reach the playoffs (best of seven).'
+          : leagueId === 'COLLEGE' ? `The best ${r.playoffTeams} programs, conference by conference, play the NCAA Tournament.`
+          : leagueId === 'TERCERA' ? `${groups} groups. The ${r.directPromotion} best group winners are promoted to the ${w.rules.leagues.PLATA?.name ?? 'Segunda FEB'}. Promotion requires meeting the licence (Results → Rules).`
+          : groups > 1 ? `${groups} groups. Group winners go up; the next ${r.playoffTeams} play off for ${r.playoffPromotion} more place${r.playoffPromotion > 1 ? 's' : ''}${r.relegation ? `; bottom ${Math.ceil(r.relegation / groups)} of each group go down` : ''}. Promotion requires meeting the licence (Results → Rules).`
           : `${r.directPromotion} promoted directly, places ${r.directPromotion + 1}–${r.directPromotion + r.playoffTeams} play off for ${r.playoffPromotion} more promotion place${r.playoffPromotion > 1 ? 's' : ''}${r.relegation ? `, bottom ${r.relegation} relegated` : ''}. Promotion requires meeting the licence (Results → Rules).`}
       </div>
     </Card>

@@ -66,7 +66,7 @@ export function nextWeekday(season: number, from: number, wd: number): number {
 }
 
 export interface SeasonCalendar {
-  leagueRoundDays: number[]; // 30 Saturdays
+  leagueRoundDays: number[]; // 34 Saturdays (shorter leagues use a spread subset, see roundDaysFor)
   cupDays: { qf: number[]; sf: number; f: number };
   euroGroupDays: number[]; // 14 Wednesdays
   euroQfDays: number[]; // 3
@@ -94,15 +94,16 @@ export function buildCalendar(season: number): SeasonCalendar {
 }
 
 function buildCalendarRaw(season: number): SeasonCalendar {
-  const oct1 = dayOfDate(season, season, 9, 1);
-  const firstSat = nextWeekday(season, oct1, 6);
+  // 34 weekend rounds (an 18-team double round robin) from mid-September
+  const sep13 = dayOfDate(season, season, 8, 13);
+  const firstSat = nextWeekday(season, sep13, 6);
   // Copa del Rey: second weekend of February (Thu–Sun). League skips that Saturday.
   const feb8 = dayOfDate(season, season + 1, 1, 8);
   const cupSat = nextWeekday(season, feb8, 6);
   const cupThu = cupSat - 2;
   const leagueRoundDays: number[] = [];
   let d = firstSat;
-  while (leagueRoundDays.length < 30) {
+  while (leagueRoundDays.length < 34) {
     if (d !== cupSat) leagueRoundDays.push(d);
     d += 7;
   }
@@ -130,13 +131,13 @@ function buildCalendarRaw(season: number): SeasonCalendar {
     playoffStart,
     promoStart: playoffStart,
     youthIntake: dayOfDate(season, season + 1, 5, 15),
-    seasonEnd: dayOfDate(season, season + 1, 5, 20),
-    jobMarket: dayOfDate(season, season + 1, 5, 24),
+    seasonEnd: dayOfDate(season, season + 1, 5, 24),
+    jobMarket: dayOfDate(season, season + 1, 5, 27),
     rollover: seasonLength(season) - 1,
     summerWindowClose: dayOfDate(season, season, 8, 30),
     winterWindowOpen: dayOfDate(season, season + 1, 0, 1),
     winterWindowClose: dayOfDate(season, season + 1, 0, 31),
-    seasonTicketDeadline: dayOfDate(season, season, 8, 30),
+    seasonTicketDeadline: firstSat - 1,
     faDeadline: lastRound - 14,
   };
 }
@@ -163,4 +164,12 @@ export const PHASE_LABEL: Record<Phase, string> = {
 export function transferWindowOpen(season: number, day: number): boolean {
   const cal = buildCalendar(season);
   return day <= cal.summerWindowClose || (day >= cal.winterWindowOpen && day <= cal.winterWindowClose) || day >= cal.seasonEnd;
+}
+
+/** Match days for a league with `rounds` rounds: spread over the 34-weekend season. */
+export function roundDaysFor(season: number, rounds: number): number[] {
+  const all = buildCalendar(season).leagueRoundDays;
+  if (rounds >= all.length) return all.slice(0, rounds);
+  if (rounds <= 1) return all.slice(0, rounds);
+  return Array.from({ length: rounds }, (_, i) => all[Math.round((i * (all.length - 1)) / (rounds - 1))]);
 }

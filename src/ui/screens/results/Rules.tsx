@@ -1,5 +1,5 @@
 import type { LeagueId, LeagueRules } from '../../../engine/types';
-import { RULE_EXPLAINERS, LEAGUE_IDS } from '../../../engine/rules';
+import { RULE_EXPLAINERS, activeLeagues } from '../../../engine/rules';
 import { buildCalendar, fmtDate } from '../../../engine/calendar';
 import { club as getClub, fmtMoney } from '../../../engine/world';
 import { licenceCheck } from '../../../engine/season';
@@ -31,20 +31,20 @@ export default function Rules() {
   const r = w.rules;
   const cal = buildCalendar(w.season);
   const uc = w.user.clubId != null ? getClub(w, w.user.clubId) : null;
-  const upper: Record<LeagueId, LeagueId | null> = { ELITE: null, ORO: 'ELITE', PLATA: 'ORO', COLLEGE: null };
+  const upper: Record<LeagueId, LeagueId | null> = { ELITE: null, ORO: 'ELITE', PLATA: 'ORO', TERCERA: 'PLATA', COLLEGE: null, NBA: null };
   return (
     <Page title="Competition rules" subtitle={<>Ruleset <span className="mono">{r.version}</span> · season {r.season}. All regulations are data-driven and versioned per season. Hover a rule for its explanation.</>}>
       <Card title="League regulations" className="flush">
         <div className="tbl-wrap" style={{ padding: '0 8px 8px' }}>
           <table className="tbl">
             <thead>
-              <tr><th>Rule</th>{LEAGUE_IDS.map((id) => <th key={id} className="r">{r.leagues[id].name} ({r.leagues[id].kind === 'college' ? 'US college' : `tier ${r.leagues[id].tier}`})</th>)}</tr>
+              <tr><th>Rule</th>{activeLeagues(w).map((id) => <th key={id} className="r">{r.leagues[id].name} ({r.leagues[id].kind === 'college' ? 'US college' : r.leagues[id].kind === 'nba' ? 'USA' : `tier ${r.leagues[id].tier}`})</th>)}</tr>
             </thead>
             <tbody>
               {ROWS.map((row) => (
                 <tr key={row.key} title={RULE_EXPLAINERS[row.key] ?? ''}>
                   <td>{row.label}{RULE_EXPLAINERS[row.key] && <span className="faint"> ⓘ</span>}</td>
-                  {LEAGUE_IDS.map((id) => {
+                  {activeLeagues(w).map((id) => {
                     const v = r.leagues[id][row.key] as number;
                     return <td key={id} className="r">{row.money ? fmtMoney(v) : row.seats ? v.toLocaleString('en') : v}</td>;
                   })}
