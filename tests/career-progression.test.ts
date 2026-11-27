@@ -60,7 +60,7 @@ describe('coaching careers', () => {
     // force a star coach and run the market
     const star = staffOf(w, w.clubs.find((c) => c.leagueId === 'ELITE')!, 'headCoach')!;
     star.reputation = 97;
-    star.record!.push({ season: w.season - 1, clubId: star.teamId, clubName: 'X', league: 'Liga Élite', level: 1, wins: 25, losses: 5, expected: 0.5, rank: 1, honours: ['Continental Cup winner'], score: 20 });
+    star.record!.push({ season: w.season - 1, clubId: star.teamId, clubName: 'X', league: 'Liga ACB', level: 1, wins: 25, losses: 5, expected: 0.5, rank: 1, honours: ['EuroCup winner'], score: 20 });
     for (let i = 0; i < 6 && !star.nba; i++) coachingMarket(w);
     expect(star.nba).toBeTruthy();
     expect(star.teamId).toBeNull();

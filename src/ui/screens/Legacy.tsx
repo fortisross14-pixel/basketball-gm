@@ -71,7 +71,7 @@ export default function Legacy() {
             empty="Awards are given at the end of each season."
             columns={[
               { key: 's', label: 'Season', render: (a) => seasonLabel(a.season), sort: (a) => a.season },
-              { key: 'l', label: 'League', render: (a) => (a.leagueId === 'EURO' ? 'Continental' : a.leagueId === 'CUP' ? 'Copa' : w.rules.leagues[a.leagueId].short) },
+              { key: 'l', label: 'League', render: (a) => (a.leagueId === 'EURO' ? 'EuroCup' : a.leagueId === 'CUP' ? 'Copa del Rey' : w.rules.leagues[a.leagueId].short) },
               { key: 'a', label: 'Award', render: (a) => a.award },
               { key: 'n', label: 'Winner', render: (a) => (a.playerId != null && idx(w).players.get(a.playerId) ? <Link className="link" to={`/player/${a.playerId}`}>{a.name}</Link> : a.name) },
               { key: 'c', label: 'Club', render: (a) => (a.clubId != null ? <ClubLink club={getClub(w, a.clubId)} /> : '—') },
@@ -147,7 +147,7 @@ function ClubLegacy({ clubId }: { clubId: number }) {
             { key: 'r', label: 'Pos', render: (h) => h.rank, align: 'r' },
             { key: 'wl', label: 'W–L', render: (h) => `${h.wins}–${h.losses}`, align: 'c' },
             { key: 'po', label: 'Playoffs', render: (h) => h.playoff },
-            { key: 'cup', label: 'Copa', render: (h) => h.cup },
+            { key: 'cup', label: 'Copa del Rey', render: (h) => h.cup },
             { key: 'eu', label: 'Continental', render: (h) => h.euro },
             { key: 'mv', label: '', render: (h) => (h.promoted ? <Badge tone="good">Promoted</Badge> : h.relegated ? <Badge tone="bad">Relegated</Badge> : null) },
             { key: 'att', label: 'Avg att.', render: (h) => h.attendance.toLocaleString('en'), align: 'r' },
@@ -181,10 +181,10 @@ function ChampionsHistory() {
         columns={[
           { key: 's', label: 'Season', render: (s) => seasonLabel(s) },
           { key: 'elite', label: 'Élite champion (playoffs)', render: (s) => cell(champ(`ELITE-PO-${s}`)) },
-          { key: 'cup', label: 'Copa', render: (s) => cell(champ(`CUP-${s}`)) },
-          { key: 'euro', label: 'Continental Cup', render: (s) => cell(champ(`EURO-${s}`)) },
-          { key: 'oro', label: 'Liga Oro winner', render: (s) => cell(leagueWinner('ORO', s)) },
-          { key: 'plata', label: 'Liga Plata winner', render: (s) => cell(leagueWinner('PLATA', s)) },
+          { key: 'cup', label: 'Copa del Rey', render: (s) => cell(champ(`CUP-${s}`)) },
+          { key: 'euro', label: 'EuroCup', render: (s) => cell(champ(`EURO-${s}`)) },
+          { key: 'oro', label: 'Primera FEB winner', render: (s) => cell(leagueWinner('ORO', s)) },
+          { key: 'plata', label: 'Segunda FEB winner', render: (s) => cell(leagueWinner('PLATA', s)) },
         ]}
       />
     </Card>

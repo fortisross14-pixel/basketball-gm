@@ -8,17 +8,20 @@ import { salaryAsk } from '../../../engine/player';
 import { canSignNow } from '../../../engine/market';
 import { transferWindowOpen, buildCalendar, fmtAbs, fmtDate } from '../../../engine/calendar';
 import { addScoutAssignment } from '../../../engine/squad';
+import { KEY_LABEL, askCoach, fitScore, rapport, requestMatches } from '../../../engine/coachRequests';
+import { staffOf } from '../../../engine/world';
+import { DEF_LABEL, OFF_LABEL } from '../../../engine/staff';
 import { knowledge } from '../../../engine/squad';
 import ContractModal from '../club/ContractModal';
 import BidModal from './BidModal';
 
-type Tab = 'fa' | 'all' | 'short' | 'scout' | 'history';
+type Tab = 'coach' | 'fa' | 'all' | 'short' | 'scout' | 'history';
 const POS: (Position | 'any')[] = ['any', 'PG', 'SG', 'SF', 'PF', 'C'];
 
 export default function Market() {
   const w = useWorld();
   const uc = userClub(w);
-  const [tab, setTab] = useState<Tab>('fa');
+  const [tab, setTab] = useState<Tab>('coach');
   const [neg, setNeg] = useState<Player | null>(null);
   const [bid, setBid] = useState<Player | null>(null);
   const open = transferWindowOpen(w.season, w.day);
@@ -32,7 +35,8 @@ export default function Market() {
         <Badge tone={faOk.ok ? 'good' : 'warn'} title={faOk.reason}>Free-agent signings {faOk.ok ? 'allowed' : 'closed'}</Badge>
         {!faOk.ok && <span className="small warn">{faOk.reason}</span>}
       </div>
-      <Tabs<Tab> value={tab} onChange={setTab} tabs={[{ id: 'fa', label: 'Free agents' }, { id: 'all', label: 'All players' }, { id: 'short', label: `Shortlist (${w.user.shortlist.length})` }, { id: 'scout', label: 'Scouting' }, { id: 'history', label: 'Transfer history' }]} />
+      <Tabs<Tab> value={tab} onChange={setTab} tabs={[{ id: 'coach', label: `Coach requests${(w.user.coachRequests ?? []).some((r) => r.status === 'open') ? ` (${(w.user.coachRequests ?? []).filter((r) => r.status === 'open').length})` : ''}` }, { id: 'fa', label: 'Free agents' }, { id: 'all', label: 'Search all players' }, { id: 'short', label: `Shortlist (${w.user.shortlist.length})` }, { id: 'scout', label: 'Scouting' }, { id: 'history', label: 'Transfer history' }]} />
+      {tab === 'coach' && <CoachDesk onNegotiate={setNeg} onBid={setBid} />}
       {tab === 'fa' && <PlayerSearch pool="fa" onNegotiate={setNeg} onBid={setBid} />}
       {tab === 'all' && <PlayerSearch pool="all" onNegotiate={setNeg} onBid={setBid} />}
       {tab === 'short' && <Shortlist onNegotiate={setNeg} onBid={setBid} />}
@@ -86,6 +90,7 @@ function PlayerSearch({ pool, onNegotiate, onBid }: { pool: 'fa' | 'all'; onNego
   const [maxAsk, setMaxAsk] = useState(0);
   const [region, setRegion] = useState<Region | 'any'>('any');
   const [league, setLeague] = useState<string>('any');
+  const [shown, setShown] = useState(25);
   const cols = usePlayerColumns(onNegotiate, onBid);
   const rows = (() => {
     const base = pool === 'fa' ? freeAgents(w) : w.players.filter((p) => !p.retired && !p.academy && p.teamId !== uc?.id);
@@ -124,7 +129,8 @@ function PlayerSearch({ pool, onNegotiate, onBid }: { pool: 'fa' | 'all'; onNego
         <span className="spacer" />
         <span className="small muted">{rows.length} players</span>
       </div>
-      <Table rows={rows} rowKey={(p) => p.id} columns={cols} initialSort="ovr" limit={150} empty="No players match these filters." />
+      <Table rows={rows} rowKey={(p) => p.id} columns={cols} initialSort="ovr" limit={shown} empty="No players match these filters." />
+      {rows.length > shown && <div className="row" style={{ padding: '10px 16px' }}><span className="small muted">Showing the best {shown} of {rows.length}. Narrow the filters or</span><Button size="sm" onClick={() => setShown(shown + 25)}>Show 25 more</Button></div>}
     </Card>
   );
 }
@@ -217,5 +223,74 @@ function History() {
         ]}
       />
     </Card>
+  );
+}
+
+function CoachDesk({ onNegotiate, onBid }: { onNegotiate: (p: Player) => void; onBid: (p: Player) => void }) {
+  const w = useWorld();
+  const act = useAct();
+  const notify = useNotify();
+  const uc = userClub(w);
+  if (!uc) return <Callout>You need a club to work with a coach.</Callout>;
+  const coach = staffOf(w, uc, 'headCoach');
+  const reqs = (w.user.coachRequests ?? []).filter((r) => r.status === 'open');
+  const past = (w.user.coachRequests ?? []).filter((r) => r.status !== 'open').slice(-4).reverse();
+  const rp = rapport(w);
+  const short = new Set(w.user.shortlist.map((s) => s.playerId));
+  return (
+    <div className="col gap16">
+      <Card title="Your head coach" actions={<Button variant="primary" disabled={!coach} onClick={() => { const r = act((ww) => askCoach(ww)); notify(r.message, r.ok ? 'good' : undefined); }}>Ask what he needs</Button>}>
+        {!coach ? <div className="muted">No head coach: hire one in Coaching staff.</div> : (
+          <div className="row" style={{ flexWrap: 'wrap', gap: 18 }}>
+            <div style={{ flex: 1, minWidth: 240 }}>
+              <b>{coach.firstName} {coach.lastName}</b> <span className="small muted">· plays {coach.offPref ? OFF_LABEL[coach.offPref] : '—'} · {coach.defPref ? DEF_LABEL[coach.defPref] : '—'}</span>
+              <div className="small muted mt8">Ask him which profile his systems are missing. Sign a player who fits before the request lapses (10 weeks) and he trusts you more, which shows on game day as better execution of his plan. Let it lapse and he trusts you less.</div>
+            </div>
+            <div style={{ minWidth: 200 }}>
+              <div className="small muted">Trust in you</div>
+              <div className="row"><b className={rp >= 70 ? 'good' : rp < 45 ? 'bad' : ''} style={{ fontSize: '1.4rem' }}>{rp}</b><span className="small muted">/ 100 · {rp >= 75 ? 'fully backs you' : rp >= 55 ? 'working relationship' : 'doubts you'}</span></div>
+            </div>
+          </div>
+        )}
+      </Card>
+      {reqs.length === 0 && coach && <Callout>No open requests. Ask him what he needs before the window opens or closes.</Callout>}
+      {reqs.map((r) => {
+        const matches = requestMatches(w, r);
+        return (
+          <Card key={r.id} title={r.title} actions={<span className="row gap4"><Badge>{r.pos} · max age {r.maxAge}</Badge><Badge tone="warn">until {fmtAbs(r.expiresDay)}</Badge></span>}>
+            <div className="small muted mb8">{r.why} Fit is the average of <b>{r.keys.map((k) => KEY_LABEL[k]).join(', ')}</b> (target {r.bar}+). Only players you can afford are listed.</div>
+            <div className="row mb8" style={{ gap: 8 }}>
+              <Button size="sm" disabled={w.user.scoutAssignments.length >= 3} onClick={() => { act((ww) => addScoutAssignment(ww, { region: r.maxAge <= 23 ? 'YOUTH' : 'EU', focusPos: r.pos, maxAge: r.maxAge })); notify('Scouts sent after this profile.', 'good'); }}>Send scouts for this profile</Button>
+            </div>
+            {matches.length === 0 ? <div className="small faint">No obvious candidates. Send scouts: they find players the market does not show yet.</div> : (
+              <table className="tbl">
+                <thead><tr><th>Player</th><th>Club</th><th className="r">Age</th><th className="r">Fit</th><th className="r">OVR</th><th className="r">Value</th><th /></tr></thead>
+                <tbody>
+                  {matches.map(({ p, fit }) => (
+                    <tr key={p.id}>
+                      <td><PlayerLink player={p} /></td>
+                      <td>{p.teamId == null ? <span className="muted">Free agent</span> : <ClubLink club={getClub(w, p.teamId)} />}</td>
+                      <td className="r">{age(w, p)}</td>
+                      <td className={`r ${fit >= r.bar ? 'good' : ''}`}><b>{fit}</b></td>
+                      <td className="r"><OvrCell p={p} /></td>
+                      <td className="r">{p.teamId == null ? '—' : <Money v={p.value} />}</td>
+                      <td className="r"><span className="row gap4" style={{ justifyContent: 'flex-end' }}>
+                        <Button size="sm" variant="ghost" onClick={() => act((ww) => { if (short.has(p.id)) ww.user.shortlist = ww.user.shortlist.filter((s) => s.playerId !== p.id); else ww.user.shortlist.push({ playerId: p.id, note: `Coach request: ${r.pos}`, addedDay: absDay(ww) }); })}>{short.has(p.id) ? '★' : '☆'}</Button>
+                        {p.teamId == null ? <Button size="sm" onClick={() => onNegotiate(p)}>Negotiate</Button> : !p.loan && <Button size="sm" onClick={() => onBid(p)}>Bid</Button>}
+                      </span></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </Card>
+        );
+      })}
+      {past.length > 0 && (
+        <Card title="Earlier requests">
+          {past.map((r) => { const p = r.playerId != null ? w.players.find((x) => x.id === r.playerId) : null; return <div key={r.id} className="row small"><span>{r.title}</span><span className="spacer" />{r.status === 'done' ? <Badge tone="good">Done{p ? `: ${p.firstName} ${p.lastName} (fit ${fitScore(p, r.keys)})` : ''}</Badge> : <Badge tone="bad">Lapsed</Badge>}</div>; })}
+        </Card>
+      )}
+    </div>
   );
 }

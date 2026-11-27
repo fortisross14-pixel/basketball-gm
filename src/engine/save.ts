@@ -44,6 +44,7 @@ export function migrate(w: World): World {
     v++;
   }
   w.version = SAVE_VERSION;
+  renameCompetitions(w);
   w.pendingMoves ??= [];
   w.pendingHolds ??= [];
   for (const c of w.clubs) c.seedName ??= c.name;
@@ -52,6 +53,24 @@ export function migrate(w: World): World {
   const uc = w.user.clubId != null ? w.clubs.find((x) => x.id === w.user.clubId) : undefined;
   if (uc && !uc.foreign) ensureShop(w, uc);
   return w;
+}
+
+/** Real competition names (older saves used invented ones). Idempotent. */
+const OLD_NAMES: [RegExp, string][] = [
+  [/Liga Élite/g, 'Liga ACB'], [/Liga Oro/g, 'Primera FEB'], [/Liga Plata/g, 'Segunda FEB'], [/Continental Cup/g, 'EuroCup'],
+  [/National Collegiate League/g, 'NCAA Division I'], [/\bNCL\b/g, 'NCAA'], [/\bCopa\b(?! del Rey)/g, 'Copa del Rey'],
+];
+function renameCompetitions(w: World) {
+  const L = w.rules.leagues;
+  if (L.ELITE?.name === 'Liga ACB') return;
+  const fix = (t: string) => OLD_NAMES.reduce((a, [re, to]) => a.replace(re, to), t);
+  const shorts: Record<string, string> = { ELITE: 'ACB', ORO: 'Primera FEB', PLATA: 'Segunda FEB', COLLEGE: 'NCAA' };
+  for (const [id, l] of Object.entries(L)) { l.name = fix(l.name); if (shorts[id]) l.short = shorts[id]; }
+  for (const c of w.competitions) c.name = fix(c.name);
+  for (const f of w.fixtures) f.label = fix(f.label.replace(/^(Élite|Oro|Plata|NCL) · /, (_, s: string) => `${({ Élite: 'ACB', Oro: 'Primera FEB', Plata: 'Segunda FEB', NCL: 'NCAA' } as Record<string, string>)[s]} · `));
+  for (const c of w.clubs) for (const t of c.trophies) t.name = fix(t.name);
+  for (const s of w.staff) for (const r of s.record ?? []) { r.league = fix(r.league); r.honours = r.honours.map(fix); }
+  for (const n of w.news) { n.headline = fix(n.headline); n.body = fix(n.body); }
 }
 
 /** Structural validation: required collections, resolvable references, no NaN money. */

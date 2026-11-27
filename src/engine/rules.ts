@@ -14,7 +14,7 @@ export function defaultRuleset(season: number): Ruleset {
     season,
     leagues: {
       ELITE: {
-        kind: 'pro', country: 'ESP', tier: 1, name: 'Liga Élite', short: 'Élite', teams: 16,
+        kind: 'pro', country: 'ESP', tier: 1, name: 'Liga ACB', short: 'ACB', teams: 16,
         rosterMin: 10, rosterMax: 15, matchdaySquad: 12,
         maxNonEU: 3, minHomegrown: 4,
         minArenaSeats: 5000, promotionFee: 450_000,
@@ -23,7 +23,7 @@ export function defaultRuleset(season: number): Ruleset {
         prizeChampion: 600_000, minPayrollGuarantee: 1_000_000,
       },
       ORO: {
-        kind: 'pro', country: 'ESP', tier: 2, name: 'Liga Oro', short: 'Oro', teams: 16,
+        kind: 'pro', country: 'ESP', tier: 2, name: 'Primera FEB', short: 'Primera FEB', teams: 16,
         rosterMin: 10, rosterMax: 14, matchdaySquad: 12,
         maxNonEU: 2, minHomegrown: 5,
         minArenaSeats: 2500, promotionFee: 60_000,
@@ -32,7 +32,7 @@ export function defaultRuleset(season: number): Ruleset {
         prizeChampion: 80_000, minPayrollGuarantee: 200_000,
       },
       PLATA: {
-        kind: 'pro', country: 'ESP', tier: 3, name: 'Liga Plata', short: 'Plata', teams: 16,
+        kind: 'pro', country: 'ESP', tier: 3, name: 'Segunda FEB', short: 'Segunda FEB', teams: 16,
         rosterMin: 10, rosterMax: 14, matchdaySquad: 12,
         maxNonEU: 1, minHomegrown: 6,
         minArenaSeats: 800, promotionFee: 0,
@@ -41,7 +41,7 @@ export function defaultRuleset(season: number): Ruleset {
         prizeChampion: 20_000, minPayrollGuarantee: 0,
       },
       COLLEGE: {
-        kind: 'college', country: 'USA', tier: 2, name: 'National Collegiate League', short: 'NCL', teams: 16,
+        kind: 'college', country: 'USA', tier: 2, name: 'NCAA Division I', short: 'NCAA', teams: 16,
         rosterMin: 10, rosterMax: 15, matchdaySquad: 13,
         maxNonEU: 99, minHomegrown: 0,
         minArenaSeats: 0, promotionFee: 0,

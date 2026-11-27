@@ -23,7 +23,7 @@ export default function Standings() {
           { id: 'ORO', label: w.rules.leagues.ORO.name },
           { id: 'PLATA', label: w.rules.leagues.PLATA.name },
           { id: 'COLLEGE', label: `${w.rules.leagues.COLLEGE.name} (USA)` },
-          { id: 'EURO', label: 'Continental Cup' },
+          { id: 'EURO', label: 'EuroCup' },
         ]}
       />
       {tab === 'EURO' ? <EuroGroups season={season} /> : <LeagueTable leagueId={tab} season={season} />}
@@ -34,7 +34,7 @@ export default function Standings() {
 function zoneOf(w: World, lid: LeagueId, rank: number, n: number): { label: string; tone: 'good' | 'info' | 'bad' | 'accent' } | null {
   const r = w.rules.leagues[lid];
   if (lid === 'COLLEGE') {
-    if (rank <= r.playoffTeams) return { label: 'NCL Tournament', tone: 'good' };
+    if (rank <= r.playoffTeams) return { label: 'NCAA Tournament', tone: 'good' };
     return null;
   }
   if (lid === 'ELITE') {
@@ -78,7 +78,7 @@ function LeagueTable({ leagueId, season }: { leagueId: LeagueId; season: number 
       </div>
       <div className="small faint" style={{ padding: '0 16px 12px' }}>
         {leagueId === 'ELITE'
-          ? `Top ${r.playoffTeams} reach the title playoffs; top ${w.rules.euro.fromElite} qualify for next season's Continental Cup; top ${w.rules.cup.teams} at the halfway point play the Copa; bottom ${r.relegation} are relegated.`
+          ? `Top ${r.playoffTeams} reach the title playoffs; top ${w.rules.euro.fromElite} qualify for next season's EuroCup; top ${w.rules.cup.teams} at the halfway point play the Copa del Rey; bottom ${r.relegation} are relegated.`
           : `${r.directPromotion} promoted directly, places ${r.directPromotion + 1}–${r.directPromotion + r.playoffTeams} play off for ${r.playoffPromotion} more promotion place${r.playoffPromotion > 1 ? 's' : ''}${r.relegation ? `, bottom ${r.relegation} relegated` : ''}. Promotion requires meeting the licence (Results → Rules).`}
       </div>
     </Card>

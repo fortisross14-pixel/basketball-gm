@@ -96,7 +96,7 @@ export function buildCalendar(season: number): SeasonCalendar {
 function buildCalendarRaw(season: number): SeasonCalendar {
   const oct1 = dayOfDate(season, season, 9, 1);
   const firstSat = nextWeekday(season, oct1, 6);
-  // Copa: second weekend of February (Thu–Sun). League skips that Saturday.
+  // Copa del Rey: second weekend of February (Thu–Sun). League skips that Saturday.
   const feb8 = dayOfDate(season, season + 1, 1, 8);
   const cupSat = nextWeekday(season, feb8, 6);
   const cupThu = cupSat - 2;
@@ -106,7 +106,7 @@ function buildCalendarRaw(season: number): SeasonCalendar {
     if (d !== cupSat) leagueRoundDays.push(d);
     d += 7;
   }
-  // Euro group stage: Wednesdays from mid-October, skipping Christmas week and Copa week.
+  // Euro group stage: Wednesdays from mid-October, skipping Christmas week and Copa del Rey week.
   const xmasWeekStart = dayOfDate(season, season, 11, 21);
   const xmasWeekEnd = dayOfDate(season, season + 1, 0, 3);
   const euroGroupDays: number[] = [];

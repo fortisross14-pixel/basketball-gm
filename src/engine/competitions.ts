@@ -79,7 +79,7 @@ export function createSeasonCompetitions(w: World) {
   const domestic = ranked.slice(0, w.rules.euro.fromElite).map((c) => c.id);
   const foreign = w.clubs.filter((c) => c.foreign).sort((a, b) => b.prestige - a.prestige).slice(0, w.rules.euro.teams - domestic.length).map((c) => c.id);
   const all = [...domestic, ...foreign];
-  const euro = newCompetition(`EURO-${w.season}`, 'euro', `Continental Cup ${w.season}-${String((w.season + 1) % 100).padStart(2, '0')}`, w.season, all);
+  const euro = newCompetition(`EURO-${w.season}`, 'euro', `EuroCup ${w.season}-${String((w.season + 1) % 100).padStart(2, '0')}`, w.season, all);
   // seeded groups (snake by prestige)
   const seeded = [...all].sort((a, b) => club(w, b).prestige - club(w, a).prestige);
   const A: number[] = [];
@@ -91,7 +91,7 @@ export function createSeasonCompetitions(w: World) {
   for (const [g, ids] of Object.entries(euro.groups)) {
     const rounds = roundRobin(ids, (a) => r.shuffle(a));
     rounds.forEach((pairs, ri) => {
-      for (const [h, a] of pairs) addFixture(w, { day: cal.euroGroupDays[ri], compId: euro.id, comp: 'euro', round: ri + 1, label: `Continental Cup · Group ${g} · R${ri + 1}`, homeId: h, awayId: a, neutral: false, seriesId: null });
+      for (const [h, a] of pairs) addFixture(w, { day: cal.euroGroupDays[ri], compId: euro.id, comp: 'euro', round: ri + 1, label: `EuroCup · Group ${g} · R${ri + 1}`, homeId: h, awayId: a, neutral: false, seriesId: null });
     });
   }
   invalidateIndex(w);
@@ -137,15 +137,15 @@ export function createCup(w: World) {
   const lc = leagueComp(w, 'ELITE');
   if (!lc) return;
   const top = sortStandings(lc.standings).slice(0, w.rules.cup.teams).map((s) => s.clubId);
-  const cmp = newCompetition(id, 'cup', `Copa ${w.season}-${String((w.season + 1) % 100).padStart(2, '0')}`, w.season, top);
+  const cmp = newCompetition(id, 'cup', `Copa del Rey ${w.season}-${String((w.season + 1) % 100).padStart(2, '0')}`, w.season, top);
   cmp.stage = 'Quarterfinal';
   w.competitions.push(cmp);
   const cal = buildCalendar(w.season);
   cmp.roundDays = [cal.cupDays.qf, [cal.cupDays.sf], [cal.cupDays.f]];
   for (let i = 0; i < 4; i++) createSeries(w, cmp, 'Quarterfinal', 0, top[i], top[7 - i], 1, [cal.cupDays.qf[i]], 'cup', true);
   invalidateIndex(w);
-  addNews(w, `Copa draw: ${top.map((x) => club(w, x).abbrev).join(', ')} qualify`, 'The top eight at the halfway point meet in a four-day knockout at a neutral venue.', { tags: ['league'], importance: 2 });
-  for (const cid of top) if (isUser(w, cid)) hold(w, 'seasonEvent', 'You have qualified for the Copa!');
+  addNews(w, `Copa del Rey draw: ${top.map((x) => club(w, x).abbrev).join(', ')} qualify`, 'The top eight at the halfway point meet in a four-day knockout at a neutral venue.', { tags: ['league'], importance: 2 });
+  for (const cid of top) if (isUser(w, cid)) hold(w, 'seasonEvent', 'You have qualified for the Copa del Rey!');
 }
 
 export function createElitePlayoffs(w: World) {
@@ -154,7 +154,7 @@ export function createElitePlayoffs(w: World) {
   const lc = leagueComp(w, 'ELITE')!;
   const n = w.rules.leagues.ELITE.playoffTeams;
   const top = sortStandings(lc.standings).slice(0, n).map((s) => s.clubId);
-  const cmp = newCompetition(id, 'playoffs', `Liga Élite Playoffs ${w.season}-${String((w.season + 1) % 100).padStart(2, '0')}`, w.season, top, 'ELITE');
+  const cmp = newCompetition(id, 'playoffs', `Liga ACB Playoffs ${w.season}-${String((w.season + 1) % 100).padStart(2, '0')}`, w.season, top, 'ELITE');
   cmp.stage = 'Quarterfinal';
   const p = buildCalendar(w.season).playoffStart;
   cmp.roundDays = [[p, p + 2, p + 4], [p + 7, p + 9, p + 11, p + 13, p + 15], [p + 18, p + 20, p + 22, p + 24, p + 26]];
@@ -170,14 +170,14 @@ export function createCollegePlayoffs(w: World) {
   const lc = leagueComp(w, 'COLLEGE')!;
   const n = w.rules.leagues.COLLEGE.playoffTeams;
   const top = sortStandings(lc.standings).slice(0, n).map((s) => s.clubId);
-  const cmp = newCompetition(id, 'playoffs', `NCL Tournament ${w.season}-${String((w.season + 1) % 100).padStart(2, '0')}`, w.season, top, 'COLLEGE');
+  const cmp = newCompetition(id, 'playoffs', `NCAA Tournament ${w.season}-${String((w.season + 1) % 100).padStart(2, '0')}`, w.season, top, 'COLLEGE');
   cmp.stage = 'Quarterfinal';
   const p = buildCalendar(w.season).playoffStart;
   cmp.roundDays = [[p + 1], [p + 5], [p + 7]];
   w.competitions.push(cmp);
   for (let i = 0; i < n / 2; i++) createSeries(w, cmp, 'Quarterfinal', 0, top[i], top[n - 1 - i], 1, cmp.roundDays[0], 'playoffs');
   invalidateIndex(w);
-  for (const cid of top) if (isUser(w, cid)) hold(w, 'seasonEvent', 'Your program made the NCL Tournament!');
+  for (const cid of top) if (isUser(w, cid)) hold(w, 'seasonEvent', 'Your program made the NCAA Tournament!');
 }
 
 export function createPromoPlayoffs(w: World, lid: LeagueId) {
@@ -211,7 +211,7 @@ export function createEuroKnockouts(w: World) {
   const pairs: [number, number][] = [[A[0], B[3]], [B[1], A[2]], [B[0], A[3]], [A[1], B[2]]];
   for (const [h, l] of pairs) createSeries(w, euro, 'Quarterfinal', 0, h, l, 3, cal.euroQfDays, 'euro');
   invalidateIndex(w);
-  for (const cid of [...A.slice(0, 4), ...B.slice(0, 4)]) if (isUser(w, cid)) hold(w, 'seasonEvent', 'Through to the Continental Cup quarterfinals!');
+  for (const cid of [...A.slice(0, 4), ...B.slice(0, 4)]) if (isUser(w, cid)) hold(w, 'seasonEvent', 'Through to the EuroCup quarterfinals!');
 }
 
 // ---------------------------------------------------------------------------
@@ -302,5 +302,5 @@ function bracketOrder(winners: number[]): number[] {
 }
 
 export function compTypeLabel(t: CompType): string {
-  return { league: 'League', playoffs: 'Playoffs', cup: 'Copa', euro: 'Continental Cup', promo: 'Promotion playoff', friendly: 'Friendly' }[t];
+  return { league: 'League', playoffs: 'Playoffs', cup: 'Copa del Rey', euro: 'EuroCup', promo: 'Promotion playoff', friendly: 'Friendly' }[t];
 }

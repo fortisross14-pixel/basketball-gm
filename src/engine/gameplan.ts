@@ -3,6 +3,7 @@
 //  - against the coach or the personnel → worse execution in games;
 //  - against fans / owner → losses hurt more, wins earn less goodwill;
 //  - a style they love + a win → their approval grows faster.
+import { rapportBuyIn } from './coachRequests';
 import type { Club, DefScheme, OffSystem, Pace, Player, World } from './types';
 import { roster, staffOf, isUser } from './world';
 import { offFit, defFit } from './delegation';
@@ -111,7 +112,7 @@ export function planScores(w: World, c: Club, p: GamePlan = planOf(c)): Record<S
 /** Execution inputs for the game sim (0..1 buy-in of coach and personnel). */
 export function planExecution(w: World, c: Club): { coach: number; players: number } {
   const s = planScores(w, c);
-  return { coach: s.coach, players: s.players };
+  return { coach: Math.min(1, s.coach + rapportBuyIn(w, c.id)), players: s.players };
 }
 
 /** Approximate points per game the plan's buy-in is worth (shown in the UI; mirrors sim/game.ts execution()). */

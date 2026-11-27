@@ -27,8 +27,8 @@ export function registrationCheck(w: World, c: Club, p: Player, leaving: Player 
   if (!c.leagueId) return res;
   const rules = w.rules.leagues[c.leagueId];
   if (rules.kind === 'college') {
-    if (age(w, p) > 22) { res.ok = false; res.reasons.push(`NCL eligibility: college players must be 22 or younger (he is ${age(w, p)}).`); }
-    if (p.career.some((x) => x.tier === 1)) { res.ok = false; res.reasons.push('NCL eligibility: he has played professionally at the top level and is no longer an amateur.'); }
+    if (age(w, p) > 22) { res.ok = false; res.reasons.push(`NCAA eligibility: college players must be 22 or younger (he is ${age(w, p)}).`); }
+    if (p.career.some((x) => x.tier === 1)) { res.ok = false; res.reasons.push('NCAA eligibility: he has played professionally at the top level and is no longer an amateur.'); }
   }
   const squad = roster(w, c.id).filter((x) => x.id !== p.id && x.id !== leaving?.id);
   if (squad.length + 1 > rules.rosterMax) {

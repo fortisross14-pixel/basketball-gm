@@ -125,7 +125,7 @@ export default function NewGame() {
               <div className="col">
                 {([
                   ['career', 'Career (recommended)', 'Start as an unknown executive and choose between your first job offers. Fans and owner judge you every week: get fired, or earn offers from bigger clubs.'],
-                  ['founder', 'Founder (quick start)', 'Take over a small Liga Plata club and rebrand it as your own project.'],
+                  ['founder', 'Founder (quick start)', 'Take over a small Segunda FEB club and rebrand it as your own project.'],
                   ['existing', 'Existing club (quick start)', 'Begin at any club in Spain or the US college league.'],
                   ['scenario', 'Challenge scenario', 'Curated short starts with special conditions.'],
                 ] as [Mode, string, string][]).map(([id, label, desc]) => (
@@ -154,14 +154,14 @@ export default function NewGame() {
                     <label className="field">Secondary colour<input type="color" value={custom.colors[1]} onChange={(e) => setCustom({ ...custom, colors: [custom.colors[0], e.target.value] })} /></label>
                   </div>
                 </Card>
-                <Card title="Which Liga Plata club do you take over?">
+                <Card title="Which Segunda FEB club do you take over?">
                   <p className="small muted">You inherit its city, arena, finances, roster and fanbase. Small markets are harder; bigger cities have higher ceilings.</p>
                   <ClubPicker w={preview} league="PLATA" value={clubId ?? founderDefault(preview)} onChange={setClubId} compact />
                 </Card>
               </div>
             )}
             {mode === 'existing' && (
-              <Card title="Choose your club" actions={<Pills value={league} onChange={(l) => { setLeague(l); setClubId(null); }} options={[{ id: 'ELITE', label: 'Liga Élite' }, { id: 'ORO', label: 'Liga Oro' }, { id: 'PLATA', label: 'Liga Plata' }, { id: 'COLLEGE', label: 'US College (NCL)' }]} />}>
+              <Card title="Choose your club" actions={<Pills value={league} onChange={(l) => { setLeague(l); setClubId(null); }} options={[{ id: 'ELITE', label: 'Liga ACB' }, { id: 'ORO', label: 'Primera FEB' }, { id: 'PLATA', label: 'Segunda FEB' }, { id: 'COLLEGE', label: 'US College (NCAA)' }]} />}>
                 <ClubPicker w={preview} league={league} value={clubId} onChange={setClubId} />
               </Card>
             )}

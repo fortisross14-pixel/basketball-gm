@@ -22,7 +22,7 @@ function levelOf(w: World, c: Club): number {
 const LEVEL_WEIGHT: Record<number, number> = { 0: 1.15, 1: 1, 2: 0.7, 3: 0.5, 4: 0.5, 5: 1.4 };
 
 export function leagueLabel(w: World, c: Club): string {
-  return c.foreign ? 'Continental' : c.leagueId ? w.rules.leagues[c.leagueId].name : '—';
+  return c.foreign ? 'EuroCup' : c.leagueId ? w.rules.leagues[c.leagueId].name : '—';
 }
 
 /** Weighted score of a coach's recent seasons (most recent first matter most). */
@@ -40,7 +40,7 @@ export function bestLevel(s: Staff): number {
 }
 
 export function euroHonours(s: Staff): number {
-  return (s.record ?? []).reduce((a, r) => a + r.honours.filter((h) => /Continental/.test(h)).length, 0);
+  return (s.record ?? []).reduce((a, r) => a + r.honours.filter((h) => /EuroCup|Continental/.test(h)).length, 0);
 }
 
 /** How well a coach's systems fit a club's roster (0..1). */
@@ -73,10 +73,10 @@ export function recordCoachSeasons(w: World) {
     const honours: string[] = [];
     if (h.playoff === 'Champion') honours.push(`${leagueLabel(w, c)} champion`);
     if (h.promoted) honours.push('Promotion');
-    if (h.euro === 'Champion') honours.push('Continental Cup winner');
-    else if (h.euro === 'Final') honours.push('Continental Cup finalist');
-    if (h.cup === 'Champion') honours.push('Copa winner');
-    const bonus = honours.reduce((a, x) => a + (/Continental Cup winner/.test(x) ? 14 : /finalist/.test(x) ? 6 : /champion/.test(x) ? (level === 1 ? 10 : 5) : /Promotion/.test(x) ? 5 : 3), 0);
+    if (h.euro === 'Champion') honours.push('EuroCup winner');
+    else if (h.euro === 'Final') honours.push('EuroCup finalist');
+    if (h.cup === 'Champion') honours.push('Copa del Rey winner');
+    const bonus = honours.reduce((a, x) => a + (/EuroCup winner/.test(x) ? 14 : /finalist/.test(x) ? 6 : /champion/.test(x) ? (level === 1 ? 10 : 5) : /Promotion/.test(x) ? 5 : 3), 0);
     const score = Math.round(((winPct - exp) * 80 * LEVEL_WEIGHT[level] + bonus + (h.relegated ? -10 : 0)) * 10) / 10;
     const line: CoachSeason = { season: w.season, clubId: c.id, clubName: c.name, league: leagueLabel(w, c), level, wins: h.wins, losses: h.losses, expected: Math.round(exp * 100) / 100, rank: h.rank, honours, score };
     (s.record ??= []).push(line);

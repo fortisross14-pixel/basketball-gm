@@ -47,7 +47,7 @@ function CompCard({ c }: { c: Competition }) {
       title={<h2>{shortCompName(c)} {mine && <Badge tone="accent">You</Badge>}</h2>}
       actions={c.champion != null ? <Badge tone="good">🏆 {getClub(w, c.champion).name}</Badge> : <Badge tone="info">{c.stage}</Badge>}
     >
-      {c.kind === 'euro' && c.groups && !c.series.length && <div className="small muted mb8">Group stage in progress — see Standings → Continental Cup. Top 4 of each group reach the quarterfinals.</div>}
+      {c.kind === 'euro' && c.groups && !c.series.length && <div className="small muted mb8">Group stage in progress — see Standings → EuroCup. Top 4 of each group reach the quarterfinals.</div>}
       {!rounds.length && c.kind !== 'euro' && <div className="small muted">Not started.</div>}
       <div className="grid" style={{ gridTemplateColumns: `repeat(${Math.max(1, rounds.length)}, minmax(0, 1fr))` }}>
         {rounds.map((ri) => {

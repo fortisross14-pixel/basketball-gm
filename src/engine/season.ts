@@ -246,8 +246,8 @@ export function seasonEnd(w: World) {
     if (rec.promoted) { rep += 10; ach.push(`Promoted to ${w.rules.leagues[moves.find((m) => m.clubId === uc.id)!.to].name}`); }
     if (rec.relegated) rep -= 10;
     if (rec.playoff === 'Champion') { rep += 12; ach.push('League champion'); }
-    if (rec.cup === 'Champion') { rep += 6; ach.push('Copa winner'); }
-    if (rec.euro === 'Champion') { rep += 12; ach.push('Continental Cup winner'); }
+    if (rec.cup === 'Champion') { rep += 6; ach.push('Copa del Rey winner'); }
+    if (rec.euro === 'Champion') { rep += 12; ach.push('EuroCup winner'); }
     updateReputation(w, rep, ach.join(', ') || undefined);
     addNews(w, `Season review: ${Math.round(review.score * 100)}% of objectives`, review.lines.join(' · ') + `. Executive reputation now ${w.user.reputation}.`, { tags: ['board'], clubIds: [uc.id], importance: 3 });
     hold(w, 'seasonEvent', `Season review: ${review.lines.join(' · ')}`);

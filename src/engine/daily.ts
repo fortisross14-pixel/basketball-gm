@@ -1,3 +1,5 @@
+import { dailyEvents } from './clubEvents';
+import { dailyCoachRequests } from './coachRequests';
 import type { World, HoldEvent } from './types';
 import { absDay } from './types';
 import { buildCalendar, weekday, dateNum, monthOf, fmtDate } from './calendar';
@@ -59,6 +61,8 @@ export function processDay(w: World) {
 
   // ---- daily
   dailySquad(w);
+  dailyCoachRequests(w);
+  dailyEvents(w);
 
   // ---- weekly (Mondays)
   if (weekday(w.season, d) === 1) weekly(w);

@@ -510,10 +510,10 @@ function applyCustomClub(w: World, clubId: number, cc: NonNullable<NewGameOption
 }
 
 export const SCENARIOS: { id: string; name: string; description: string; tier: LeagueId }[] = [
-  { id: 'bankrupt', name: 'On the Brink', description: 'A historic Liga Oro club with €-450k in the bank, a bank loan and a restless owner. Survive the season.', tier: 'ORO' },
-  { id: 'tinyMarket', name: 'Smallest City, Biggest Dream', description: 'Take the smallest market in the Liga Plata and reach the Liga Oro within two seasons.', tier: 'PLATA' },
-  { id: 'promotionPush', name: 'Promotion or Bust', description: 'Your owner spent big: a Liga Oro roster built to go up now, with a board that will not wait.', tier: 'ORO' },
-  { id: 'eliteSurvival', name: 'Survival at the Top', description: 'Freshly promoted to the Liga Élite with the smallest budget in the league.', tier: 'ELITE' },
+  { id: 'bankrupt', name: 'On the Brink', description: 'A historic Primera FEB club with €-450k in the bank, a bank loan and a restless owner. Survive the season.', tier: 'ORO' },
+  { id: 'tinyMarket', name: 'Smallest City, Biggest Dream', description: 'Take the smallest market in the Segunda FEB and reach the Primera FEB within two seasons.', tier: 'PLATA' },
+  { id: 'promotionPush', name: 'Promotion or Bust', description: 'Your owner spent big: a Primera FEB roster built to go up now, with a board that will not wait.', tier: 'ORO' },
+  { id: 'eliteSurvival', name: 'Survival at the Top', description: 'Freshly promoted to the Liga ACB with the smallest budget in the league.', tier: 'ELITE' },
 ];
 
 export function scenarioClub(w: World, id: string): number | null {

@@ -23,13 +23,13 @@ export function generateBoard(w: World, c: Club): Board {
     objectives: [],
     plan: c.leagueId === 'COLLEGE' ? {
       years: r.int(3, 5),
-      vision: c.prestige >= 60 ? r.pick(['Win a national title', 'Be a perennial NCL contender']) : r.pick(['Rebuild the program into a tournament team', 'Recruit better and grow the student fanbase', 'Become a respectable, solvent program']),
-      competitiveTarget: c.prestige >= 60 ? 'NCL title contention' : 'NCL Tournament',
+      vision: c.prestige >= 60 ? r.pick(['Win a national title', 'Be a perennial NCAA contender']) : r.pick(['Rebuild the program into a tournament team', 'Recruit better and grow the student fanbase', 'Become a respectable, solvent program']),
+      competitiveTarget: c.prestige >= 60 ? 'NCAA title contention' : 'NCAA Tournament',
       profitTolerance: r.pick(['Break-even required', 'Small losses tolerated']),
       development: 'Youth-first',
     } : {
       years: r.int(3, 5),
-      vision: t === 1 ? r.pick(['Become a continental regular', 'Compete for titles every season', 'Stable top-half club with a strong academy']) : t === 2 ? r.pick(['Reach the Liga Élite within three years', 'Build a stable, profitable club', 'Develop local talent and grow the fanbase']) : r.pick(['Climb to the Liga Oro', 'Survive and stay solvent', 'Rebuild the club around the community']),
+      vision: t === 1 ? r.pick(['Become a continental regular', 'Compete for titles every season', 'Stable top-half club with a strong academy']) : t === 2 ? r.pick(['Reach the Liga ACB within three years', 'Build a stable, profitable club', 'Develop local talent and grow the fanbase']) : r.pick(['Climb to the Primera FEB', 'Survive and stay solvent', 'Rebuild the club around the community']),
       competitiveTarget: t === 1 ? 'Playoffs' : t === 2 ? 'Promotion contention' : 'Promotion contention',
       profitTolerance: r.pick(['Break-even required', 'Small losses tolerated', 'Will fund losses for ambition']),
       development: r.pick(['Youth-first', 'Balanced', 'Win-now']),
@@ -50,8 +50,8 @@ export function setObjectives(w: World, c: Club) {
   const leaguePeers = w.clubs.filter((x) => x.leagueId === c.leagueId).sort((a, b2) => b2.prestige - a.prestige);
   const expectedRank = Math.max(1, leaguePeers.findIndex((x) => x.id === c.id) + 1);
   if (c.leagueId === 'COLLEGE') {
-    if (expectedRank <= 3) objs.push(mk('leaguePos', 2, 'Finish top 2 and contend for the NCL title', 3));
-    else if (expectedRank <= 9) objs.push(mk('leaguePos', 8, 'Make the NCL Tournament (top 8)', 3));
+    if (expectedRank <= 3) objs.push(mk('leaguePos', 2, 'Finish top 2 and contend for the NCAA title', 3));
+    else if (expectedRank <= 9) objs.push(mk('leaguePos', 8, 'Make the NCAA Tournament (top 8)', 3));
     else objs.push(mk('leaguePos', 12, 'Win more games: finish 12th or better', 3));
   } else if (t === 1) {
     if (expectedRank <= 3) objs.push(mk('leaguePos', 2, 'Finish in the top 2 of the regular season', 3));

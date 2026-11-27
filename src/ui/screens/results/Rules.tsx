@@ -71,20 +71,20 @@ export default function Rules() {
               <span>Free-agent registration deadline</span><span>{fmtDate(w.season, cal.faDeadline, false)}</span>
               <span>Season-ticket deadline</span><span>{fmtDate(w.season, cal.seasonTicketDeadline, false)}</span>
               <span>Regular season</span><span>{fmtDate(w.season, cal.leagueRoundDays[0], false)} – {fmtDate(w.season, cal.leagueRoundDays[cal.leagueRoundDays.length - 1], false)} (30 rounds)</span>
-              <span>Copa</span><span>{fmtDate(w.season, cal.cupDays.qf[0], false)} – {fmtDate(w.season, cal.cupDays.f, false)}</span>
+              <span>Copa del Rey</span><span>{fmtDate(w.season, cal.cupDays.qf[0], false)} – {fmtDate(w.season, cal.cupDays.f, false)}</span>
               <span>Playoffs start</span><span>{fmtDate(w.season, cal.playoffStart, false)}</span>
               <span>Season end (promotion/relegation)</span><span>{fmtDate(w.season, cal.seasonEnd, false)}</span>
             </div>
             <div className="small faint mt8">Transfers with a fee need an open window. Free agents can be signed at any time until the registration deadline.</div>
           </Card>
-          <Card title="Continental Cup & Copa">
+          <Card title="EuroCup & Copa del Rey">
             <div className="kv small">
-              <span>Continental Cup</span><span>{r.euro.teams} clubs: top {r.euro.fromElite} of the Liga Élite + invited continental clubs. Two groups of 8, top 4 to best-of-3 quarterfinals, Final Four at a neutral venue.</span>
+              <span>EuroCup</span><span>{r.euro.teams} clubs: top {r.euro.fromElite} of the Liga ACB + invited continental clubs. Two groups of 8, top 4 to best-of-3 quarterfinals, Final Four at a neutral venue.</span>
               <span>Participation prize</span><span>{fmtMoney(r.euro.prizeParticipation)} + {fmtMoney(r.euro.prizePerWin)} per group win</span>
               <span>Champion prize</span><span>{fmtMoney(r.euro.prizeChampion)}</span>
               <span>TV share</span><span>{fmtMoney(r.euro.tvShare)} per club</span>
-              <span>Copa</span><span>Top {r.cup.teams} of the Liga Élite after round 15; single-game knockout at a neutral venue.</span>
-              <span>Copa prizes</span><span>Winner {fmtMoney(r.cup.prizeWinner)}, participation {fmtMoney(r.cup.prizeParticipation)}</span>
+              <span>Copa del Rey</span><span>Top {r.cup.teams} of the Liga ACB after round 15; single-game knockout at a neutral venue.</span>
+              <span>Copa del Rey prizes</span><span>Winner {fmtMoney(r.cup.prizeWinner)}, participation {fmtMoney(r.cup.prizeParticipation)}</span>
             </div>
           </Card>
         </div>

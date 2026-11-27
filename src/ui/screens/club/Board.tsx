@@ -127,7 +127,7 @@ export default function Board() {
               { key: 'r', label: 'Pos', render: (h) => h.rank || '—', align: 'r' },
               { key: 'wl', label: 'W-L', render: (h) => `${h.wins}-${h.losses}`, align: 'r' },
               { key: 'po', label: 'Playoffs', render: (h) => h.playoff },
-              { key: 'cup', label: 'Copa', render: (h) => h.cup },
+              { key: 'cup', label: 'Copa del Rey', render: (h) => h.cup },
               { key: 'eu', label: 'Europe', render: (h) => h.euro },
               { key: 'm', label: 'Move', render: (h) => (h.promoted ? <Badge tone="good">Promoted</Badge> : h.relegated ? <Badge tone="bad">Relegated</Badge> : '') },
               { key: 'rev', label: 'Revenue', render: (h) => <Money v={h.revenue} />, align: 'r' },

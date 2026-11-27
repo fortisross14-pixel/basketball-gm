@@ -7,7 +7,7 @@ import { estimateRevenue } from './economy';
 export function jobOfferDecision(w: World, c: Club, reason: string): Decision {
   const t = tierOf(w, c);
   const salary = Math.round((t === 1 ? 180000 : t === 2 ? 70000 : 40000) * (0.7 + c.prestige / 100) / 1000) * 1000;
-  const expectations = c.leagueId === 'COLLEGE' ? (c.prestige >= 60 ? 'Contend for the NCL title' : 'Rebuild the program and reach the NCL Tournament') : t === 1 ? (c.prestige >= 75 ? 'Win titles and compete in Europe' : 'Reach the playoffs') : 'Win promotion within two seasons';
+  const expectations = c.leagueId === 'COLLEGE' ? (c.prestige >= 60 ? 'Contend for the NCAA title' : 'Rebuild the program and reach the NCAA Tournament') : t === 1 ? (c.prestige >= 75 ? 'Win titles and compete in Europe' : 'Reach the playoffs') : 'Win promotion within two seasons';
   return {
     id: nextId(w), kind: 'jobOffer',
     title: `Job offer: ${c.name} (${c.leagueId ? w.rules.leagues[c.leagueId].name : 'Continental'}${c.leagueId === 'COLLEGE' ? ', USA' : c.leagueId ? ', Spain' : ''})`,
@@ -150,14 +150,14 @@ export function careerStartOffers(w: World) {
     take(weakest(w, 'COLLEGE', 6), 2, (c) => `${c.name} is a struggling college program looking for a young athletic director with fresh ideas.`);
     if (r.chance(0.6)) take(weakest(w, 'PLATA', 8), 1, (c) => `${c.name}, a Spanish third-division club, wants an American executive to modernise its recruiting.`);
   } else if (nat === 'ESP') {
-    take(weakest(w, 'PLATA', 10), 2, (c) => `${c.board.owner} offers you the reins of ${c.name} in the Liga Plata, the Spanish third division.`);
-    take(weakest(w, 'ORO', 4), 1, (c) => `${c.name} are bottom-half in the Liga Oro (second division) and want a local executive to stabilise them.`);
+    take(weakest(w, 'PLATA', 10), 2, (c) => `${c.board.owner} offers you the reins of ${c.name} in the Segunda FEB, the Spanish third division.`);
+    take(weakest(w, 'ORO', 4), 1, (c) => `${c.name} are bottom-half in the Primera FEB (second division) and want a local executive to stabilise them.`);
   } else if (['ARG', 'BRA', 'OTHER'].includes(nat)) {
-    take(weakest(w, 'PLATA', 10), 2, (c) => `${c.name} in the Spanish Liga Plata are looking for an executive with international contacts.`);
+    take(weakest(w, 'PLATA', 10), 2, (c) => `${c.name} in the Spanish Segunda FEB are looking for an executive with international contacts.`);
     take(weakest(w, 'COLLEGE', 6), 1, (c) => `${c.name} wants an international executive to open up its recruiting abroad.`);
   } else {
-    take(weakest(w, 'PLATA', 10), 2, (c) => `${c.name} in the Spanish Liga Plata want a European executive who knows the continental market.`);
-    take(weakest(w, 'ORO', 5), 1, (c) => `${c.name}, a Liga Oro (second division) club, liked your profile.`);
+    take(weakest(w, 'PLATA', 10), 2, (c) => `${c.name} in the Spanish Segunda FEB want a European executive who knows the continental market.`);
+    take(weakest(w, 'ORO', 5), 1, (c) => `${c.name}, a Primera FEB (second division) club, liked your profile.`);
   }
   for (const p of picks) {
     const d = jobOfferDecision(w, p.club, p.reason);

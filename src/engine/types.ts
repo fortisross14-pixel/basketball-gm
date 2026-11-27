@@ -996,6 +996,41 @@ export interface UserState {
   unemployedSince: number | null;
   declinedOffers?: Record<number, number>;
   onboarding?: { visited: string[]; dismissed: boolean }; // clubId -> abs day until which it won't ask again
+  /** What the head coach asked you to sign, so the roster suits his style. */
+  coachRequests?: CoachRequest[];
+  /** Head coach's trust in you, 0-100 (60 = neutral). Adds or removes a little system buy-in. */
+  coachRapport?: number;
+  lastCoachAsk?: number; // abs day
+  /** Events you planned in the calendar (team, fans, sponsors, board). */
+  events?: PlannedEvent[];
+}
+
+export interface CoachRequest {
+  id: number;
+  coachId: number;
+  pos: Position;
+  keys: RatingKey[];
+  title: string;
+  why: string;
+  maxAge: number;
+  bar: number; // minimum key-skill average to satisfy him
+  createdDay: number;
+  expiresDay: number;
+  status: 'open' | 'done' | 'expired';
+  playerId?: number;
+}
+
+export type EventKind = 'team' | 'fans' | 'sponsor' | 'board';
+export interface PlannedEvent {
+  id: number;
+  kind: EventKind;
+  option: string;
+  day: number; // season day
+  season: number;
+  sponsorId?: number;
+  cost: number;
+  status: 'planned' | 'done' | 'cancelled';
+  result?: string;
 }
 
 // ---------------------------------------------------------------------------

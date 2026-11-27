@@ -18,7 +18,7 @@ export interface ClubSeed {
 }
 
 export const CLUB_SEEDS: ClubSeed[] = [
-  // ---------------------------------------------------------------- Liga Élite
+  // ---------------------------------------------------------------- Liga ACB
   { name: 'Madrid Capital', nickname: 'Capitalinos', abbrev: 'MAD', city: 'Madrid', region: 'Madrid', country: 'ESP', population: 6700000, economy: 1.25, prestige: 95, colors: ['#f5f5f5', '#3a2a8c'], arena: 'Palacio de la Capital', seats: 15000, tier: 1 },
   { name: 'Barcelona Costa', nickname: 'Mariners', abbrev: 'BCO', city: 'Barcelona', region: 'Cataluña', country: 'ESP', population: 5600000, economy: 1.22, prestige: 93, colors: ['#a3003c', '#0a3d91'], arena: 'Pavelló del Port', seats: 12500, tier: 1 },
   { name: 'Gasteiz Araba', nickname: 'Gorris', abbrev: 'GAS', city: 'Vitoria-Gasteiz', region: 'País Vasco', country: 'ESP', population: 255000, economy: 1.15, prestige: 82, colors: ['#c8102e', '#0d1b2a'], arena: 'Gasteiz Arena', seats: 15000, tier: 1 },
@@ -36,7 +36,7 @@ export const CLUB_SEEDS: ClubSeed[] = [
   { name: 'Burgos Castilla', nickname: 'Castellanos', abbrev: 'BUR', city: 'Burgos', region: 'Castilla y León', country: 'ESP', population: 176000, economy: 1.0, prestige: 56, colors: ['#5d1049', '#ffffff'], arena: 'Coliseo del Arlanzón', seats: 9500, tier: 1 },
   { name: 'Girona Onyar', nickname: 'Gironins', abbrev: 'GIR', city: 'Girona', region: 'Cataluña', country: 'ESP', population: 103000, economy: 1.05, prestige: 54, colors: ['#e2001a', '#ffffff'], arena: 'Pavelló de l\'Onyar', seats: 5200, tier: 1 },
 
-  // ---------------------------------------------------------------- Liga Oro
+  // ---------------------------------------------------------------- Primera FEB
   { name: 'Lugo Celtas', nickname: 'Celtas', abbrev: 'LUG', city: 'Lugo', region: 'Galicia', country: 'ESP', population: 98000, economy: 0.9, prestige: 50, colors: ['#00a3e0', '#ffffff'], arena: 'Pazo Municipal', seats: 5300, tier: 2 },
   { name: 'Valladolid Pisuerga', nickname: 'Pucelanos', abbrev: 'VLL', city: 'Valladolid', region: 'Castilla y León', country: 'ESP', population: 420000, economy: 0.98, prestige: 47, colors: ['#5b2c83', '#ffffff'], arena: 'Polideportivo Pisuerga', seats: 6000, tier: 2 },
   { name: 'Palencia Cerrato', nickname: 'Cerrateños', abbrev: 'PAL', city: 'Palencia', region: 'Castilla y León', country: 'ESP', population: 78000, economy: 0.92, prestige: 44, colors: ['#7a003c', '#ffffff'], arena: 'Pabellón del Carrión', seats: 6000, tier: 2 },
@@ -54,7 +54,7 @@ export const CLUB_SEEDS: ClubSeed[] = [
   { name: 'Almería Indalo', nickname: 'Indálicos', abbrev: 'ALM', city: 'Almería', region: 'Andalucía', country: 'ESP', population: 200000, economy: 0.85, prestige: 34, colors: ['#d71920', '#ffffff'], arena: 'Pabellón del Indalo', seats: 2600, tier: 2 },
   { name: 'Cartagena Arsenal', nickname: 'Cartageneros', abbrev: 'CTG', city: 'Cartagena', region: 'Murcia', country: 'ESP', population: 215000, economy: 0.88, prestige: 35, colors: ['#1d1d1b', '#ffffff'], arena: 'Palacio de Deportes', seats: 3000, tier: 2 },
 
-  // ---------------------------------------------------------------- Liga Plata
+  // ---------------------------------------------------------------- Segunda FEB
   { name: 'Gijón Cantábrico', nickname: 'Playos', abbrev: 'GIJ', city: 'Gijón', region: 'Asturias', country: 'ESP', population: 270000, economy: 0.95, prestige: 34, colors: ['#e30613', '#ffffff'], arena: 'Palacio del Cantábrico', seats: 5000, tier: 3 },
   { name: 'Albacete Navajas', nickname: 'Manchegos', abbrev: 'ALB', city: 'Albacete', region: 'Castilla-La Mancha', country: 'ESP', population: 175000, economy: 0.85, prestige: 30, colors: ['#ffffff', '#c8102e'], arena: 'Pabellón del Parque', seats: 2500, tier: 3 },
   { name: 'Salamanca Tormes', nickname: 'Charros', abbrev: 'SAL', city: 'Salamanca', region: 'Castilla y León', country: 'ESP', population: 145000, economy: 0.9, prestige: 32, colors: ['#0b3d91', '#ffffff'], arena: 'Pabellón del Tormes', seats: 3000, tier: 3 },

@@ -11,6 +11,7 @@
 .crumb-back { display: inline-flex; align-items: center; gap: 8px; padding: 4px 10px 4px 4px; border-radius: 4px; transition: background 0.15s; }
 .crumb-back:hover { background: rgba(46, 168, 255, 0.14); }
 .crumb-back-icon { display: grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; background: rgba(0, 0, 0, 0.3); border: 1px solid var(--line-strong); color: var(--electric); }
+.crumb-back-btn { background: none; border: 0; color: inherit; cursor: pointer; padding: 4px; font: inherit; }
 .crumb-section, .crumb-current { display: inline-flex; align-items: center; gap: 6px; font-family: var(--display); font-style: italic; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; font-size: 1.05rem; }
 .crumb-section { color: var(--muted); }
 .crumb-current { color: #fff; }

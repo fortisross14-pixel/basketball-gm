@@ -95,7 +95,7 @@ export default function ClubProfile() {
             { key: 'rank', label: 'Pos', render: (h) => h.rank || '—', align: 'r' },
             { key: 'wl', label: 'W–L', render: (h) => `${h.wins}–${h.losses}`, align: 'c' },
             { key: 'po', label: 'Playoffs', render: (h) => h.playoff },
-            { key: 'cup', label: 'Copa', render: (h) => h.cup },
+            { key: 'cup', label: 'Copa del Rey', render: (h) => h.cup },
             { key: 'euro', label: 'Continental', render: (h) => h.euro },
             { key: 'mv', label: '', render: (h) => (h.promoted ? <Badge tone="good">Promoted</Badge> : h.relegated ? <Badge tone="bad">Relegated</Badge> : null) },
             { key: 'att', label: 'Attendance', render: (h) => h.attendance.toLocaleString('en'), align: 'r' },

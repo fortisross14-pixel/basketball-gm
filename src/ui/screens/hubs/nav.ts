@@ -65,7 +65,7 @@ export const SECTIONS: Section[] = [
     items: [
       { to: '/results/standings', label: 'Standings', icon: 'standings', blurb: 'League tables and the European groups.' },
       { to: '/results/schedule', label: 'Fixtures & Results', icon: 'fixtures', blurb: 'Every game, past and upcoming.' },
-      { to: '/results/competitions', label: 'Competitions', icon: 'bracket', blurb: 'Copa, playoffs and continental brackets.' },
+      { to: '/results/competitions', label: 'Competitions', icon: 'bracket', blurb: 'Copa del Rey, playoffs and continental brackets.' },
       { to: '/results/stats', label: 'Statistics', icon: 'stats', blurb: 'League leaders and team numbers.' },
       { to: '/results/rules', label: 'Rules', icon: 'rules', blurb: 'The versioned ruleset and licensing.' },
     ],
