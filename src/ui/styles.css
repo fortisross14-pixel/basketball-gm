@@ -460,3 +460,10 @@ a.list-item:hover { background: rgba(46, 168, 255, 0.07); padding-left: 6px; }
 .section-banner.menu-banner { position: fixed; inset: 0; z-index: 0; }
 .section-banner.menu-banner img { opacity: 0.35; -webkit-mask-image: none; mask-image: none; }
 .title-screen > *:not(.section-banner) { position: relative; z-index: 1; }
+
+/* preseason camps */
+.camp-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+@media (max-width: 1100px) { .camp-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 700px) { .camp-grid { grid-template-columns: 1fr; } }
+.camp-flag { font-size: 1.8rem; line-height: 1; margin-right: 10px; }
+.camp-stars { color: var(--gold); letter-spacing: 1px; white-space: nowrap; }

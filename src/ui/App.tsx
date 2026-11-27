@@ -50,6 +50,7 @@ import ClubFacilities from './screens/infra/ClubFacilities';
 import LiveGame from './screens/live/LiveGame';
 import CareerOffers from './screens/career/CareerOffers';
 import StaffProfile from './screens/staff/StaffProfile';
+import Preseason from './screens/team/Preseason';
 import Licence from './screens/club/Licence';
 
 export default function App() {
@@ -193,6 +194,7 @@ function GameShell() {
               <Route path="/team/tactics" element={<RequireClub><Tactics /></RequireClub>} />
               <Route path="/team/tactics/:tab" element={<RequireClub><Tactics /></RequireClub>} />
               <Route path="/team/training" element={<RequireClub><Training /></RequireClub>} />
+              <Route path="/team/preseason" element={<RequireClub><Preseason /></RequireClub>} />
               <Route path="/team/staff" element={<RequireClub><StaffScreen /></RequireClub>} />
               <Route path="/team/medical" element={<RequireClub><Medical /></RequireClub>} />
               <Route path="/team/market" element={<Market />} />

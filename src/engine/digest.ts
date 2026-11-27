@@ -87,6 +87,12 @@ export function buildDigest(w: World): DigestItem[] {
     if (!lic.ok && true) items.push({ id: 'licence', title: `Not licensed for the ${w.rules.leagues[up].name}`, detail: `If you win promotion: ${lic.reasons.join(' ')}`, urgency: w.day > cal.leagueRoundDays[22] ? 3 : 1, impact: 3, deadline: null, owner: 'You', link: '/club/licence', action: 'Check promotion licence', tone: 'warn' });
   }
   if (c.promotedSeason === w.season && (w.settings.difficulty === 'relaxed' || w.settings.difficulty === 'standard') && c.payrollBridge?.season !== w.season && c.leagueId !== 'PLATA') items.push({ id: 'bridge', title: 'Promotion payroll bridge available', detail: 'The league can advance part of your bigger media income to strengthen the squad.', urgency: 1, impact: 2, deadline: null, owner: 'Finance', link: '/club/licence', action: 'See the advance', tone: 'info' });
+  // preseason planning (summer only)
+  if (w.day < cal.leagueRoundDays[0] - 14) {
+    const hasCamp = c.camp && c.camp.season === w.season;
+    const friendlies = w.fixtures.filter((f) => f.comp === 'friendly' && f.compId === `FRIENDLY-${w.season}` && !f.cancelled && (f.homeId === c.id || f.awayId === c.id)).length;
+    if (!hasCamp || friendlies < 2) items.push({ id: 'preseason', title: hasCamp ? `Only ${friendlies} friendlies before the season` : 'No summer training camp booked', detail: 'Friendlies and a camp build cohesion and match shape before the league starts.', urgency: 0, impact: 1, deadline: null, owner: 'Head coach', link: '/team/preseason', action: 'Plan preseason', tone: 'info' });
+  }
   // academy
   const ready = academy(w, c.id).filter((p) => p.ovr >= (squad.sort((a, b) => a.ovr - b.ovr)[0]?.ovr ?? 99) && registrationCheck(w, c, p).ok);
   if (ready.length) items.push({ id: 'academy', title: `${ready.length} academy player${ready.length > 1 ? 's' : ''} ready for the first team`, detail: ready.map((p) => playerName(p)).join(', '), urgency: 0, impact: 1, deadline: null, owner: 'Academy director', link: '/team/academy', action: 'Open academy', tone: 'good' });

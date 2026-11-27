@@ -87,6 +87,7 @@ export function friendlyQuote(w: World, uc: Club, opp: Club, day: number, home: 
   if (day <= w.day) return { ok: false, reason: 'Pick a date in the future.', fee: 0, note: '' };
   if (day >= cal.seasonEnd) return { ok: false, reason: 'The season is over by then.', fee: 0, note: '' };
   if (friendliesThisSeason(w, uc.id).length >= MAX_FRIENDLIES) return { ok: false, reason: `You already have ${MAX_FRIENDLIES} friendlies this season.`, fee: 0, note: '' };
+  if (uc.camp && uc.camp.season === w.season && !uc.camp.done && day >= uc.camp.startDay - 1 && day <= uc.camp.endDay) return { ok: false, reason: 'Your team is at its training camp then.', fee: 0, note: '' };
   const mine = busy(w, uc.id, day);
   if (mine) return { ok: false, reason: `Too close to your ${mine.label} on ${fmtDate(w.season, mine.day)} (a friendly needs a free day either side).`, fee: 0, note: '' };
   const theirs = busy(w, opp.id, day);

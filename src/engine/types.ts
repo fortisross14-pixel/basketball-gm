@@ -630,6 +630,8 @@ export interface Club {
   shop?: ShopState; // playable merchandise & food business (user club)
   /** Temporary home in a bigger venue (licence workaround while the arena grows). */
   groundShare?: { venue: string; seats: number; rentPerGame: number; season: number };
+  /** Summer training camp booked by the user. */
+  camp?: { id: string; season: number; startDay: number; endDay: number; cost: number; done: boolean; bookingId: number };
   /** Season the club was promoted into its current league (grace period for the board). */
   promotedSeason?: number;
   /** League media advance used to bridge payroll after promotion. */

@@ -174,6 +174,8 @@ export function playFixture(w: World, f: Fixture, live?: LiveGame): GameLog | nu
     // friendlies build chemistry; they don't move fans or morale much
     if (f.comp === 'friendly') {
       c.cohesion = Math.min(100, c.cohesion + 1.5);
+      // match shape: minutes in a friendly sharpen players for the season
+      for (const b of out.players) { const p = getPlayer(w, b.playerId); if (p && b.min > 4) p.form = clamp(p.form + 1.2, -10, 10); }
       continue;
     }
     // fan reaction

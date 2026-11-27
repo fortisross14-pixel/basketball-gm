@@ -9,6 +9,8 @@ import { registrationCheck } from '../../../engine/market';
 import { SectionHub, type HubTileData } from './SectionHub';
 import { SECTIONS } from './nav';
 import { Crest, Rating } from '../../components/ui';
+import { readiness } from '../../../engine/camps';
+import { friendliesThisSeason } from '../../../engine/extras';
 import { PlayerCard } from '../../art/PlayerCard';
 
 export default function TeamHub() {
@@ -66,6 +68,14 @@ export default function TeamHub() {
         { label: 'Focus', value: c.training.focus },
         { label: 'Intensity', value: c.training.intensity },
         { label: 'Cohesion', value: Math.round(c.cohesion), tone: c.cohesion < 40 ? 'warn' : undefined },
+      ],
+    },
+    {
+      ...tile('/team/preseason'),
+      metrics: [
+        { label: 'Readiness', value: readiness(w, c).label.split(':')[0] },
+        { label: 'Friendlies', value: friendliesThisSeason(w, c.id).length },
+        { label: 'Camp', value: c.camp && c.camp.season === w.season ? (c.camp.done ? 'done' : 'booked') : '—' },
       ],
     },
     {

@@ -131,7 +131,7 @@ export default function CalendarScreen() {
   );
 }
 
-function FriendlyModal({ w, day: initialDay, onClose }: { w: World; day: number; onClose: () => void }) {
+export function FriendlyModal({ w, day: initialDay, onClose }: { w: World; day: number; onClose: () => void }) {
   const act = useAct();
   const notify = useNotify();
   const uc = userClub(w)!;
